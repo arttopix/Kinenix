@@ -1,5 +1,6 @@
 import json
 import os
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -27,6 +28,17 @@ class FlowInterpreter:
         self.logger = logger or ExecutionLogger()
         self.max_depth = max_depth
         self.call_stack: List[str] = call_stack or []
+        self._step_map: Dict[str, Step] = {}
+
+    def _build_step_map(self, steps: List[Step]) -> Dict[str, Step]:
+        step_map: Dict[str, Step] = {}
+        for s in steps:
+            step_map[s.id] = s
+            if s.sub_steps:
+                step_map.update(self._build_step_map(s.sub_steps))
+            if s.else_steps:
+                step_map.update(self._build_step_map(s.else_steps))
+        return step_map
 
     def _try_capture_failure_screenshot(self, step: Step, context: ExecutionContext) -> Optional[str]:
         try:
@@ -126,6 +138,16 @@ class FlowInterpreter:
             for k, v in initial_vars.items():
                 context.set_variable(k, v)
 
+        # Build step map and validate any fallback_step_id upfront
+        self._step_map = self._build_step_map(flow_def.steps)
+        for s_id, s in self._step_map.items():
+            if s.error_handler and s.error_handler.fallback_step_id:
+                fb_target = s.error_handler.fallback_step_id
+                if fb_target not in self._step_map:
+                    raise ValueError(
+                        f"Step '{s_id}' specifies fallback_step_id '{fb_target}' which does not exist in flow definition."
+                    )
+
         start_time = datetime.now()
 
         try:
@@ -196,89 +218,99 @@ class FlowInterpreter:
             self._handle_if_step(step, evaluated_params, context, start_time)
             return
 
-        if step.action == "flow.call":
-            try:
+        if step.action == "flow.return":
+            self._handle_flow_return_step(step, evaluated_params, context, start_time)
+            return
+
+        def _invoke_step_action() -> Any:
+            if step.action == "flow.call":
                 self._handle_flow_call_step(step, evaluated_params, context, start_time)
-            except Exception as e:
+                return None
+            action_cls = ActionRegistry.get(step.action)
+            action_instance = action_cls()
+            output = action_instance.execute(evaluated_params, context)
+            if step.output_var and output is not None:
+                context.set_variable(step.output_var, output)
+            return output
+
+        max_retries = 0
+        retry_interval = 1.0
+        if step.error_handler and step.error_handler.on_error == "retry":
+            max_retries = max(0, step.error_handler.max_retries)
+            retry_interval = max(0.0, step.error_handler.retry_interval)
+
+        attempt = 0
+        last_error = None
+        while attempt <= max_retries:
+            try:
+                output = _invoke_step_action()
                 end_time = datetime.now()
                 duration = (end_time - start_time).total_seconds()
-                failure_diag = self._diagnose_failure(step, e, context)
 
                 result = StepResult(
                     step_id=step.id,
                     step_name=step.name,
                     action=step.action,
-                    status="failed",
+                    status="success",
                     start_time=start_time,
                     end_time=end_time,
                     duration_seconds=duration,
-                    error_message=str(e),
-                    error_type=failure_diag.error_type
+                    output=output
                 )
                 context.step_results.append(result)
                 self.logger.log_step_result(result)
-
-                if context.failure_details is None:
-                    context.failure_details = failure_diag
-
-                if step.error_handler and step.error_handler.on_error == "continue":
-                    return
-                raise e
-            return
-
-        if step.action == "flow.return":
-            self._handle_flow_return_step(step, evaluated_params, context, start_time)
-            return
-
-        try:
-            action_cls = ActionRegistry.get(step.action)
-            action_instance = action_cls()
-            output = action_instance.execute(evaluated_params, context)
-
-            if step.output_var and output is not None:
-                context.set_variable(step.output_var, output)
-
-            end_time = datetime.now()
-            duration = (end_time - start_time).total_seconds()
-
-            result = StepResult(
-                step_id=step.id,
-                step_name=step.name,
-                action=step.action,
-                status="success",
-                start_time=start_time,
-                end_time=end_time,
-                duration_seconds=duration,
-                output=output
-            )
-            context.step_results.append(result)
-            self.logger.log_step_result(result)
-
-        except Exception as e:
-            end_time = datetime.now()
-            duration = (end_time - start_time).total_seconds()
-            failure_diag = self._diagnose_failure(step, e, context)
-
-            result = StepResult(
-                step_id=step.id,
-                step_name=step.name,
-                action=step.action,
-                status="failed",
-                start_time=start_time,
-                end_time=end_time,
-                duration_seconds=duration,
-                error_message=str(e),
-                error_type=failure_diag.error_type
-            )
-            context.step_results.append(result)
-            self.logger.log_step_result(result)
-
-            if context.failure_details is None:
-                context.failure_details = failure_diag
-
-            if step.error_handler and step.error_handler.on_error == "continue":
                 return
-            raise e
+            except Exception as e:
+                last_error = e
+                if attempt < max_retries:
+                    attempt += 1
+                    self.logger.logger.warning(
+                        f"Step '{step.id}' ({step.name}) failed attempt {attempt}/{max_retries + 1}: {e}. "
+                        f"Retrying in {retry_interval}s..."
+                    )
+                    time.sleep(retry_interval)
+                else:
+                    break
+
+        end_time = datetime.now()
+        duration = (end_time - start_time).total_seconds()
+        failure_diag = self._diagnose_failure(step, last_error, context)
+
+        result = StepResult(
+            step_id=step.id,
+            step_name=step.name,
+            action=step.action,
+            status="failed",
+            start_time=start_time,
+            end_time=end_time,
+            duration_seconds=duration,
+            error_message=str(last_error),
+            error_type=failure_diag.error_type
+        )
+        context.step_results.append(result)
+        self.logger.log_step_result(result)
+
+        if context.failure_details is None:
+            context.failure_details = failure_diag
+
+        if step.error_handler and step.error_handler.fallback_step_id:
+            fallback_id = step.error_handler.fallback_step_id
+            fallback_step = self._step_map.get(fallback_id)
+            if not fallback_step:
+                raise ValueError(
+                    f"Fallback step '{fallback_id}' for failed step '{step.id}' not found in flow definition."
+                )
+
+            self.logger.logger.info(
+                f"Step '{step.id}' failed. Executing fallback recovery step '{fallback_id}' ({fallback_step.name})."
+            )
+            self._execute_step(fallback_step, context)
+            return
+
+        if step.error_handler and step.error_handler.on_error == "continue":
+            return
+
+        raise last_error
 
     def _handle_loop_step(self, step: Step, evaluated_params: Dict[str, Any], context: ExecutionContext, start_time: datetime) -> None:
         items = evaluated_params.get("items", [])

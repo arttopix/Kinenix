@@ -17,8 +17,12 @@ This document provides a comprehensive specification of standard actions availab
    - [web.scroll](#webscroll)
    - [web.hover](#webhover)
    - [web.switch_tab](#webswitch_tab)
-   - [web.screenshot](#webscreenshot)
+   - [web.select_option](#webselect_option)
+   - [web.upload_file](#webupload_file)
+   - [web.check](#webcheck)
+   - [web.uncheck](#webuncheck)
    - [web.download](#webdownload)
+   - [web.screenshot](#webscreenshot)
    - [web.close](#webclose)
 2. [Data, Excel, and CSV (`excel.*`, `csv.*`)](#data-excel-and-csv-excel-csv)
    - [excel.read](#excelread)
@@ -333,6 +337,106 @@ Downloads a file by clicking an export button or resolving a direct link.
 
 ---
 
+### `web.select_option`
+Selects one or more options in an HTML `<select>` dropdown element.
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `selector` | string | Either | - | CSS selector or XPath expression of `<select>` element |
+| `label` | string | Either | - | Label identifying the dropdown |
+| `value` | string | Optional | - | Option value attribute to select |
+| `text` / `label_text` | string | Optional | - | Visible text label of the option to select |
+| `index` | number | Optional | - | Zero-based index of option to select |
+
+**Example:**
+```json
+{
+  "id": "step_select_province",
+  "name": "Select Province",
+  "action": "web.select_option",
+  "parameters": {
+    "selector": "select#province",
+    "text": "Bangkok"
+  }
+}
+```
+
+---
+
+### `web.upload_file`
+Sets file paths onto an HTML `<input type="file">` upload element.
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `selector` | string | Either | - | CSS selector or XPath expression of `<input type="file">` |
+| `label` | string | Either | - | Adjacent label identifier |
+| `file_path` | string | Yes | - | Path to file to upload (resolved relative to flow bundle or absolute) |
+
+**Example:**
+```json
+{
+  "id": "step_upload_tax_form",
+  "name": "Upload Tax Form Document",
+  "action": "web.upload_file",
+  "parameters": {
+    "selector": "input#file-upload",
+    "file_path": "./assets/tax_form_2026.pdf"
+  }
+}
+```
+
+---
+
+### `web.check`
+Checks an HTML checkbox or selects a radio button.
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `selector` | string | Either | - | CSS selector or XPath expression |
+| `label` | string | Either | - | Label identifier |
+| `timeout` | number | No | `30000` | Timeout in milliseconds |
+
+**Example:**
+```json
+{
+  "id": "step_agree_terms",
+  "name": "Agree to Terms and Conditions",
+  "action": "web.check",
+  "parameters": {
+    "selector": "input#agree"
+  }
+}
+```
+
+---
+
+### `web.uncheck`
+Unchecks an HTML checkbox element.
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `selector` | string | Either | - | CSS selector or XPath expression |
+| `label` | string | Either | - | Label identifier |
+| `timeout` | number | No | `30000` | Timeout in milliseconds |
+
+**Example:**
+```json
+{
+  "id": "step_opt_out",
+  "name": "Uncheck Marketing Emails",
+  "action": "web.uncheck",
+  "parameters": {
+    "selector": "input#newsletter"
+  }
+}
+```
+
+---
+
 ### `web.screenshot`
 Captures a screenshot of the current page.
 
@@ -589,7 +693,40 @@ Deletes a file or recursively removes a directory.
 
 ## Control Flow and Logic (`logic.*`)
 
-Core orchestration primitives for variable manipulation, loops, and conditions.
+Core orchestration primitives for variable manipulation, loops, conditions, and error recovery.
+
+### Step Resilience & Error Handling (`error_handler`)
+
+Every step in BAT Automate can define an optional `error_handler` strategy to make execution resilient against transient network hiccups or flaky selectors:
+
+**Configuration Fields:**
+| Field | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `on_error` | string | No | `"stop"` | Error policy: `"stop"` (fail flow), `"continue"` (record failure and proceed), or `"retry"` (retry step) |
+| `max_retries` | number | No | `0` | Number of extra attempts after original failure (e.g. `3` = 1 original + 3 retries) |
+| `retry_interval` | number | No | `1.0` | Delay in seconds between retry attempts |
+| `fallback_step_id` | string | No | `null` | Target step ID to execute as a recovery handler upon step failure |
+
+**Example with Retry and Fallback Recovery:**
+```json
+{
+  "id": "step_fetch_orders",
+  "name": "Fetch Orders API",
+  "action": "http.request",
+  "parameters": {
+    "url": "https://api.example.com/orders"
+  },
+  "output_var": "orders_data",
+  "error_handler": {
+    "on_error": "retry",
+    "max_retries": 3,
+    "retry_interval": 2.0,
+    "fallback_step_id": "step_use_offline_cache"
+  }
+}
+```
+
+---
 
 ### `logic.set_variable`
 Assigns a value to a named execution context variable.

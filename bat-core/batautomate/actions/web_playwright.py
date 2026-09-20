@@ -357,3 +357,72 @@ class WebSwitchTabAction(BaseAction):
             "status": "switched"
         }
 
+
+@register_action("web.select_option")
+class WebSelectOptionAction(BaseAction):
+    def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
+        page = _get_page(context)
+        locator = _resolve_locator(page, parameters)
+
+        val = parameters.get("value")
+        text = parameters.get("label_text") or parameters.get("text")
+        index = parameters.get("index")
+
+        if val is not None:
+            selected = locator.first.select_option(value=str(val))
+        elif text is not None:
+            selected = locator.first.select_option(label=str(text))
+        elif index is not None:
+            selected = locator.first.select_option(index=int(index))
+        else:
+            raise ValueError("One of 'value', 'text', or 'index' is required for action 'web.select_option'.")
+
+        return {"action": "web.select_option", "selected": selected, "status": "selected"}
+
+
+@register_action("web.upload_file")
+class WebUploadFileAction(BaseAction):
+    def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
+        page = _get_page(context)
+        file_path_str = parameters.get("file_path") or parameters.get("path")
+        if not file_path_str:
+            raise ValueError("Parameter 'file_path' is required for action 'web.upload_file'.")
+
+        target_path = Path(file_path_str)
+        if not target_path.is_absolute():
+            flow_dir_str = context.get_variable("__flow_dir__")
+            if flow_dir_str:
+                target_path = Path(flow_dir_str) / file_path_str
+
+        if not target_path.exists():
+            raise FileNotFoundError(f"File to upload not found: {target_path}")
+
+        locator = _resolve_locator(page, parameters)
+        locator.first.set_input_files(str(target_path.resolve()))
+
+        return {
+            "action": "web.upload_file",
+            "file_path": str(target_path.resolve()),
+            "status": "uploaded"
+        }
+
+
+@register_action("web.check")
+class WebCheckAction(BaseAction):
+    def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
+        page = _get_page(context)
+        timeout = float(parameters.get("timeout", 30000))
+        locator = _resolve_locator(page, parameters)
+        locator.first.check(timeout=timeout)
+        return {"action": "web.check", "status": "checked"}
+
+
+@register_action("web.uncheck")
+class WebUncheckAction(BaseAction):
+    def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
+        page = _get_page(context)
+        timeout = float(parameters.get("timeout", 30000))
+        locator = _resolve_locator(page, parameters)
+        locator.first.uncheck(timeout=timeout)
+        return {"action": "web.uncheck", "status": "unchecked"}
+

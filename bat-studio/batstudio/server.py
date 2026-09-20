@@ -16,10 +16,15 @@ app = FastAPI(
     version="0.1.0a1"
 )
 
-# Enable CORS for local development and future frontend connections
+# Limit CORS to authorized local development and Studio origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -35,6 +40,35 @@ def get_workspace_root() -> Path:
         if (parent / "flows").is_dir() and (parent / "bat-core").is_dir():
             return parent
     return current
+
+
+def _resolve_safe_flow_path(user_path: str) -> Path:
+    """
+    Enforces that all file operations occur strictly within the workspace's flows/ directory.
+    Rejects directory traversal (../), absolute paths outside flows/, and symlink escapes.
+    """
+    root = get_workspace_root()
+    flows_root = (root / "flows").resolve()
+
+    target = Path(user_path)
+    if target.is_absolute():
+        resolved = target.resolve()
+    else:
+        norm = user_path.replace("\\", "/")
+        if norm.startswith("flows/"):
+            resolved = (root / norm).resolve()
+        else:
+            resolved = (flows_root / target).resolve()
+
+    try:
+        resolved.relative_to(flows_root)
+    except ValueError:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Access denied: path '{user_path}' resolves outside the allowed workspace flows directory."
+        )
+
+    return resolved
 
 
 class FlowSummary(BaseModel):
@@ -130,9 +164,7 @@ def get_flow(path: str = Query(..., description="Relative or absolute path to fl
     Loads and parses a flow definition and its configuration.
     """
     root = get_workspace_root()
-    target_path = Path(path)
-    if not target_path.is_absolute():
-        target_path = (root / target_path).resolve()
+    target_path = _resolve_safe_flow_path(path)
 
     if target_path.is_dir():
         target_path = target_path / "flow.json"
@@ -182,9 +214,7 @@ def save_flow(req: SaveFlowRequest):
     Validates and saves an entire flow definition back to disk.
     """
     root = get_workspace_root()
-    target_path = Path(req.path)
-    if not target_path.is_absolute():
-        target_path = (root / target_path).resolve()
+    target_path = _resolve_safe_flow_path(req.path)
 
     if target_path.is_dir():
         target_path = target_path / "flow.json"
@@ -245,9 +275,7 @@ def update_single_step(req: UpdateStepRequest):
     Updates a single step by its step_id without having to overwrite the whole flow manually.
     """
     root = get_workspace_root()
-    target_path = Path(req.path)
-    if not target_path.is_absolute():
-        target_path = (root / target_path).resolve()
+    target_path = _resolve_safe_flow_path(req.path)
 
     if target_path.is_dir():
         target_path = target_path / "flow.json"
@@ -275,6 +303,56 @@ def update_single_step(req: UpdateStepRequest):
         "message": f"Step '{req.step_id}' updated successfully",
         "step": req.step
     }
+
+
+class RunFlowRequest(BaseModel):
+    path: str
+    vars: Optional[Dict[str, Any]] = None
+
+
+@app.post("/api/flow/run")
+def run_flow_endpoint(req: RunFlowRequest):
+    """
+    Executes a flow from Studio within safe containment and returns execution telemetry.
+    """
+    target_path = _resolve_safe_flow_path(req.path)
+    if target_path.is_dir():
+        target_path = target_path / "flow.json"
+
+    if not target_path.is_file():
+        raise HTTPException(status_code=404, detail=f"Flow file not found: {req.path}")
+
+    from batautomate.engine.interpreter import FlowInterpreter
+    from batautomate.engine.markdown import load_flow
+
+    try:
+        flow_def = load_flow(target_path)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to load flow definition: {e}")
+
+    interpreter = FlowInterpreter()
+    initial_vars = {"__flow_dir__": str(target_path.parent)}
+    if req.vars:
+        initial_vars.update(req.vars)
+
+    ctx = interpreter.run_flow(flow_def, initial_vars=initial_vars)
+
+    metrics_dict = (
+        ctx.metrics.model_dump()
+        if hasattr(ctx.metrics, "model_dump")
+        else ctx.metrics.__dict__
+    )
+
+    return {
+        "flow_name": flow_def.name,
+        "status": "failed" if ctx.has_error else "success",
+        "is_completed": ctx.is_completed,
+        "has_error": ctx.has_error,
+        "metrics": metrics_dict,
+        "steps_count": len(ctx.step_results),
+        "error": str(ctx.failure_details.error_message) if ctx.failure_details else None
+    }
+
 
 
 from fastapi.staticfiles import StaticFiles
