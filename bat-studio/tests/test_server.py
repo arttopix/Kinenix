@@ -77,9 +77,13 @@ def test_update_flow_validation_failure():
 
 
 def test_save_and_update_step_isolated():
-    # Test saving and updating steps using a temporary directory
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmp_flow = Path(tmpdir) / "test_flow.json"
+    # Test saving and updating steps within flows directory
+    root = Path(__file__).resolve().parent.parent.parent
+    test_dir = root / "flows" / "_test_studio"
+    test_dir.mkdir(parents=True, exist_ok=True)
+    tmp_flow = test_dir / "test_flow.json"
+
+    try:
         initial_flow = {
             "name": "Test Flow",
             "description": "Temporary flow for testing",
@@ -89,8 +93,8 @@ def test_save_and_update_step_isolated():
                 {
                     "id": "step_1",
                     "name": "Initial Step",
-                    "action": "web.open",
-                    "parameters": {"url": "https://example.com"}
+                    "action": "logic.set_variable",
+                    "parameters": {"name": "msg", "value": "hello"}
                 }
             ]
         }
@@ -100,11 +104,11 @@ def test_save_and_update_step_isolated():
         updated_step = {
             "id": "step_1",
             "name": "Modified Step",
-            "action": "web.open",
-            "parameters": {"url": "https://rpachallenge.com", "headless": True}
+            "action": "logic.set_variable",
+            "parameters": {"name": "msg", "value": "world"}
         }
         step_resp = client.put("/api/flow/step", json={
-            "path": str(tmp_flow),
+            "path": str(tmp_flow.relative_to(root)),
             "step_id": "step_1",
             "step": updated_step
         })
@@ -113,15 +117,41 @@ def test_save_and_update_step_isolated():
         # Verify disk updated
         disk_data = json.loads(tmp_flow.read_text(encoding="utf-8"))
         assert disk_data["steps"][0]["name"] == "Modified Step"
-        assert disk_data["steps"][0]["parameters"]["url"] == "https://rpachallenge.com"
+        assert disk_data["steps"][0]["parameters"]["value"] == "world"
 
         # 2. Update whole flow via PUT /api/flow
         disk_data["name"] = "Renamed Flow"
         save_resp = client.put("/api/flow", json={
-            "path": str(tmp_flow),
+            "path": str(tmp_flow.relative_to(root)),
             "flow": disk_data
         })
         assert save_resp.status_code == 200
 
         reloaded = json.loads(tmp_flow.read_text(encoding="utf-8"))
         assert reloaded["name"] == "Renamed Flow"
+
+        # 3. Test running the flow via POST /api/flow/run
+        run_resp = client.post("/api/flow/run", json={
+            "path": str(tmp_flow.relative_to(root))
+        })
+        assert run_resp.status_code == 200
+        run_data = run_resp.json()
+        assert run_data["status"] == "success"
+        assert run_data["is_completed"] is True
+
+    finally:
+        if test_dir.exists():
+            shutil.rmtree(test_dir, ignore_errors=True)
+
+
+def test_path_containment_rejects_traversal():
+    # Attempt directory traversal outside flows/
+    resp = client.get("/api/flow", params={"path": "../../windows/win.ini"})
+    assert resp.status_code == 403
+
+    resp_put = client.put("/api/flow", json={
+        "path": "../../outside_flow.json",
+        "flow": {"name": "Hacked", "steps": []}
+    })
+    assert resp_put.status_code == 403
+
