@@ -367,6 +367,92 @@ class WebSelectOptionAction(BaseAction):
         val = parameters.get("value")
         text = parameters.get("label_text") or parameters.get("text")
         index = parameters.get("index")
+        ai_match = bool(parameters.get("ai_match", False))
+
+        if ai_match:
+            from .ai_systemone import call_systemone_api
+
+            target_query = str(text if text is not None else (val if val is not None else "")).strip()
+            if not target_query:
+                raise ValueError("Parameter 'text' or 'value' is required when 'ai_match' is enabled.")
+
+            # Extract options from DOM via Playwright evaluate
+            dom_options = locator.first.evaluate("""
+                el => {
+                    if (!el || !el.options) return [];
+                    return Array.from(el.options).map(o => ({
+                        value: o.value,
+                        text: (o.text || '').trim()
+                    }));
+                }
+            """)
+
+            if not dom_options:
+                raise RuntimeError("No <option> elements found in the target select element.")
+
+            # Fast-path: Check exact match first
+            exact_match = None
+            for opt in dom_options:
+                opt_text = opt.get("text", "")
+                opt_val = opt.get("value", "")
+                if target_query.lower() in (opt_text.lower(), opt_val.lower()):
+                    exact_match = opt
+                    break
+
+            if exact_match:
+                selected = locator.first.select_option(value=exact_match["value"])
+                return {
+                    "action": "web.select_option",
+                    "selected": selected,
+                    "matched_text": exact_match["text"],
+                    "ai_match": True,
+                    "confidence": 1.0,
+                    "match_type": "exact",
+                    "status": "selected"
+                }
+
+            # AI Semantic Matching using OpenThai-SystemOne
+            base_url = str(parameters.get("systemone_url") or parameters.get("base_url") or "http://localhost:8000")
+            criteria = {opt["text"]: None for opt in dom_options if opt.get("text")}
+
+            sys_resp = call_systemone_api(
+                state=target_query,
+                questions={
+                    "selected_option": {
+                        "type": "choice",
+                        "instructions": "เลือกตัวเลือกจากรายการที่ตรงกับความหมายของข้อความที่ระบุมากที่สุด",
+                        "criteria": criteria
+                    }
+                },
+                base_url=base_url,
+                timeout=float(parameters.get("timeout", 30.0)),
+                fallback_to_ollama=bool(parameters.get("fallback_to_ollama", True))
+            )
+
+            matched_label = sys_resp.get("answers", {}).get("selected_option", {}).get("choice")
+            confidence = sys_resp.get("answers", {}).get("selected_option", {}).get("confidence")
+
+            if not matched_label:
+                raise RuntimeError(
+                    f"AI semantic matching failed to resolve option for '{target_query}'."
+                )
+
+            # Match to value or label
+            matched_opt = next((o for o in dom_options if o.get("text") == matched_label), None)
+            if matched_opt and matched_opt.get("value"):
+                selected = locator.first.select_option(value=matched_opt["value"])
+            else:
+                selected = locator.first.select_option(label=matched_label)
+
+            return {
+                "action": "web.select_option",
+                "selected": selected,
+                "matched_text": matched_label,
+                "confidence": confidence,
+                "ai_match": True,
+                "match_type": "semantic",
+                "status": "selected"
+            }
 
         if val is not None:
             selected = locator.first.select_option(value=str(val))
