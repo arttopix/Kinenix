@@ -51,6 +51,7 @@ This document provides a comprehensive specification of standard actions availab
 8. [AI and Local LLM (`ai.*`)](#ai-and-local-llm-ai)
    - [ai.prompt](#aiprompt)
    - [ai.extract](#aiextract)
+   - [ai.decide](#aidecide)
 
 ---
 
@@ -338,7 +339,7 @@ Downloads a file by clicking an export button or resolving a direct link.
 ---
 
 ### `web.select_option`
-Selects one or more options in an HTML `<select>` dropdown element.
+Selects one or more options in an HTML `<select>` dropdown element. Supports automatic semantic AI matching via OpenThai-SystemOne / Ollama to map abbreviations (e.g. "กทม." -> "กรุงเทพมหานคร") against live page options.
 
 **Parameters:**
 | Parameter | Type | Required | Default | Description |
@@ -348,8 +349,11 @@ Selects one or more options in an HTML `<select>` dropdown element.
 | `value` | string | Optional | - | Option value attribute to select |
 | `text` / `label_text` | string | Optional | - | Visible text label of the option to select |
 | `index` | number | Optional | - | Zero-based index of option to select |
+| `ai_match` | boolean | No | `false` | When `true`, automatically queries all `<option>` items from the element and uses OpenThai-SystemOne to resolve fuzzy/abbreviated text semantically |
+| `systemone_url` | string | No | `"http://localhost:8000"` | OpenThai-SystemOne API base URL |
+| `fallback_to_ollama` | boolean | No | `true` | Fallback to Ollama if SystemOne server is unreachable |
 
-**Example:**
+**Example (Exact Match):**
 ```json
 {
   "id": "step_select_province",
@@ -358,6 +362,20 @@ Selects one or more options in an HTML `<select>` dropdown element.
   "parameters": {
     "selector": "select#province",
     "text": "Bangkok"
+  }
+}
+```
+
+**Example (AI Semantic Match):**
+```json
+{
+  "id": "step_select_province_ai",
+  "name": "Select Province Semantically",
+  "action": "web.select_option",
+  "parameters": {
+    "selector": "select#province",
+    "text": "${row.Province}",
+    "ai_match": true
   }
 }
 ```
@@ -1141,5 +1159,61 @@ Specialized action that extracts structured fields directly from raw unstructure
     }
   },
   "output_var": "invoice"
+}
+```
+
+---
+
+### `ai.decide`
+Executes rapid, zero-hallucination semantic decisions, intent classification, priority scoring, or boolean validations using **OpenThai-SystemOne** (0.8B) in a single forward pass (<50ms).
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `state` | string / dict | Yes | - | Input context, user message, or record data |
+| `question` | dict | Optional | - | Single decision question definition (see below) |
+| `questions` | dict | Optional | - | Multi-question dictionary |
+| `base_url` | string | No | `"http://localhost:8000"` | OpenThai-SystemOne API base URL |
+| `timeout` | number | No | `30` | Request timeout in seconds |
+| `fallback_to_ollama` | boolean | No | `true` | Fallback to local Ollama if SystemOne server is offline |
+
+**Question Object Properties:**
+* **`type`**: `"choice"` (pick one from list), `"score"` (rate 1-5 or 1-10), or `"noul"` (yes/no).
+* **`instructions`**: Guidance string describing what decision to make.
+* **`options`**: List of string options (for `choice` type). Automatically converted to criteria.
+* **`criteria`**: Key-value mapping of option names to descriptions (or `null`).
+
+**Example (Intent Classification):**
+```json
+{
+  "id": "step_classify_inquiry",
+  "name": "Route Customer Inquiry",
+  "action": "ai.decide",
+  "parameters": {
+    "state": "${email.body}",
+    "question": {
+      "name": "intent",
+      "type": "choice",
+      "instructions": "ระบุเจตนาหลักของอีเมลฉบับนี้",
+      "options": ["ขอใบเสร็จรับเงิน", "แจ้งปัญหาการใช้งาน", "สอบถามราคา", "ยกเลิกบริการ"]
+    }
+  },
+  "output_var": "route_decision"
+}
+```
+
+**Output Format:**
+```json
+{
+  "choice": "ขอใบเสร็จรับเงิน",
+  "confidence": 0.94,
+  "probabilities": {
+    "ขอใบเสร็จรับเงิน": 0.94,
+    "แจ้งปัญหาการใช้งาน": 0.03,
+    "สอบถามราคา": 0.02,
+    "ยกเลิกบริการ": 0.01
+  },
+  "type": "choice",
+  "model": "openthai-systemone"
 }
 ```
