@@ -23,11 +23,13 @@ class FlowInterpreter:
         self,
         logger: Optional[ExecutionLogger] = None,
         max_depth: int = 10,
-        call_stack: Optional[List[str]] = None
+        call_stack: Optional[List[str]] = None,
+        auto_close_browser: bool = True
     ):
         self.logger = logger or ExecutionLogger()
         self.max_depth = max_depth
         self.call_stack: List[str] = call_stack or []
+        self.auto_close_browser = auto_close_browser
         self._step_map: Dict[str, Step] = {}
 
     def _build_step_map(self, steps: List[Step]) -> Dict[str, Step]:
@@ -39,6 +41,42 @@ class FlowInterpreter:
             if s.else_steps:
                 step_map.update(self._build_step_map(s.else_steps))
         return step_map
+
+    def _cleanup_resources(self, context: ExecutionContext) -> None:
+        """
+        Safely closes external resources (Playwright browser, driver instances)
+        to prevent zombie / orphan processes upon flow completion or failure.
+        Only executed at the root flow level (not inside subflows sharing parent resources).
+        """
+        if self.call_stack or context.get_variable("__shared_browser__"):
+            return
+
+        if not self.auto_close_browser:
+            return
+
+        browser = context.get_variable("__playwright_browser__")
+        pw = context.get_variable("__playwright_pw__")
+
+        if browser:
+            try:
+                is_connected = getattr(browser, "is_connected", None)
+                if is_connected is None or (callable(is_connected) and is_connected()):
+                    browser.close()
+                    self.logger.logger.info("Auto-cleanup: Closed active Playwright browser.")
+            except Exception as e:
+                self.logger.logger.debug(f"Auto-cleanup: Error closing browser: {e}")
+            finally:
+                context.set_variable("__playwright_browser__", None)
+                context.set_variable("__playwright_page__", None)
+
+        if pw:
+            try:
+                pw.stop()
+                self.logger.logger.info("Auto-cleanup: Stopped Playwright instance.")
+            except Exception as e:
+                self.logger.logger.debug(f"Auto-cleanup: Error stopping Playwright: {e}")
+            finally:
+                context.set_variable("__playwright_pw__", None)
 
     def _try_capture_failure_screenshot(self, step: Step, context: ExecutionContext) -> Optional[str]:
         try:
@@ -171,6 +209,8 @@ class FlowInterpreter:
                     suggested_fix="Inspect execution logs and subflow definitions."
                 )
             self.logger.logger.error(f"Flow execution failed with unhandled exception: {str(e)}")
+        finally:
+            self._cleanup_resources(context)
 
         end_time = datetime.now()
         total_duration = (end_time - start_time).total_seconds()
@@ -606,7 +646,8 @@ class FlowInterpreter:
         child_interpreter = FlowInterpreter(
             logger=self.logger,
             max_depth=self.max_depth,
-            call_stack=new_stack
+            call_stack=new_stack,
+            auto_close_browser=self.auto_close_browser
         )
 
         child_context = child_interpreter.run_flow(subflow_def, initial_vars=child_vars)
