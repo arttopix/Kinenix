@@ -21,6 +21,7 @@ def test_new_actions_registered():
         "file.delete",
         "csv.read",
         "web.wait_for",
+        "web.is_visible",
         "web.get_attribute",
         "web.press",
         "web.scroll",
@@ -199,6 +200,63 @@ def test_web_wait_for():
     assert res2["status"] == "waited"
     assert res2["timeout_ms"] == 2000.0
     page.wait_for_timeout.assert_called_with(2000.0)
+
+
+def test_web_is_visible():
+    page = MagicMock()
+    mock_locator = MagicMock()
+    mock_first = MagicMock()
+    mock_locator.first = mock_first
+    page.locator.return_value = mock_locator
+
+    ctx = ExecutionContext(flow_name="TestWeb")
+    ctx.set_variable("__playwright_page__", page)
+
+    action_cls = ActionRegistry.get("web.is_visible")
+    action = action_cls()
+
+    # Case 1: Visible within timeout
+    mock_first.wait_for.return_value = None
+    assert action.execute({"selector": "button.accept", "timeout": 2000}, ctx) is True
+    mock_first.wait_for.assert_called_with(state="visible", timeout=2000.0)
+
+    # Case 2: Not visible (wait_for raises TimeoutError)
+    mock_first.wait_for.side_effect = Exception("Timeout 2000ms exceeded")
+    assert action.execute({"selector": "button.accept", "timeout": 2000}, ctx) is False
+
+    # Case 3: Immediate check (timeout <= 0)
+    mock_first.is_visible.return_value = True
+    assert action.execute({"selector": "button.accept", "timeout": 0}, ctx) is True
+    mock_first.is_visible.assert_called_once()
+
+
+def test_web_click_optional():
+    page = MagicMock()
+    mock_locator = MagicMock()
+    mock_first = MagicMock()
+    mock_locator.first = mock_first
+    page.locator.return_value = mock_locator
+
+    ctx = ExecutionContext(flow_name="TestWeb")
+    ctx.set_variable("__playwright_page__", page)
+
+    action_cls = ActionRegistry.get("web.click")
+    action = action_cls()
+
+    # Successful click with custom timeout
+    res = action.execute({"selector": "button#submit", "timeout": 5000}, ctx)
+    assert res["status"] == "clicked"
+    mock_first.click.assert_called_with(timeout=5000.0)
+
+    # Optional click ignores exception
+    mock_first.click.side_effect = Exception("Element not found")
+    res_opt = action.execute({"selector": "button#optional", "timeout": 1000, "optional": True}, ctx)
+    assert res_opt["status"] == "skipped"
+    assert "Element not found" in res_opt["reason"]
+
+    # Non-optional click raises exception
+    with pytest.raises(Exception):
+        action.execute({"selector": "button#mandatory", "optional": False}, ctx)
 
 
 def test_web_get_attribute():

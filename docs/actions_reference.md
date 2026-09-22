@@ -92,6 +92,8 @@ Clicks an element identified by CSS selector, XPath, or adjacent label text.
 |---|---|---|---|---|
 | `selector` | string | Either | - | CSS selector or XPath expression |
 | `label` | string | Either | - | Label text preceding the input element |
+| `timeout` | number | No | `30000` | Maximum wait timeout for element to be actionable in milliseconds |
+| `optional` | boolean | No | `false` | If `true`, suppresses exceptions if click fails or times out (returns `status: "skipped"`) |
 
 **Example:**
 ```json
@@ -206,6 +208,32 @@ Waits for an element to satisfy a desired state (or performs an explicit pause).
     "state": "visible",
     "timeout": 15000
   }
+}
+```
+
+---
+
+### `web.is_visible`
+Checks if an element is currently visible on the page within an optional timeout. Returns a boolean (`true` or `false`) without raising an exception. Useful for conditional branching (e.g. cookie consent banners, optional modals).
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `selector` | string | Either | - | CSS selector or XPath expression |
+| `label` | string | Either | - | Target element by adjacent label |
+| `timeout` | number | No | `2000` | Max milliseconds to wait for the element to become visible. If `<= 0`, checks immediately. |
+
+**Example:**
+```json
+{
+  "id": "step_check_cookie_banner",
+  "name": "Check Cookie Banner Visibility",
+  "action": "web.is_visible",
+  "parameters": {
+    "selector": "button:has-text('Accept recommended cookies')",
+    "timeout": 2000
+  },
+  "output_var": "has_cookie_banner"
 }
 ```
 

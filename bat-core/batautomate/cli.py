@@ -165,6 +165,8 @@ def main():
     run_parser.add_argument("flow_file", help="Flow name or path to flow.json / flow.md file")
     run_parser.add_argument("--vars", help="Optional JSON string of variables to override", default=None)
     run_parser.add_argument("--log-dir", help="Directory to save execution JSON logs (default: auto-detected project root 'logs/')", default=None)
+    run_parser.add_argument("--orchestrator", help="Optional Central Orchestrator URL to transmit telemetry (e.g. http://localhost:8080)", default=None)
+    run_parser.add_argument("--worker-id", help="Identifier for this worker node (default: local-worker)", default=None)
 
     # Command: compile
     compile_parser = subparsers.add_parser("compile", help="Compile a flow.md specification file into flow.json")
@@ -178,6 +180,11 @@ def main():
 
     # Command: list
     subparsers.add_parser("list", help="List all discovered RPA Flows available to run")
+
+    # Command: orchestrator
+    orch_parser = subparsers.add_parser("orchestrator", help="Start the Central Orchestrator & AI Dashboard web service")
+    orch_parser.add_argument("--port", type=int, default=8080, help="Port to bind the orchestrator server (default: 8080)")
+    orch_parser.add_argument("--host", default="0.0.0.0", help="Host to bind the orchestrator server (default: 0.0.0.0)")
 
     # Command: version
     subparsers.add_parser("version", help="Show batautomate version and environment details")
@@ -295,6 +302,10 @@ def main():
                 sys.exit(1)
 
         extra_vars["__flow_dir__"] = str(resolved_path.parent)
+        if args.orchestrator:
+            extra_vars["orchestrator_url"] = args.orchestrator
+        if args.worker_id:
+            extra_vars["worker_id"] = args.worker_id
 
         logger = ExecutionLogger(log_dir=args.log_dir, flow_path=resolved_path)
         interpreter = FlowInterpreter(logger=logger)
@@ -302,6 +313,24 @@ def main():
 
         if context.has_error:
             sys.exit(1)
+        sys.exit(0)
+
+    elif args.command == "orchestrator":
+        import uvicorn
+        from importlib import import_module
+        root = _get_project_root()
+        if root and str(root) not in sys.path:
+            sys.path.insert(0, str(root))
+        orch_app = import_module("bat-orchestrator.app")
+        host_display = "localhost" if args.host == "0.0.0.0" else args.host
+        print(f"\n=======================================================")
+        print(f"  [BatAutomate] Central Orchestrator & AI Dashboard")
+        print(f"=======================================================")
+        print(f"  Web Dashboard:  http://{host_display}:{args.port}")
+        print(f"  Local Loopback: http://127.0.0.1:{args.port}")
+        print(f"  Central LLM:    http://127.0.0.1:8000/v1/systemone")
+        print(f"=======================================================\n")
+        uvicorn.run(orch_app.app, host=args.host, port=args.port)
         sys.exit(0)
     else:
         parser.print_help()

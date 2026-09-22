@@ -197,3 +197,24 @@ def test_compile_and_export_cli_functions(tmp_path):
     assert re_flow.name == "CLI Test"
     assert re_flow.steps[0].action == "logic.delay"
 
+
+def test_condition_backtick_stripping():
+    md = """# Condition Test
+> Description: Testing condition with backticks
+> Version: 1.0.0
+
+## Steps
+
+### 1. Conditional Action (`logic.delay`)
+- **condition:** `${has_cookie_banner} == true`
+- **seconds:** 1
+"""
+    flow = markdown_to_flow(md)
+    assert flow.steps[0].condition == "${has_cookie_banner} == true"
+    
+    from batautomate.engine.interpreter import FlowInterpreter
+    fi = FlowInterpreter()
+    assert fi._evaluate_condition_expr("`true == true`") is True
+    assert fi._evaluate_condition_expr("`false == true`") is False
+
+
