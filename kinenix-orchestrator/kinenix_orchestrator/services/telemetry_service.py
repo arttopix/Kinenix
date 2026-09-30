@@ -5,6 +5,7 @@ from typing import Any, Dict
 from sqlalchemy.orm import Session
 
 from ..models import Execution, Worker
+from ..timeutils import parse_timestamp, utc_now
 from .ai_summarizer import analyze_failure
 
 logger = logging.getLogger("kinenix.orchestrator.telemetry")
@@ -32,7 +33,7 @@ def record_heartbeat(
     worker.ram_usage = ram_usage
     worker.current_task = current_task
     worker.status = "busy" if current_task else "online"
-    worker.last_heartbeat = datetime.datetime.utcnow()
+    worker.last_heartbeat = utc_now()
     db.commit()
     db.refresh(worker)
     return worker
@@ -47,10 +48,11 @@ def ingest_execution_log(db: Session, payload: Dict[str, Any], worker_id: str = 
     start_time_str = payload.get("start_time")
     end_time_str = payload.get("end_time")
 
-    start_time = datetime.datetime.fromisoformat(start_time_str) if start_time_str else datetime.datetime.utcnow()
-    end_time = datetime.datetime.fromisoformat(end_time_str) if end_time_str else datetime.datetime.utcnow()
-
     duration = float(metrics.get("total_duration_seconds", 0.0))
+
+    # Execution logs from kinenix-core carry start_time and a duration but no end_time
+    start_time = parse_timestamp(start_time_str) or utc_now()
+    end_time = parse_timestamp(end_time_str) or (start_time + datetime.timedelta(seconds=duration))
 
     execution = Execution(
         worker_id=worker_id,

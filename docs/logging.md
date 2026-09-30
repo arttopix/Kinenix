@@ -34,8 +34,7 @@ Each execution log contains comprehensive runtime and business data:
 {
   "$schema": "../../../schemas/execution_log.schema.json",
   "flow_name": "RPA Challenge Solver",
-  "start_time": "2026-09-11T21:39:34.000",
-  "end_time": "2026-09-11T21:39:42.869",
+  "start_time": "2026-09-11 21:39:34.000000+07:00",
   "is_completed": false,
   "has_error": true,
   "failure_details": {
@@ -79,6 +78,8 @@ Each execution log contains comprehensive runtime and business data:
   ]
 }
 ```
+
+Timestamps are the worker's local time with its UTC offset (`+07:00` above). The offset lets the Orchestrator convert every execution to UTC, so workers in different time zones line up on the dashboard. The run's end time is not stored separately; it is `start_time` plus `metrics.total_duration_seconds`.
 
 ### Privacy & State Sanitization
 Internal runtime objects (such as Playwright browser handles, page pointers, and database connections prefixed with `__`) are automatically filtered out prior to JSON serialization, ensuring clean, serializable log files without leaking sensitive memory objects.

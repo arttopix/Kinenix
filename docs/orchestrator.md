@@ -139,3 +139,12 @@ curl.exe -u admin:<strong-password> http://<orchestrator-ip>:8080/api/v1/executi
 - **Signing out:** Browsers cache Basic Auth credentials until the browser is closed; there is no logout button.
 - **Single account:** There is one shared dashboard account. Per-user accounts and roles are not implemented.
 - **Reverse proxy:** As with the worker key, always set the password when a reverse proxy on the same machine forwards requests.
+
+---
+
+## 4. Timestamps
+
+- **Storage:** All timestamps are stored in UTC. Timestamps received from workers are converted using their UTC offset.
+- **Workers without an offset:** Older kinenix-core releases send local time without an offset. These timestamps are treated as the Orchestrator host's local time, which is only correct when the worker and the Orchestrator share a time zone.
+- **API output:** Every timestamp is returned in ISO 8601 with an explicit `+00:00` offset. The dashboard converts it to the viewer's local time.
+- **Existing databases:** Rows written before this behavior mix worker local time and UTC. For test data, delete the SQLite file and let the Orchestrator recreate it.

@@ -3,6 +3,11 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 
+def local_now() -> datetime:
+    """Current local time with its UTC offset, so receivers such as the Orchestrator can convert it to UTC."""
+    return datetime.now().astimezone()
+
+
 class StepResult(BaseModel):
     step_id: str = Field(..., description="Unique step identifier")
     step_name: str = Field(..., description="Step name")
@@ -40,7 +45,7 @@ class FailureDetails(BaseModel):
 
 class ExecutionContext(BaseModel):
     flow_name: str = Field(..., description="Name of the executed workflow")
-    start_time: datetime = Field(default_factory=datetime.now, description="Workflow start timestamp")
+    start_time: datetime = Field(default_factory=local_now, description="Workflow start timestamp")
     variables: Dict[str, Any] = Field(default_factory=dict, description="In-memory variables captured during execution")
     step_results: List[StepResult] = Field(default_factory=list, description="Detailed per-step execution log")
     metrics: ExecutionMetrics = Field(default_factory=ExecutionMetrics, description="Aggregated run metrics and telemetry")
