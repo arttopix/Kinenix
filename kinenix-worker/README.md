@@ -28,7 +28,7 @@ Clone the repository and run the setup script:
 
 ```bash
 # 1. Clone repository onto Raspberry Pi
-git clone -b dev https://github.com/arttopix/batautomate.git kinenix
+git clone -b dev https://github.com/arttopix/Kinenix.git kinenix
 cd kinenix
 
 # 2. Grant execute permissions and run the setup script
