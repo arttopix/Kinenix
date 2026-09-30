@@ -1,87 +1,49 @@
-# Architecture Standards & Core Principles
+# Architecture Rules
 
-This document defines the core architecture principles, system design, and module roles for the **batautomate** project.
-
----
-
-## 1. Core Vision and Principles
-
-1. **Open-Source and Free Forever:**
-   - The Core engine, Studio, Orchestrator, and Worker components must remain open-source without per-bot licensing fees.
-2. **Zero-License Dependency for Office:**
-   - Spreadsheet processing (`.xlsx`, `.csv`) must strictly use file-level libraries (`openpyxl`, `pandas`).
-   - Never require Microsoft 365 or a locally installed Microsoft Excel application on the user's or worker's machine.
-3. **Business-First Mindset:**
-   - Telemetry, logs, and dashboards must prioritize business metrics (transactions processed, hours saved, cost saved) rather than purely technical stack traces.
-4. **Local AI-Native and Agentic Architecture:**
-   - The foundational architecture is built to be Local AI-Native, focusing on on-device processing via Small Language Models (SLMs) running 100% on CPU (e.g., Qwen, Llama via `llama-cpp-python`, ONNX, or Ollama).
-   - Hybrid execution: Deterministic Flow Execution (100% precision) combined with Agentic Autonomy (self-healing selectors, smart extraction, autonomous decision steps) with zero external token costs and complete data privacy.
-5. **Sponsorship and Donation Roadmap:**
-   - Sponsorship options (GitHub Sponsors, Open Collective) may be introduced in future phases. In the current phase, focus strictly on core features and stability.
+Rules that every change must respect. For how the system is structured today and the target design, see `docs/architecture.md`. For what is built and what is planned, see `docs/roadmap.md`.
 
 ---
 
-## 2. Core Modules and System Boundaries
+## 1. Principles
 
-```text
-BatAutomate/
-├── bat-core/           # Python runtime engine, flow interpreter, actions, models
-├── flows/              # Self-contained project bundles & shared flows (@shared/)
-├── logs/               # Structured JSON logs
-├── bat-studio/         # Visual flow designer and UI inspector (Tauri + React)
-├── bat-orchestrator/   # Central dashboard, scheduler, LINE alerts (FastAPI + PostgreSQL + Redis)
-└── bat-worker/         # Unattended background daemon (WebSocket client)
-```
-
-### Module Responsibilities
-
-| Module | Core Role | Technology Stack |
-| :--- | :--- | :--- |
-| **`bat-core`** | Flow interpreter, headless execution, variable evaluation, action execution | Python 3.10+, Playwright, OpenPyXL, Pandas, Pydantic |
-| **`bat-studio`** | Desktop visual flow designer, canvas, selector recorder/inspector | Tauri, React, React Flow, TypeScript |
-| **`bat-orchestrator`** | Central scheduling, execution monitoring, business ROI dashboard, notifications | FastAPI, PostgreSQL, Redis, React Dashboard |
-| **`bat-worker`** | Headless daemon running on target machines, WebSocket connection to Orchestrator | Python Daemon / Service, WebSocket client |
+1. **Open source, no per-bot fees:** Core, Studio, Orchestrator, and Worker must remain open source without per-bot licensing.
+2. **No Office dependency:** Spreadsheet processing (`.xlsx`, `.csv`) must use file-level libraries (`openpyxl`, `pandas`). Never require Microsoft Excel or Microsoft 365.
+3. **Business-first telemetry:** Logs and dashboards must include business metrics (transactions, hours saved, cost saved), not only technical traces.
+4. **Local AI-native:** AI features must work with locally hosted models (Ollama, llama.cpp, ONNX). Do not add a hard dependency on a cloud AI provider.
+5. **Deterministic first:** Flow execution must stay deterministic. AI may act only through explicit actions or as an observer.
+6. **Scope discipline:** Focus on core features and stability. Sponsorship and monetization features are out of scope for now.
 
 ---
 
-## 3. Project Bundle Architecture
+## 2. Module Boundaries
 
-Flows must follow the self-contained Project Bundle architecture:
-- `flow.json`: The entry-point definition for the project.
-- `subflows/`: Modular flow definitions called via `flow.call`.
-- `assets/`: Project-specific assets (templates, schemas, test data).
-- `@shared/`: Reusable cross-project subflows (e.g., notification dispatchers, SSO auth).
+- `bat-core` must stay lean: it must run non-AI flows without any ML runtime installed. AI integrations are optional sidecars reached over HTTP.
+- Actions must not depend on GUI frameworks.
+- AI copilot and diagnostic tools must run as detached sidecar services or optional add-ons.
 
 ---
 
-## 4. Decoupled AI and Sidecar Services
+## 3. Project Bundles
 
-- AI Copilot and LLM diagnostic tools must operate as detached sidecar services or optional add-ons.
-- `bat-core` must remain lean, fast, and able to execute flows without requiring heavyweight ML runtimes.
-- Event hooks (`on_step_error`, `on_flow_complete`) provide integration touchpoints for AI observers.
-
----
-
-## 5. Agent-to-Agent (A2A) Communication Architecture (Hybrid Protocol)
-
-To enable future autonomous collaboration between the **Agent Orchestrator** and **Agent Worker**, all inter-agent communication must adhere to the **Hybrid Protocol**:
-
-1. **Transport & State Envelope (WebSocket/JSON):**
-   - Machine-to-machine coordination and state machines must use structured **JSON over WebSocket** (e.g. `status`, `job_id`, `timestamp`, `metrics`).
-   - Ensures millisecond latency, deterministic state transitions (`PENDING`, `RUNNING`, `SUCCESS`, `FAILED`), and zero hallucination risk in workflow scheduling.
-   - Remote workers must never rely on shared disk file mounting for inter-node state management.
-
-2. **Cognitive Agent Payload (Markdown in JSON):**
-   - Within the JSON message envelope, an `agent_report_md` payload field conveys natural language summaries, diagnoses, and incident reports formatted in Markdown.
-   - Receiving agents (e.g. Orchestrator Copilot) ingest this Markdown payload to determine recovery strategies (e.g., auto-retry vs. human escalation via LINE).
+Flows must follow the self-contained bundle layout in `docs/project_bundles.md`:
+- Reference assets and subflows with relative paths (`./assets/...`, `./subflows/...`) or the `@shared/` namespace.
+- Never hardcode absolute, machine-specific paths.
+- Keep secrets out of `flow.json` and `config.json`; use `.env` or environment variables.
 
 ---
 
-## 6. GitOps Deployment Strategy
+## 4. Worker-Orchestrator Communication
 
-Because BatAutomate flows are designed as 100% declarative code and JSON project bundles:
-- Automation workflows are version-controlled directly in Git repositories.
-- Workflows must not be packaged as proprietary opaque binary blobs (unlike legacy RPA).
-- Deployments follow GitOps standards: Local authoring in `bat-studio` -> Git Branch / PR -> Automated CI Validation (`pytest`) -> CD Release via Git tags, release branches, or webhooks to Orchestrator and Workers.
+When implementing worker-orchestrator messaging, follow the Hybrid Protocol in `docs/architecture.md`:
+- Machine state travels as structured JSON (`type`, `job_id`, `status`, `metrics`) with explicit states `PENDING`, `RUNNING`, `SUCCESS`, `FAILED`.
+- Natural-language reports travel inside the envelope as Markdown (`agent_report_md`), never as the only carrier of state.
+- Remote workers must not share state through mounted disks.
+- Every worker-facing write endpoint must require authentication (see `bat-orchestrator/security.py`).
 
+---
 
+## 5. Flows as Code
+
+- Flows must remain declarative, human-readable files (`flow.md`, `flow.json`) that are versioned in Git.
+- Never introduce opaque binary flow formats.
+- Deployment must follow the GitOps model in `docs/architecture.md`: Git branch, CI validation, versioned release.

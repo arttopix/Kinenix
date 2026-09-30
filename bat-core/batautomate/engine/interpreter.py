@@ -775,6 +775,8 @@ class FlowInterpreter:
         if isinstance(expr, bool):
             return expr
         s = str(expr).strip()
+        if s.startswith("`") and s.endswith("`") and len(s) >= 2:
+            s = s[1:-1].strip()
         for token, mapped_op in [
             ("==", "equals"),
             ("!=", "not_equals"),
@@ -787,8 +789,8 @@ class FlowInterpreter:
         ]:
             if token in s:
                 parts = s.split(token, 1)
-                left = parts[0].strip().strip("'\"")
-                right = parts[1].strip().strip("'\"")
+                left = parts[0].strip().strip("'\"`")
+                right = parts[1].strip().strip("'\"`")
                 return self._evaluate_condition(left, mapped_op, right)
 
         return s.lower() in ["true", "1", "yes"]

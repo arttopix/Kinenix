@@ -108,8 +108,16 @@ class WebClickAction(BaseAction):
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         page = _get_page(context)
         locator = _resolve_locator(page, parameters)
-        locator.first.click()
-        return {"action": "web.click", "status": "clicked"}
+        timeout = float(parameters.get("timeout", 30000))
+        optional = bool(parameters.get("optional", False))
+        try:
+            locator.first.click(timeout=timeout)
+            return {"action": "web.click", "status": "clicked"}
+        except Exception as e:
+            if optional:
+                logger.info(f"Optional click on '{parameters.get('selector') or parameters.get('label')}' skipped: {e}")
+                return {"action": "web.click", "status": "skipped", "reason": str(e)}
+            raise
 
 
 @register_action("web.type")
@@ -236,6 +244,21 @@ class WebWaitForAction(BaseAction):
         else:
             page.wait_for_timeout(timeout)
             return {"action": "web.wait_for", "timeout_ms": timeout, "status": "waited"}
+
+
+@register_action("web.is_visible")
+class WebIsVisibleAction(BaseAction):
+    def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
+        page = _get_page(context)
+        locator = _resolve_locator(page, parameters)
+        timeout = float(parameters.get("timeout", 2000))
+        try:
+            if timeout <= 0:
+                return locator.first.is_visible()
+            locator.first.wait_for(state="visible", timeout=timeout)
+            return True
+        except Exception:
+            return False
 
 
 @register_action("web.get_attribute")

@@ -1,30 +1,28 @@
-# Logging Architecture & Business Telemetry
+# Logging Rules
 
-This document outlines the logging standards, structured log formats, and business metrics recording for **BAT Automate**.
-
----
-
-## 1. Structured JSON Execution Logs
-
-1. **Automatic Generation:**
-   - Every execution run must generate a structured JSON log file in the `logs/` directory named `log_YYYYMMDD_HHMMSS.json`.
-2. **Variable Sanitization:**
-   - Filter out internal system variables (variables starting with `__*`) from public log outputs to maintain clean, readable audit trails.
-3. **Execution Record Structure:**
-   - Each log file must record: flow metadata, overall status, start/end timestamps, duration, step-by-step execution details, and business summary metrics.
+Rules for execution logs and telemetry. The log layout and JSON format are documented in `docs/logging.md`; the schema is `schemas/execution_log.schema.json`.
 
 ---
 
-## 2. Business-Oriented Telemetry
+## 1. Execution Logs
 
-Logging must not be restricted to technical execution data. It must capture business impact indicators:
-- **Transaction Counts:** Total items processed, items succeeded, business exceptions, technical failures.
-- **Time Saved:** Calculated duration saved compared to manual human execution.
-- **Cost Saved:** Estimated financial savings based on business configuration.
+1. **Always log:** Every execution must write one structured JSON log to `logs/<flow_slug>/<YYYY-MM-DD>/<HHMMSS>_<status>.json` via `ExecutionLogger`. Do not introduce other log locations or formats.
+2. **Sanitize variables:** Variables prefixed with `__` (browser handles, connections, internal objects) must never be serialized into logs or telemetry.
+3. **Mask secrets:** Passwords, tokens, and authorization headers must be redacted before logging (see `security.md`).
+4. **Required content:** Flow metadata, overall status, start/end timestamps, duration, per-step results, `failure_details` on error, and metrics.
 
 ---
 
-## 3. Real-Time Streaming & AI Integration Roadmap
+## 2. Business Telemetry
 
-- **WebSocket Streaming (Phase 3 - Orchestrator):** Worker instances stream log packets over WebSocket to the central Orchestrator for real-time dashboard updates and PostgreSQL archiving.
-- **Automated SLM Error Diagnosis:** When a failure occurs, the structured JSON failure block is handed off to a local SLM instance to synthesize an actionable business-language summary sent directly to LINE notifications.
+Logs must carry business impact indicators alongside technical data:
+- **Transaction counts:** items processed, succeeded, business exceptions, technical failures.
+- **Time saved:** duration saved compared with manual execution.
+- **Cost saved:** estimated savings based on business configuration.
+
+---
+
+## 3. Telemetry Upload
+
+- Uploading to the Orchestrator must never fail the flow: catch and log upload errors.
+- Credentials for upload come only from environment variables (`BATAUTOMATE_ORCHESTRATOR_API_KEY`), never from flow variables or `config.json`.

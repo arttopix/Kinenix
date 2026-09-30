@@ -24,6 +24,7 @@ This document defines code conventions, typing standards, and module implementat
   - Every action must inherit from `BaseAction`.
   - Actions must define a unique `name` and a Pydantic `schema` for input parameter validation.
   - Keep action implementations focused, modular, and cleanly decoupled from GUI dependencies.
+  - Whenever an action is added or updated, `docs/actions_reference.md` must be updated with dual-representation examples (Markdown and JSON). See `.agents/rules/action_documentation.md`.
 - **Variable Evaluation:**
   - Variable references syntax: `${variable_name}`.
   - Evaluation must remain secure without using arbitrary `eval()` or unvalidated code execution.

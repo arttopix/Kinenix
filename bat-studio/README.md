@@ -50,6 +50,8 @@ BAT Studio operates as an interactive development layer running locally on the d
 
 ### Technology Selection
 
+> **Current state:** The frontend uses React 18, TypeScript, Vite, `lucide-react`, and plain CSS (`src/index.css`). Tailwind CSS, shadcn/ui, `react-resizable-panels`, Monaco, WebSockets, and the persistent Playwright context below are planned.
+
 | Tier | Technology | Purpose & Rationale |
 | :--- | :--- | :--- |
 | **Backend Engine** | **FastAPI (Python 3.10+)** | Native async runtime, bi-directional WebSockets, and zero-friction integration with `bat-core` Pydantic models. |
@@ -91,90 +93,39 @@ BAT Studio organizes the developer experience into three coordinated panels:
 
 ---
 
-## 4. Proposed Directory Layout
+## 4. Directory Layout
+
+Files marked `(planned)` do not exist yet.
 
 ```text
 bat-studio/
-├── README.md                           # Architecture and development plan (this file)
-├── pyproject.toml                      # Python package configuration (CLI entry point: batstudio)
-├── batstudio/                          # Python backend service
-│   ├── __init__.py                     # Package metadata
-│   ├── cli.py                          # CLI runner (e.g., `batstudio run flows/my_flow`)
-│   ├── server.py                       # FastAPI application & REST routing
-│   ├── websocket.py                    # Bi-directional WebSocket event dispatcher
-│   ├── session.py                      # Persistent browser & flow execution session manager
-│   └── picker.py                       # Playwright element inspection & selector generator
-└── frontend/                           # React + TypeScript single-page application
-    ├── package.json                    # Node dependencies (Vite, React, Tailwind, Lucide)
-    ├── vite.config.ts                  # Vite build and proxy configuration
-    ├── tsconfig.json                   # TypeScript compiler options
-    ├── tailwind.config.js              # Tailwind styling configuration
-    ├── index.html                      # SPA entry point
+├── README.md
+├── pyproject.toml                      # Python package (CLI entry point: batstudio)
+├── batstudio/
+│   ├── cli.py                          # CLI runner
+│   ├── server.py                       # FastAPI application and REST routes
+│   ├── websocket.py                    # (planned) WebSocket event dispatcher
+│   ├── session.py                      # (planned) Persistent browser session manager
+│   └── picker.py                       # (planned) Element inspection and selector generator
+├── tests/
+└── frontend/                           # React + TypeScript + Vite
+    ├── package.json
+    ├── vite.config.ts
+    ├── index.html
     └── src/
-        ├── main.tsx                    # React application bootstrap
-        ├── App.tsx                     # Main layout shell with resizable 3 columns
-        ├── components/
-        │   ├── Header.tsx              # Top bar, flow selector, run/debug toolbar
-        │   ├── AiPromptBar.tsx         # Natural-language flow generation & modification
-        │   ├── StepsTimeline.tsx       # Vertical step sequence, reordering, breakpoints
-        │   ├── StepInspector.tsx       # Schema-driven action parameter form
-        │   ├── ElementPickerModal.tsx  # Browser element selector dialog & test runner
-        │   ├── VariableWatcher.tsx     # Dynamic runtime variable context inspector
-        │   └── LogViewer.tsx           # Real-time WebSocket log streamer & screenshot viewer
-        ├── hooks/
-        │   ├── useWebSocket.ts         # WebSocket state synchronization hook
-        │   └── useFlow.ts              # Flow state management hook
-        ├── types/
-        │   ├── flow.ts                 # Flow schema and action type definitions
-        │   └── session.ts              # Execution session and telemetry interfaces
-        └── lib/
-            ├── api.ts                  # Axios / Fetch client for studio backend
-            └── utils.ts                # Formatting and class merging helpers
+        ├── main.tsx
+        ├── App.tsx                     # 3-column layout shell
+        ├── types.ts
+        ├── index.css
+        └── components/
+            ├── Header.tsx              # Top bar, flow selector, controls
+            ├── Timeline.tsx            # Step sequence
+            ├── Inspector.tsx           # Step parameter editor
+            └── ContextPanel.tsx        # Variables and documentation panel
 ```
 
 ---
 
-## 5. Development Roadmap & Milestones
+## 5. Roadmap
 
-### Milestone 1: Backend Foundation & Project Scaffolding
-- [x] Initialize `bat-studio/pyproject.toml` with FastAPI, Uvicorn, and `bat-core` dependency.
-- [x] Implement `batstudio` CLI command that serves FastAPI on `http://localhost:8080`.
-- [x] Implement REST endpoints:
-  - `GET /api/flows`: Discover and list flows across the workspace.
-  - `GET /api/flow`: Fetch flow JSON definition and configuration.
-  - `PUT /api/flow`: Save updated flow JSON with schema validation.
-  - `PUT /api/flow/step`: Update isolated single step parameters.
-  - `GET /api/actions`: Export available action registry metadata and schemas from `bat-core`.
-
-### Milestone 2: Frontend Foundation & Resizable 3-Column Shell
-- [x] Initialize Vite + React + TypeScript in `bat-studio/frontend/`.
-- [x] Configure sleek dark-mode aesthetic design system in `src/index.css`.
-- [x] Implement responsive 3-column workspace layout (Steps Timeline, Step Inspector, Live Context & Documentation).
-- [x] Build Top Bar with flow selector, environment switcher, and reload controls.
-- [x] Mount built production bundle directly into FastAPI backend root (`/`).
-
-### Milestone 3: Interactive Browser Session & Element Picker
-- [ ] Implement `session.py` backend service maintaining persistent Playwright browser instances.
-- [ ] Implement `POST /api/session/step`: Execute a single isolated step in the active browser context without restarting flow from step 1.
-- [ ] Implement `ElementPicker` overlay: Inject visual DOM highlight crosshair and return robust selector candidates.
-
-### Milestone 4: Live Debugger & Real-Time Telemetry
-- [ ] Implement WebSocket connection streaming real-time execution events from `FlowInterpreter`.
-- [ ] Visual step progression: Highlight active step, success (green), and failure (red).
-- [ ] Implement `VariableWatcher` displaying runtime variables in real time.
-- [ ] Implement Error Telemetry: Instant modal showing error details and millisecond-accurate failure screenshots.
-
-### Milestone 5: AI Prompt Bar & Flow Copilot
-- [ ] Implement `AiPromptBar` connecting to local Ollama (`ai.prompt`) to generate or modify step definitions from natural language.
-
----
-
-## 6. GitOps & CI/CD Deployment Architecture (Planned)
-
-Unlike legacy RPA platforms (e.g. UiPath) that rely on opaque binary packages published to proprietary orchestrators, BAT Automate treats automation flows as **100% declarative code/JSON project bundles**:
-
-1. **Local Authoring & Tuning:** Developers design and tune selectors locally using `bat-studio`.
-2. **Git as Single Source of Truth:** Flow definitions (`flow.json`), configurations (`config.json`), and assets are committed directly to Git branches (`dev`, `main`).
-3. **Automated CI Testing:** Continuous Integration (GitHub Actions) runs automated `pytest` suites to validate flow JSON schemas and execute dry-run interpreter tests before merging.
-4. **GitOps Continuous Deployment (CD):** Orchestrator and edge workers (`bat-worker`) track Git tags, release branches, or webhooks to pull approved, versioned bundles directly into production execution environments.
-
+Milestone status for Studio is tracked in [docs/roadmap.md](../docs/roadmap.md#phase-2-studio-bat-studio---in-progress). The planned GitOps deployment model is described in [docs/architecture.md](../docs/architecture.md#6-gitops-deployment-planned).

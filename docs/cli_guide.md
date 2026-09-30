@@ -81,6 +81,16 @@ By default, BAT Automate automatically detects the project root and writes struc
 batautomate run rpachallenge --log-dir "./custom_logs"
 ```
 
+### 3.3 Send Telemetry to the Orchestrator (`--orchestrator`)
+Uploads the execution log to a Central Orchestrator after the run. If the Orchestrator requires an API key, set `BATAUTOMATE_ORCHESTRATOR_API_KEY` first:
+
+```powershell
+$env:BATAUTOMATE_ORCHESTRATOR_API_KEY = "<key>"
+batautomate run rpachallenge --orchestrator http://localhost:8080
+```
+
+See the [Central Orchestrator Guide](orchestrator.md#2-worker-authentication) for setup details.
+
 ---
 
 ## 4. Smart Flow Resolver Behavior

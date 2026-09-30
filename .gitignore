@@ -21,6 +21,8 @@ dist/
 *.log
 .env
 logs/
+*.db
+*.sqlite3
 
 # Flow Project Bundle Configurations (Keep templates, ignore local configs)
 config.json

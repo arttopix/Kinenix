@@ -172,7 +172,10 @@ def _parse_sub_steps_block(lines: List[Tuple[int, str, int]], parent_id: str) ->
                 if key == "output_var":
                     step_dict["output_var"] = str(val) if val is not None else None
                 elif key == "condition":
-                    step_dict["condition"] = str(val_raw).strip()
+                    cond_val = str(val_raw).strip()
+                    if cond_val.startswith("`") and cond_val.endswith("`") and len(cond_val) >= 2:
+                        cond_val = cond_val[1:-1].strip()
+                    step_dict["condition"] = cond_val
                 elif key == "description":
                     step_dict["description"] = str(val)
                 elif key == "id":
@@ -347,7 +350,10 @@ def markdown_to_flow(md_content: str) -> FlowDefinition:
                 if key == "output_var":
                     step_dict["output_var"] = str(val) if val is not None else None
                 elif key == "condition":
-                    step_dict["condition"] = str(val_raw).strip()
+                    cond_val = str(val_raw).strip()
+                    if cond_val.startswith("`") and cond_val.endswith("`") and len(cond_val) >= 2:
+                        cond_val = cond_val[1:-1].strip()
+                    step_dict["condition"] = cond_val
                 elif key == "description":
                     step_dict["description"] = str(val)
                 elif key == "id":

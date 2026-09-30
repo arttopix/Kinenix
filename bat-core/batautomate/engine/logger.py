@@ -108,5 +108,46 @@ class ExecutionLogger:
                 log_file = target_dir / f"{time_str}_{status_str}.json"
                 log_file.write_text(json.dumps(raw_data, default=str, indent=2, ensure_ascii=False), encoding="utf-8")
                 self.logger.info(f"Saved JSON log to: {log_file}")
+
+                # Send telemetry to Central Orchestrator if configured
+                orchestrator_url = (
+                    context.get_variable("orchestrator_url")
+                    or context.get_variable("telemetry_url")
+                    or os.environ.get("BATAUTOMATE_ORCHESTRATOR_URL")
+                )
+                if orchestrator_url:
+                    self._send_telemetry(orchestrator_url, raw_data, context)
             except Exception as e:
                 self.logger.error(f"Failed to save JSON execution log: {e}")
+
+    def _send_telemetry(self, orchestrator_url: str, raw_data: dict, context: ExecutionContext) -> None:
+        try:
+            import requests
+            worker_id = (
+                context.get_variable("worker_id")
+                or os.environ.get("BATAUTOMATE_WORKER_ID")
+                or "local-worker"
+            )
+            clean_url = str(orchestrator_url).rstrip("/")
+            target_endpoint = f"{clean_url}/api/v1/telemetry"
+            payload = {
+                "worker_id": worker_id,
+                "payload": raw_data
+            }
+            headers = {}
+            api_key = os.environ.get("BATAUTOMATE_ORCHESTRATOR_API_KEY")
+            if api_key:
+                headers["X-API-Key"] = api_key
+            res = requests.post(target_endpoint, json=payload, headers=headers, timeout=4)
+            if res.status_code == 200:
+                self.logger.info(f"Transmitted telemetry to Orchestrator: {clean_url}")
+            elif res.status_code in (401, 403):
+                self.logger.warning(
+                    f"Orchestrator rejected telemetry (HTTP {res.status_code}). "
+                    "Check that BATAUTOMATE_ORCHESTRATOR_API_KEY matches the Orchestrator's ORCHESTRATOR_API_KEY."
+                )
+            else:
+                self.logger.warning(f"Orchestrator returned HTTP {res.status_code}: {res.text}")
+        except Exception as err:
+            self.logger.debug(f"Telemetry transmission skipped: {err}")
+
