@@ -1,3 +1,5 @@
+https://buymeacoffee.com/arttopix
+
 # kinenix
 
 [![Status](https://img.shields.io/badge/Status-Active%20Development%20(WIP)-orange.svg?style=flat-square)](#)
