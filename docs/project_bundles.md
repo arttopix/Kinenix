@@ -98,7 +98,7 @@ The project bundle structure directly enables a robust deployment pipeline to un
 - All assets remain inside `./assets/` and logs are written to central `logs/`.
 
 ### Phase 2: Packaging & Versioning
-- The project bundle directory is packaged into a versioned archive (e.g. `invoice_tax_filing-1.0.0.batpkg` or `.zip`).
+- The project bundle directory is packaged into a versioned archive (e.g. `invoice_tax_filing-1.0.0.kinpkg` or `.zip`).
 - Any referenced `@shared/` flows are inlined by the packaging tool into the bundle, ensuring the archive is 100% self-contained.
 - The package is published to **Kinenix Orchestrator**.
 
