@@ -1,139 +1,136 @@
 https://buymeacoffee.com/arttopix
 
-# BAT Automate
+# kinenix
 
 [![Status](https://img.shields.io/badge/Status-Active%20Development%20(WIP)-orange.svg?style=flat-square)](#)
 [![Version](https://img.shields.io/badge/Version-v0.1.0--alpha-blue.svg?style=flat-square)](#)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-brightgreen.svg?style=flat-square)](#)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
-> ⚠️ **Project Status: Active Development (Pre-Alpha / Work-in-Progress)**  
-> **BAT Automate** is currently under rapid, active development. Core engine APIs, subflow execution specifications, and action schemas are evolving. It is not yet intended for mission-critical production deployments. Community feedback and contributions are warmly welcome!
+> **Project Status: Active Development (Pre-Alpha / Work-in-Progress)**  
+> kinenix is currently under rapid, active development. Core engine APIs, subflow execution specifications, and action schemas are evolving. It is not yet intended for mission-critical production deployments. Community feedback and contributions are warmly welcome!
 
 > **Open-Source, Local AI-Native Agentic Automation Framework**  
-> Next-generation Enterprise RPA powered by Python and on-device SLMs. Eliminate soaring commercial licensing costs with autonomous agent workflows, zero-license Excel automation, and 100% free unattended robots.
+> Next-generation Enterprise RPA powered by Python and on-device Small Language Models (SLMs). Eliminate commercial licensing overhead with autonomous agent workflows, zero-license Excel automation, and 100% free unattended robot workers.
 
 ---
 
-## Key Highlights
+## 1. Key Highlights & Core Philosophy
 
-- **Local AI-Native Architecture:** Architected from the ground up for on-device Small Language Models (SLMs) running 100% locally on CPU (e.g. Qwen, Llama). Powers autonomous flow generation, self-healing UI selectors, and plain-language error diagnosis with zero API token costs and complete data privacy.
-- **Zero-License Dependency:** No Microsoft 365 or Microsoft Excel installation required for spreadsheet operations (processed natively via `openpyxl` and `pandas`).
-- **Business-First Dashboard:** Tailored for executives and business leaders with transparent metrics on Return on Investment (ROI), total hours saved, and tangible cost reductions.
-- **Free Unlimited Unattended Workers:** Deploy robot worker daemons across any existing VMs, PCs, or edge devices (e.g., Raspberry Pi) with zero per-bot monthly licensing fees.
-- **Python Power & Extensibility:** Easily extend capabilities with standard Python, integrating seamlessly with modern Web automation (Playwright), REST APIs, SQL databases, and AI models.
+- **Local AI-Native Architecture:** Architected from the ground up for on-device Small Language Models (SLMs) running 100% locally on CPU (e.g., Qwen 2.5, Llama 3.2 via Ollama or GGUF). Powers structured extraction, AI decision steps, and plain-language failure diagnosis (self-healing selectors are planned) with zero API token costs and complete data privacy.
+- **Zero-License Office Dependency:** No Microsoft 365 or Microsoft Excel installation required for spreadsheet operations. High-performance file-level processing is natively handled via `openpyxl` and `pandas`.
+- **Business-First Mindset:** Telemetry and executive dashboards emphasize tangible business outcomes: Return on Investment (ROI), total hours saved, and cost reductions rather than pure technical stack traces.
+- **Free Unlimited Unattended Workers:** Deploy robot worker daemons across any existing VMs, PCs, or edge devices with zero per-bot monthly licensing fees.
+- **Python Power and Extensibility:** Clean plugin architecture (`BaseAction`) seamlessly integrating Web automation (Playwright), Excel/CSV, REST APIs, email, and AI models.
 
 ---
 
-## System Architecture (Core Modules)
+## 2. Modules
 
-BAT Automate is organized into four decoupled, modular components:
-
-```text
-BatAutomate/
-├── bat-core/                   # Python Package Module (Runtime Engine)
-│   ├── pyproject.toml          # Package metadata & build configuration
-│   ├── requirements.txt
-│   ├── batautomate/            # Core Python Package (Flat layout: actions, engine, models, cli)
-│   │   ├── actions/            # Web (Playwright), Excel, API, Logic, System
-│   │   ├── engine/             # Flow Interpreter, Variable Context, Evaluator, Logger
-│   │   ├── models/             # Flow JSON Schema (Pydantic models)
-│   │   └── cli.py              # CLI Runner (batautomate)
-│   └── tests/                  # Pytest unit tests
-│
-├── docs/                       # Comprehensive Documentation & Architecture Guides
-│   ├── cli_guide.md            # CLI execution guide and parameters
-│   ├── project_bundles.md      # Modular project bundles, subflows, and lifecycle
-│   └── logging.md              # Structured logging and error telemetry
-│
-├── flows/                      # Workflows & Self-Contained Project Bundles
-│   ├── @shared/                # Cross-project reusable flows (LINE alerts, SSO login)
-│   └── benchmarks/
-│       └── rpachallenge/       # Self-contained project bundle (flow.json, subflows, assets)
-│
-├── logs/                       # Central Structured Execution Logs (Hierarchical JSON)
-│
-├── bat-studio/                 # Visual Flow Designer & UI Inspector (Desktop App - Planned)
-├── bat-orchestrator/           # Central Control Hub & Business Dashboard (Planned)
-└── bat-worker/                 # Unattended / Attended Robot Daemon (Planned)
-```
-
-| Module | Role & Responsibility | Core Technology Stack |
+| Module | Role | Status |
 | :--- | :--- | :--- |
-| **BAT Core (`bat-core`)** | Execution engine, Flow JSON and Agentic Subflow interpreter, variable state manager, Web & Excel automation | Python, Playwright, Pandas, OpenPyXL |
-| **BAT Studio (`bat-studio`)** | Cross-platform desktop app for visual drag-and-drop workflow authoring & UI inspector | Tauri, React, React Flow, TypeScript |
-| **BAT Orchestrator (`bat-orchestrator`)** | Centralized management hub, cron/trigger scheduler, executive ROI dashboard, and alerting | FastAPI, PostgreSQL, Redis, React, TailwindCSS |
-| **BAT Worker (`bat-worker`)** | Background daemon deployed on execution targets receiving jobs via WebSocket | Python Service, WebSocket |
+| **`kinenix-core`** | Flow interpreter, action plugins, and `kinenix` CLI | Implemented |
+| **`kinenix-worker`** | Unattended runner with schedule and file-watch triggers | Implemented (WebSocket dispatch planned) |
+| **`kinenix-studio`** | Web-based flow editor and runner | In progress |
+| **`kinenix-orchestrator`** | Central telemetry server, dashboard, and AI failure summaries | Early |
+
+Flows are packaged as self-contained project bundles under `flows/`. See [Architecture](docs/architecture.md) for the execution pipeline, AI integration, and target design, and [Roadmap](docs/roadmap.md) for delivery status.
 
 ---
 
-## Development Roadmap
+## 3. Prerequisites
 
-- [x] **Phase 1: Foundation & Core Engine (`bat-core`)**
-  - [x] Flow JSON Schema and Pydantic v2 data models
-  - [x] Flow Interpreter, execution context manager, and dynamic variable evaluator (`${var}`)
-  - [x] Standard Action libraries: Web (Playwright sync), Excel (`openpyxl`), Logic (If/Loop/Append), HTTP API, Email (`email.send`)
-  - [x] Hierarchical Structured Logging (`logs/<flow>/<date>/<time>.json`)
-  - [x] Global CLI & Smart Flow Resolver (`batautomate list`, `batautomate run <flow_name>`)
-  - [x] Modular Flow Project Architecture & Subflow Engine (`flow.call`, `flow.return`, `@shared/` namespace, auto-load `config.json`)
-- [ ] **Phase 2: Visual Designer & Selector (`bat-studio`)**
-  - Interactive drag-and-drop workflow canvas with React Flow inside Tauri shell
-  - Web and desktop UI element inspectors for auto-generating reliable selectors
-  - Local flow runner and step-by-step interactive debugger
-- [ ] **Phase 3: Central Server & Business Dashboard (`bat-orchestrator`)**
-  - High-performance REST API (FastAPI) + PostgreSQL + Redis queue
-  - Executive Business Dashboard: ROI calculations, hours saved tracking, transaction audit trail
-  - Multi-channel alerts on failures and daily digests (LINE Messaging API, Microsoft Teams, Email)
-- [ ] **Phase 4: Unattended Agent Daemon (`bat-worker`)**
-  - WebSocket agent daemon connecting worker nodes to Orchestrator
-  - Isolated process runner, real-time log streaming, and failure screenshot capture
-- [ ] **Phase 5: Desktop Automation & Community Open Source Release**
-  - Native Windows desktop automation integration (`uiautomation`)
-  - 1-Click Docker Compose deployment and GitHub community quickstart documentation
-- [ ] **Phase 6: Local AI-Native Agentic Capabilities**
-  - On-device CPU Small Language Model (SLM) integration (e.g., Qwen 2.5, Llama 3.2 via GGUF/Ollama)
-  - Self-healing UI selectors and autonomous agentic decision steps
-  - Studio Copilot for natural language flow generation and plain-language root-cause analysis
+Before installing and running kinenix, ensure your system meets the following requirements:
 
----
+### Core Requirements
+| Component | Minimum Version | Notes |
+| :--- | :--- | :--- |
+| **Python** | `3.10` or higher | Recommended `3.10` - `3.12` with `pip` and `venv` |
+| **Git** | `2.30+` | Required for version control and GitOps flow deployments |
+| **Operating System** | Windows 10/11, Ubuntu 20.04+, Debian 11+, Raspberry Pi OS (64-bit), macOS 12+ | Fully cross-platform |
 
-## Quick Start (CLI)
+### Platform-Specific Setup
 
-Install `batautomate` in editable mode:
+#### Linux / Ubuntu / Debian / Raspberry Pi (64-bit)
+On Linux environments, ensure system packages and Playwright browser shared libraries are installed:
+```bash
+# 1. Install system packages and python venv
+sudo apt update
+sudo apt install -y git python3 python3-pip python3-venv
 
-```powershell
-cd bat-core
-pip install -e .
+# 2. Install Playwright Chromium with Linux system dependencies (libnss3, libasound2, etc.)
+playwright install --with-deps chromium
 ```
 
-List discoverable workflows or execute a flow directly by name:
-
+#### Windows
+Ensure Python 3.10+ is installed with **"Add python.exe to PATH"** checked. Install Playwright browser binaries with:
 ```powershell
+kinenix install-browsers
+# or: playwright install chromium
+```
+
+### Optional Dependencies
+- **Local AI Inference (for `ai.prompt`, `ai.extract`):** Install [Ollama](https://ollama.com/) and run a local model:
+  ```bash
+  ollama run qwen2.5:1.5b
+  ```
+- **kinenix-studio Web UI Development:** [Node.js 18+](https://nodejs.org/) and `npm` (only required if developing or building `kinenix-studio/frontend`).
+
+---
+
+## 4. Quick Start
+
+### Installation
+
+Clone the repository and install the modules in editable mode within your Python virtual environment:
+
+```bash
+# Clone repository from dev branch
+git clone -b dev https://github.com/arttopix/batautomate.git kinenix
+cd kinenix
+
+# Create and activate virtual environment
+python3 -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\Activate.ps1
+
+# Install core engine and worker daemon in editable mode
+pip install -e ./kinenix-core -e ./kinenix-worker
+# Optional: Studio and the Central Orchestrator
+pip install -e ./kinenix-studio -e ./kinenix-orchestrator
+```
+
+### Verification & Execution
+
+```bash
 # Check installed version and runtime info
-batautomate version
+kinenix version
+kinenix-worker info
 
-# Install browser binaries (or let it auto-install on first web flow run)
-batautomate install-browsers
+# List available flows (clean, deduplicated view)
+kinenix list
 
-# List available flows (both flat flows and project bundles)
-batautomate list
+# Run the RPA Challenge benchmark (auto-compiles flow.md if needed)
+kinenix run rpachallenge
 
-# Run a flow using Smart Flow Resolver
-batautomate run rpachallenge
+# Run with unattended worker daemon
+kinenix-worker run flows/examples/rpachallenge/
 ```
 
 ---
 
-## Documentation
+## 5. Documentation
 
-Detailed architectural specifications, execution manuals, and standards are available in the [`docs/`](docs/) directory:
+Start at the [documentation index](docs/README.md). Most used:
 
-- **[CLI Execution Guide](docs/cli_guide.md):** Complete guide to `batautomate` commands, options (`--vars`, `--log-dir`), and Smart Flow Resolver mechanics.
-- **[Modular Project Bundles & Unattended Lifecycle](docs/project_bundles.md):** Self-contained flow packages (`flows/<dept>/<project>/`), subflows (`flow.call`), `@shared/` namespace, and sandbox execution on unattended workers (`bat-worker`).
-- **[Structured Logging Standards](docs/logging.md):** Hierarchical JSON log format (`logs/<flow>/<date>/<time>.json`), runtime privacy sanitization, and technical vs business exception handling.
+- **[Architecture](docs/architecture.md):** Modules, execution pipeline, AI integration, current vs. target design.
+- **[Roadmap](docs/roadmap.md):** What is done, in progress, and next.
+- **[Flow Markdown Specification](docs/flow_markdown_spec.md)** and **[Actions Reference](docs/actions_reference.md):** Writing flows.
+- **[CLI Guide](docs/cli_guide.md)** and **[Orchestrator Guide](docs/orchestrator.md):** Running flows and the central server.
+
+AI coding assistants should start at [AGENTS.md](AGENTS.md).
 
 ---
 
-## License
+## 6. License
 
 This project is licensed under the terms of the Open Source [MIT License](LICENSE).

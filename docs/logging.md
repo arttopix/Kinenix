@@ -1,12 +1,12 @@
 # Structured Logging & Telemetry Standards
 
-This document describes BAT Automate's structured logging architecture, directory partitioning, exception classification, and telemetry data schema.
+This document describes Kinenix's structured logging architecture, directory partitioning, exception classification, and telemetry data schema. Logging rules for contributors are in `.agents/rules/logging.md`; uploading logs to the Orchestrator is covered in [orchestrator.md](orchestrator.md).
 
 ---
 
 ## 1. Directory Structure & Partitioning
 
-BAT Automate records every workflow execution into **Structured JSON Logs** organized by flow name and execution date:
+Kinenix records every workflow execution into **Structured JSON Logs** organized by flow name and execution date:
 
 ```text
 logs/
@@ -85,19 +85,16 @@ Internal runtime objects (such as Playwright browser handles, page pointers, and
 
 ---
 
-## 3. Exception Classification Standards
+## 3. Exception Classification
 
-To distinguish operational issues from data problems, errors are categorized into two types:
+Every failure in `failure_details.error_type` is classified as either:
 
-### 3.1 Technical Exceptions
-- **Examples:** Network timeouts, web service down, selector not found after retries, missing driver binary.
-- **Responsible Party:** RPA Developer / DevOps Team.
-- **Handling:** Trigger technical alert, capture screenshot, retry logic.
+| Type | Typical cause | Owner |
+| :--- | :--- | :--- |
+| **Technical** | Timeouts, service outages, selectors not found after retries, missing binaries | RPA developer / DevOps |
+| **Business** | Invalid or inconsistent business data (e.g. invoice total does not match PO) | Business operations |
 
-### 3.2 Business Exceptions
-- **Examples:** Invoice total does not match PO, required Excel column is blank, customer account status is suspended.
-- **Responsible Party:** Business Operations / Department Lead.
-- **Handling:** Flag transaction for human review, send business alert (e.g. LINE / Teams notification).
+Handling requirements for each type are defined in `.agents/rules/error_handling.md`.
 
 ---
 

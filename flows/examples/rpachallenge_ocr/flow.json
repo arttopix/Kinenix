@@ -1,0 +1,91 @@
+{
+  "$schema": "../../../schemas/flow.schema.json",
+  "name": "RPA Challenge OCR Invoice Extractor",
+  "description": "Download invoice from Automation Challenge - OCR via Playwright, extract key data using Local AI (Ollama), and export structured CSV",
+  "version": "1.0.0",
+  "variables": {
+    "extracted_data": {},
+    "table_row": {}
+  },
+  "steps": [
+    {
+      "id": "step_1",
+      "name": "Open Automation Challenge OCR Page",
+      "action": "web.open",
+      "parameters": {
+        "url": "${config.website}",
+        "headless": "${config.headless}"
+      }
+    },
+    {
+      "id": "step_2",
+      "name": "Download Sample Invoice 1 via Playwright",
+      "action": "web.download",
+      "parameters": {
+        "selector": "a:has-text('Download sample invoice 1')",
+        "target_path": "${config.invoice_local_path}"
+      },
+      "output_var": "download_info"
+    },
+    {
+      "id": "step_3",
+      "name": "Extract Invoice Data Using Local AI (Ollama)",
+      "action": "ai.extract",
+      "parameters": {
+        "image_path": "${config.invoice_local_path}",
+        "instructions": "You are an RPA invoice extractor. Extract the following fields from the invoice: InvoiceNo, InvoiceDate, CompanyName, TotalDue.",
+        "schema": {
+          "InvoiceNo": "string",
+          "InvoiceDate": "string",
+          "CompanyName": "string",
+          "TotalDue": "string"
+        },
+        "model": "${config.model}",
+        "base_url": "${config.ollama_url}"
+      },
+      "output_var": "extracted_data"
+    },
+    {
+      "id": "step_4",
+      "name": "Map Extracted Data to Challenge Table Row",
+      "action": "logic.set_variable",
+      "parameters": {
+        "name": "table_row",
+        "value": {
+          "ID": "sample1",
+          "DueDate": "25-02-2019",
+          "InvoiceNo": "${extracted_data.InvoiceNo}",
+          "InvoiceDate": "${extracted_data.InvoiceDate}",
+          "CompanyName": "${extracted_data.CompanyName}",
+          "TotalDue": "${extracted_data.TotalDue}"
+        }
+      },
+      "output_var": "table_row"
+    },
+    {
+      "id": "step_5",
+      "name": "Export Extracted Invoices to CSV",
+      "action": "csv.write",
+      "parameters": {
+        "file_path": "${config.output_csv}",
+        "data": [
+          "${table_row}"
+        ],
+        "columns": [
+          "ID",
+          "DueDate",
+          "InvoiceNo",
+          "InvoiceDate",
+          "CompanyName",
+          "TotalDue"
+        ]
+      }
+    },
+    {
+      "id": "step_6",
+      "name": "Close Browser Session",
+      "action": "web.close",
+      "parameters": {}
+    }
+  ]
+}

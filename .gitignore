@@ -21,7 +21,19 @@ dist/
 *.log
 .env
 logs/
+*.db
+*.sqlite3
 
 # Flow Project Bundle Configurations (Keep templates, ignore local configs)
 config.json
 !*.template.json
+!flows/examples/**/config.json
+!flows/examples/**/config/*.json
+
+# Runtime Outputs & Screenshots (Results, error images)
+**/output/**
+!**/output/**/.gitkeep
+
+# Node.js & Frontend Artifacts
+node_modules/
+.vite/

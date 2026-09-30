@@ -1,6 +1,6 @@
-# BAT Automate Actions Reference Guide
+# Kinenix Actions Reference Guide
 
-This document provides a comprehensive specification of standard actions available in BAT Automate. Each action contains parameter specifications, return types, and concrete JSON examples for flow authoring.
+This document provides a comprehensive specification of standard actions available in Kinenix. In accordance with the **Dual-Representation Lifecycle** (`docs/flow_markdown_spec.md`), each action contains parameter specifications, return types, and dual examples: the authoring **Markdown (`flow.md`)** syntax as primary, followed by the compiled runtime **JSON (`flow.json`)**.
 
 ---
 
@@ -11,24 +11,48 @@ This document provides a comprehensive specification of standard actions availab
    - [web.click](#webclick)
    - [web.type](#webtype)
    - [web.get_text](#webget_text)
+   - [web.get_attribute](#webget_attribute)
+   - [web.wait_for](#webwait_for)
+   - [web.is_visible](#webis_visible)
+   - [web.press](#webpress)
+   - [web.scroll](#webscroll)
+   - [web.hover](#webhover)
+   - [web.switch_tab](#webswitch_tab)
+   - [web.select_option](#webselect_option)
+   - [web.upload_file](#webupload_file)
+   - [web.check](#webcheck)
+   - [web.uncheck](#webuncheck)
+   - [web.download](#webdownload)
    - [web.screenshot](#webscreenshot)
    - [web.close](#webclose)
-2. [Data and Excel (`excel.*`)](#data-and-excel-excel)
+2. [Data, Excel, and CSV (`excel.*`, `csv.*`)](#data-excel-and-csv-excel-csv)
    - [excel.read](#excelread)
    - [excel.write](#excelwrite)
-3. [Control Flow and Logic (`logic.*`)](#control-flow-and-logic-logic)
+   - [csv.read](#csvread)
+   - [csv.write](#csvwrite)
+3. [File System Operations (`file.*`)](#file-system-operations-file)
+   - [file.exists](#fileexists)
+   - [file.copy](#filecopy)
+   - [file.move](#filemove)
+   - [file.delete](#filedelete)
+4. [Control Flow and Logic (`logic.*`)](#control-flow-and-logic-logic)
    - [logic.set_variable](#logicset_variable)
    - [logic.delay](#logicdelay)
    - [logic.if](#logicif)
    - [logic.loop](#logicloop)
    - [logic.append](#logicappend)
-4. [HTTP API Integration (`http.*`)](#http-api-integration-http)
+5. [HTTP API Integration (`http.*`)](#http-api-integration-http)
    - [http.request](#httprequest)
-5. [Modular Subflows and Flow Control (`flow.*`)](#modular-subflows-and-flow-control-flow)
+   - [http.download](#httpdownload)
+6. [Modular Subflows and Flow Control (`flow.*`)](#modular-subflows-and-flow-control-flow)
    - [flow.call](#flowcall)
    - [flow.return](#flowreturn)
-6. [Email Notification (`email.*`)](#email-notification-email)
+7. [Email Notification (`email.*`)](#email-notification-email)
    - [email.send](#emailsend)
+8. [AI and Local LLM (`ai.*`)](#ai-and-local-llm-ai)
+   - [ai.prompt](#aiprompt)
+   - [ai.extract](#aiextract)
+   - [ai.decide](#aidecide)
 
 ---
 
@@ -46,7 +70,14 @@ Launches a browser instance and navigates to a target URL.
 | `headless` | boolean | No | `false` | Run browser in headless mode |
 | `timeout` | number | No | `30000` | Navigation timeout in milliseconds |
 
-**Example:**
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_open. Open Target Website (`web.open`)
+- **url:** https://rpachallenge.com/
+- **headless:** true
+```
+
+**Compiled `flow.json`:**
 ```json
 {
   "id": "step_open",
@@ -69,8 +100,16 @@ Clicks an element identified by CSS selector, XPath, or adjacent label text.
 |---|---|---|---|---|
 | `selector` | string | Either | - | CSS selector or XPath expression |
 | `label` | string | Either | - | Label text preceding the input element |
+| `timeout` | number | No | `30000` | Maximum wait timeout for element to be actionable in milliseconds |
+| `optional` | boolean | No | `false` | If `true`, suppresses exceptions if click fails or times out (returns `status: "skipped"`) |
 
-**Example:**
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_click_submit. Click Submit Button (`web.click`)
+- **selector:** //input[@value='Submit']
+```
+
+**Compiled `flow.json`:**
 ```json
 {
   "id": "step_click_submit",
@@ -94,7 +133,14 @@ Fills text into an input or textarea element.
 | `selector` | string | Either | - | CSS selector or XPath expression |
 | `label` | string | Either | - | Case-sensitive label text matching preceding element |
 
-**Example:**
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_type_name. Fill First Name (`web.type`)
+- **label:** First Name
+- **text:** ${row.First Name}
+```
+
+**Compiled `flow.json`:**
 ```json
 {
   "id": "step_type_name",
@@ -118,7 +164,14 @@ Extracts visible inner text from a target element.
 | `selector` | string | Either | - | CSS selector or XPath expression |
 | `label` | string | Either | - | Label identifier |
 
-**Example:**
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_read_score. Read Score Message (`web.get_text`)
+- **output_var:** `final_score`
+- **selector:** //div[contains(@class, 'congratulations')]
+```
+
+**Compiled `flow.json`:**
 ```json
 {
   "id": "step_read_score",
@@ -133,6 +186,423 @@ Extracts visible inner text from a target element.
 
 ---
 
+### `web.get_attribute`
+Extracts an HTML attribute value (such as `href`, `src`, `value`, `class`, or `data-*`) from a target element.
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `attribute` | string | Yes | - | Name of attribute to extract (e.g. `"href"`, `"src"`, `"value"`) |
+| `selector` | string | Either | - | CSS selector or XPath expression |
+| `label` | string | Either | - | Label identifier |
+
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_get_link. Extract Download Link (`web.get_attribute`)
+- **output_var:** `file_url`
+- **selector:** a.download-button
+- **attribute:** href
+```
+
+**Compiled `flow.json`:**
+```json
+{
+  "id": "step_get_link",
+  "name": "Extract Download Link",
+  "action": "web.get_attribute",
+  "parameters": {
+    "selector": "a.download-button",
+    "attribute": "href"
+  },
+  "output_var": "file_url"
+}
+```
+
+---
+
+### `web.wait_for`
+Waits for an element to satisfy a desired state (or performs an explicit pause).
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `selector` | string | Optional | - | Target element CSS selector or XPath |
+| `label` | string | Optional | - | Target element label |
+| `state` | string | No | `"visible"` | Expected state: `"visible"`, `"attached"`, `"detached"`, `"hidden"` |
+| `timeout` | number | No | `30000` | Maximum wait timeout in milliseconds |
+
+*Note:* If neither `selector` nor `label` is specified, `web.wait_for` acts as a browser-synchronized pause for `timeout` milliseconds.
+
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_wait_modal. Wait For Success Modal (`web.wait_for`)
+- **selector:** #success-dialog
+- **state:** visible
+- **timeout:** 15000
+```
+
+**Compiled `flow.json`:**
+```json
+{
+  "id": "step_wait_modal",
+  "name": "Wait For Success Modal",
+  "action": "web.wait_for",
+  "parameters": {
+    "selector": "#success-dialog",
+    "state": "visible",
+    "timeout": 15000
+  }
+}
+```
+
+---
+
+### `web.is_visible`
+Checks if an element is currently visible on the page within an optional timeout. Returns a boolean (`true` or `false`) without raising an exception. Useful for conditional branching (e.g. cookie consent banners, optional modals).
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `selector` | string | Either | - | CSS selector or XPath expression |
+| `label` | string | Either | - | Target element by adjacent label |
+| `timeout` | number | No | `2000` | Max milliseconds to wait for the element to become visible. If `<= 0`, checks immediately. |
+
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_check_cookie_banner. Check Cookie Banner Visibility (`web.is_visible`)
+- **output_var:** `has_cookie_banner`
+- **selector:** button:has-text('Accept recommended cookies')
+- **timeout:** 2000
+```
+
+**Compiled `flow.json`:**
+```json
+{
+  "id": "step_check_cookie_banner",
+  "name": "Check Cookie Banner Visibility",
+  "action": "web.is_visible",
+  "parameters": {
+    "selector": "button:has-text('Accept recommended cookies')",
+    "timeout": 2000
+  },
+  "output_var": "has_cookie_banner"
+}
+```
+
+---
+
+### `web.press`
+Sends a keyboard key press or key combination to a specific element or to the active page.
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `key` | string | Yes | - | Key name or chord (e.g. `"Enter"`, `"Tab"`, `"Escape"`, `"Control+A"`) |
+| `selector` | string | Optional | - | Specific element to receive keystroke (omitted for global page) |
+| `label` | string | Optional | - | Target element by adjacent label |
+
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_press_enter. Submit Form via Enter Key (`web.press`)
+- **selector:** input#search-box
+- **key:** Enter
+```
+
+**Compiled `flow.json`:**
+```json
+{
+  "id": "step_press_enter",
+  "name": "Submit Form via Enter Key",
+  "action": "web.press",
+  "parameters": {
+    "selector": "input#search-box",
+    "key": "Enter"
+  }
+}
+```
+
+---
+
+### `web.scroll`
+Scrolls the page in a specified direction or scrolls a specific element into visible view.
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `direction` | string | No | `"down"` | Scroll direction: `"down"`, `"up"`, `"bottom"`, `"top"` |
+| `amount` | number | No | `500` | Pixels to scroll (when direction is `"down"` or `"up"`) |
+| `selector` | string | Optional | - | Scroll this specific element into view |
+| `label` | string | Optional | - | Scroll element associated with this label into view |
+
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_scroll_down. Scroll Down To Load Content (`web.scroll`)
+- **direction:** down
+- **amount:** 800
+```
+
+**Compiled `flow.json`:**
+```json
+{
+  "id": "step_scroll_down",
+  "name": "Scroll Down To Load Content",
+  "action": "web.scroll",
+  "parameters": {
+    "direction": "down",
+    "amount": 800
+  }
+}
+```
+
+---
+
+### `web.hover`
+Hovers the mouse pointer over a target element to trigger dropdowns or tooltip menus.
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `selector` | string | Either | - | CSS selector or XPath expression |
+| `label` | string | Either | - | Label identifier |
+| `timeout` | number | No | `30000` | Maximum hover timeout in milliseconds |
+
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_hover_menu. Open Navigation Dropdown (`web.hover`)
+- **selector:** .nav-dropdown-trigger
+```
+
+**Compiled `flow.json`:**
+```json
+{
+  "id": "step_hover_menu",
+  "name": "Open Navigation Dropdown",
+  "action": "web.hover",
+  "parameters": {
+    "selector": ".nav-dropdown-trigger"
+  }
+}
+```
+
+---
+
+### `web.switch_tab`
+Switches active focus to another open tab or window in the browser context.
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `index` | number | Optional | - | Zero-based index of open tab (`0` for first, `1` for second, `-1` for latest) |
+| `url_pattern` | string | Optional | - | Substring or URL pattern matching target tab |
+| `title` | string | Optional | - | Case-insensitive substring matching target page title |
+
+*Note:* If no parameters are provided, switches to the most recently opened tab.
+
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_switch_dashboard. Switch to Dashboard Tab (`web.switch_tab`)
+- **url_pattern:** /dashboard
+```
+
+**Compiled `flow.json`:**
+```json
+{
+  "id": "step_switch_dashboard",
+  "name": "Switch to Dashboard Tab",
+  "action": "web.switch_tab",
+  "parameters": {
+    "url_pattern": "/dashboard"
+  }
+}
+```
+
+---
+
+### `web.download`
+Downloads a file by clicking an export button or resolving a direct link.
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `selector` | string | Yes | - | Element triggering the download or containing `href` |
+| `target_path` | string | No | `"downloads/downloaded_file"` | Destination path for saved file |
+| `timeout` | number | No | `30000` | Download timeout in milliseconds |
+
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_download_excel. Download Challenge Excel File (`web.download`)
+- **output_var:** `download_info`
+- **selector:** //a[contains(text(),'Download Excel')]
+- **target_path:** ./assets/challenge.xlsx
+```
+
+**Compiled `flow.json`:**
+```json
+{
+  "id": "step_download_excel",
+  "name": "Download Challenge Excel File",
+  "action": "web.download",
+  "parameters": {
+    "selector": "//a[contains(text(),'Download Excel')]",
+    "target_path": "./assets/challenge.xlsx"
+  },
+  "output_var": "download_info"
+}
+```
+
+---
+
+### `web.select_option`
+Selects one or more options in an HTML `<select>` dropdown element. Supports automatic semantic AI matching via OpenThai-SystemOne / Ollama to map abbreviations (e.g. "กทม." -> "กรุงเทพมหานคร") against live page options.
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `selector` | string | Either | - | CSS selector or XPath expression of `<select>` element |
+| `label` | string | Either | - | Label identifying the dropdown |
+| `value` | string | Optional | - | Option value attribute to select |
+| `text` / `label_text` | string | Optional | - | Visible text label of the option to select |
+| `index` | number | Optional | - | Zero-based index of option to select |
+| `ai_match` | boolean | No | `false` | When `true`, automatically queries all `<option>` items from the element and uses OpenThai-SystemOne to resolve fuzzy/abbreviated text semantically |
+| `systemone_url` | string | No | `"http://localhost:8000"` | OpenThai-SystemOne API base URL |
+| `fallback_to_ollama` | boolean | No | `true` | Fallback to Ollama if SystemOne server is unreachable |
+
+**Example (Exact Match) in `flow.md` (Markdown):**
+```markdown
+### step_select_province. Select Province (`web.select_option`)
+- **selector:** select#province
+- **text:** Bangkok
+```
+
+**Compiled `flow.json`:**
+```json
+{
+  "id": "step_select_province",
+  "name": "Select Province",
+  "action": "web.select_option",
+  "parameters": {
+    "selector": "select#province",
+    "text": "Bangkok"
+  }
+}
+```
+
+**Example (AI Semantic Match) in `flow.md` (Markdown):**
+```markdown
+### step_select_province_ai. Select Province Semantically (`web.select_option`)
+- **selector:** select#province
+- **text:** ${row.Province}
+- **ai_match:** true
+```
+
+**Compiled `flow.json`:**
+```json
+{
+  "id": "step_select_province_ai",
+  "name": "Select Province Semantically",
+  "action": "web.select_option",
+  "parameters": {
+    "selector": "select#province",
+    "text": "${row.Province}",
+    "ai_match": true
+  }
+}
+```
+
+---
+
+### `web.upload_file`
+Sets file paths onto an HTML `<input type="file">` upload element.
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `selector` | string | Either | - | CSS selector or XPath expression of `<input type="file">` |
+| `label` | string | Either | - | Adjacent label identifier |
+| `file_path` | string | Yes | - | Path to file to upload (resolved relative to flow bundle or absolute) |
+
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_upload_tax_form. Upload Tax Form Document (`web.upload_file`)
+- **selector:** input#file-upload
+- **file_path:** ./assets/tax_form_2026.pdf
+```
+
+**Compiled `flow.json`:**
+```json
+{
+  "id": "step_upload_tax_form",
+  "name": "Upload Tax Form Document",
+  "action": "web.upload_file",
+  "parameters": {
+    "selector": "input#file-upload",
+    "file_path": "./assets/tax_form_2026.pdf"
+  }
+}
+```
+
+---
+
+### `web.check`
+Checks an HTML checkbox or selects a radio button.
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `selector` | string | Either | - | CSS selector or XPath expression |
+| `label` | string | Either | - | Label identifier |
+| `timeout` | number | No | `30000` | Timeout in milliseconds |
+
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_agree_terms. Agree to Terms and Conditions (`web.check`)
+- **selector:** input#agree
+```
+
+**Compiled `flow.json`:**
+```json
+{
+  "id": "step_agree_terms",
+  "name": "Agree to Terms and Conditions",
+  "action": "web.check",
+  "parameters": {
+    "selector": "input#agree"
+  }
+}
+```
+
+---
+
+### `web.uncheck`
+Unchecks an HTML checkbox element.
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `selector` | string | Either | - | CSS selector or XPath expression |
+| `label` | string | Either | - | Label identifier |
+| `timeout` | number | No | `30000` | Timeout in milliseconds |
+
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_opt_out. Uncheck Marketing Emails (`web.uncheck`)
+- **selector:** input#newsletter
+```
+
+**Compiled `flow.json`:**
+```json
+{
+  "id": "step_opt_out",
+  "name": "Uncheck Marketing Emails",
+  "action": "web.uncheck",
+  "parameters": {
+    "selector": "input#newsletter"
+  }
+}
+```
+
+---
+
 ### `web.screenshot`
 Captures a screenshot of the current page.
 
@@ -142,7 +612,14 @@ Captures a screenshot of the current page.
 | `path` | string | No | `"screenshot.png"` | Destination file path (relative to bundle or absolute) |
 | `full_page` | boolean | No | `false` | Capture complete scrollable page |
 
-**Example:**
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_capture. Capture Page Screenshot (`web.screenshot`)
+- **path:** ./assets/result.png
+- **full_page:** false
+```
+
+**Compiled `flow.json`:**
 ```json
 {
   "id": "step_capture",
@@ -162,7 +639,12 @@ Closes current page, browser context, and terminates Playwright session.
 
 **Parameters:** None.
 
-**Example:**
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_close_browser. Close Browser Session (`web.close`)
+```
+
+**Compiled `flow.json`:**
 ```json
 {
   "id": "step_close_browser",
@@ -174,9 +656,9 @@ Closes current page, browser context, and terminates Playwright session.
 
 ---
 
-## Data and Excel (`excel.*`)
+## Data, Excel, and CSV (`excel.*`, `csv.*`)
 
-Provides zero-license Excel reading and writing via Pandas and OpenPyXL.
+Provides zero-license tabular data processing via Pandas and OpenPyXL.
 
 ### `excel.read`
 Reads an Excel sheet into an in-memory list of dictionaries (records).
@@ -188,7 +670,15 @@ Reads an Excel sheet into an in-memory list of dictionaries (records).
 | `sheet_name` | string / int | No | `0` | Sheet name or index to read |
 | `clean_headers` | boolean | No | `true` | Strip leading and trailing whitespace from column names |
 
-**Example:**
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_read_excel. Read Excel Data (`excel.read`)
+- **output_var:** `challenge_data`
+- **file_path:** ./assets/challenge.xlsx
+- **clean_headers:** true
+```
+
+**Compiled `flow.json`:**
 ```json
 {
   "id": "step_read_excel",
@@ -214,7 +704,15 @@ Writes a list of dictionaries or single dictionary to an Excel spreadsheet.
 | `data` | list / dict | Yes | `[]` | List of dictionaries or data records to export |
 | `sheet_name` | string | No | `"Sheet1"` | Destination sheet name |
 
-**Example:**
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_save_audit. Save Non-Programmers Audit Report (`excel.write`)
+- **file_path:** ./assets/non_programmers_audit.xlsx
+- **data:** ${non_programmers}
+- **sheet_name:** AuditReport
+```
+
+**Compiled `flow.json`:**
 ```json
 {
   "id": "step_save_audit",
@@ -230,9 +728,254 @@ Writes a list of dictionaries or single dictionary to an Excel spreadsheet.
 
 ---
 
+### `csv.read`
+Reads a delimiter-separated text file (CSV, TSV, semicolon-separated) into a list of dictionaries.
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `file_path` | string | Yes | - | Path to CSV file (resolved against bundle or absolute) |
+| `delimiter` | string | No | `","` | Field separator character (e.g. `","`, `";"`, `"\t"`) |
+| `encoding` | string | No | `"utf-8"` | File character encoding |
+| `clean_headers` | boolean | No | `true` | Strip leading and trailing whitespace from column headers |
+
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_read_csv. Load Customer Records (`csv.read`)
+- **output_var:** `customers`
+- **file_path:** ./data/customers.csv
+- **delimiter:** ,
+- **clean_headers:** true
+```
+
+**Compiled `flow.json`:**
+```json
+{
+  "id": "step_read_csv",
+  "name": "Load Customer Records",
+  "action": "csv.read",
+  "parameters": {
+    "file_path": "./data/customers.csv",
+    "delimiter": ",",
+    "clean_headers": true
+  },
+  "output_var": "customers"
+}
+```
+
+---
+
+### `csv.write`
+Exports a list of dictionaries or single record to a CSV file.
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `file_path` | string | Yes | - | Output CSV file path |
+| `data` | list / dict | Yes | `[]` | Records to export |
+| `columns` | list | No | `null` | Explicit list and order of column names |
+
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_export_csv. Export Processed Data to CSV (`csv.write`)
+- **file_path:** ./output/results.csv
+- **data:** ${results}
+- **columns:** ["id", "name", "status", "timestamp"]
+```
+
+**Compiled `flow.json`:**
+```json
+{
+  "id": "step_export_csv",
+  "name": "Export Processed Data to CSV",
+  "action": "csv.write",
+  "parameters": {
+    "file_path": "./output/results.csv",
+    "data": "${results}",
+    "columns": ["id", "name", "status", "timestamp"]
+  }
+}
+```
+
+---
+
+## File System Operations (`file.*`)
+
+Built-in operations for file checking, copying, moving, and deletion. Relative paths are automatically resolved relative to the active flow bundle directory (`__flow_dir__`).
+
+### `file.exists`
+Checks whether a file or directory exists on the local filesystem, returning a boolean (`true` / `false`).
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `path` | string | Yes | - | File or directory path to check |
+
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_check_file. Check If Input File Exists (`file.exists`)
+- **output_var:** `is_input_ready`
+- **path:** ./input/data.csv
+```
+
+**Compiled `flow.json`:**
+```json
+{
+  "id": "step_check_file",
+  "name": "Check If Input File Exists",
+  "action": "file.exists",
+  "parameters": {
+    "path": "./input/data.csv"
+  },
+  "output_var": "is_input_ready"
+}
+```
+
+---
+
+### `file.copy`
+Copies a file or an entire directory tree to a target destination.
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `source` | string | Yes | - | Source file or folder path |
+| `destination` | string | Yes | - | Destination file or folder path |
+| `overwrite` | boolean | No | `true` | Overwrite destination if it already exists |
+
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_backup_file. Backup Report (`file.copy`)
+- **source:** ./output/report.xlsx
+- **destination:** ./backups/report_backup.xlsx
+- **overwrite:** true
+```
+
+**Compiled `flow.json`:**
+```json
+{
+  "id": "step_backup_file",
+  "name": "Backup Report",
+  "action": "file.copy",
+  "parameters": {
+    "source": "./output/report.xlsx",
+    "destination": "./backups/report_backup.xlsx",
+    "overwrite": true
+  }
+}
+```
+
+---
+
+### `file.move`
+Moves or renames a file or directory.
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `source` | string | Yes | - | Source file or folder path |
+| `destination` | string | Yes | - | Destination file or folder path |
+| `overwrite` | boolean | No | `true` | Overwrite destination if it already exists |
+
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_archive_file. Move Processed File to Archive (`file.move`)
+- **source:** ./input/orders.csv
+- **destination:** ./archive/orders_processed.csv
+- **overwrite:** true
+```
+
+**Compiled `flow.json`:**
+```json
+{
+  "id": "step_archive_file",
+  "name": "Move Processed File to Archive",
+  "action": "file.move",
+  "parameters": {
+    "source": "./input/orders.csv",
+    "destination": "./archive/orders_processed.csv",
+    "overwrite": true
+  }
+}
+```
+
+---
+
+### `file.delete`
+Deletes a file or recursively removes a directory.
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `path` | string | Yes | - | Path of file or directory to remove |
+| `missing_ok` | boolean | No | `true` | Do not raise an error if target path does not exist |
+
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_cleanup_temp. Delete Temporary Files (`file.delete`)
+- **path:** ./temp/working_cache.tmp
+- **missing_ok:** true
+```
+
+**Compiled `flow.json`:**
+```json
+{
+  "id": "step_cleanup_temp",
+  "name": "Delete Temporary Files",
+  "action": "file.delete",
+  "parameters": {
+    "path": "./temp/working_cache.tmp",
+    "missing_ok": true
+  }
+}
+```
+
+---
+
 ## Control Flow and Logic (`logic.*`)
 
-Core orchestration primitives for variable manipulation, loops, and conditions.
+Core orchestration primitives for variable manipulation, loops, conditions, and error recovery.
+
+### Step Resilience & Error Handling (`error_handler`)
+
+Every step in Kinenix can define an optional `error_handler` strategy to make execution resilient against transient network hiccups or flaky selectors:
+
+**Configuration Fields:**
+| Field | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `on_error` | string | No | `"stop"` | Error policy: `"stop"` (fail flow), `"continue"` (record failure and proceed), or `"retry"` (retry step) |
+| `max_retries` | number | No | `0` | Number of extra attempts after original failure (e.g. `3` = 1 original + 3 retries) |
+| `retry_interval` | number | No | `1.0` | Delay in seconds between retry attempts |
+| `fallback_step_id` | string | No | `null` | Target step ID to execute as a recovery handler upon step failure |
+
+**Example with Retry and Fallback Recovery in `flow.md` (Markdown):**
+```markdown
+### step_fetch_orders. Fetch Orders API (`http.request`)
+- **output_var:** `orders_data`
+- **url:** https://api.example.com/orders
+- **error_handler:** {"on_error": "retry", "max_retries": 3, "retry_interval": 2.0, "fallback_step_id": "step_use_offline_cache"}
+```
+
+**Compiled `flow.json`:**
+```json
+{
+  "id": "step_fetch_orders",
+  "name": "Fetch Orders API",
+  "action": "http.request",
+  "parameters": {
+    "url": "https://api.example.com/orders"
+  },
+  "output_var": "orders_data",
+  "error_handler": {
+    "on_error": "retry",
+    "max_retries": 3,
+    "retry_interval": 2.0,
+    "fallback_step_id": "step_use_offline_cache"
+  }
+}
+```
+
+---
 
 ### `logic.set_variable`
 Assigns a value to a named execution context variable.
@@ -243,7 +986,14 @@ Assigns a value to a named execution context variable.
 | `name` | string | Yes | Variable name to create or update |
 | `value` | any | Yes | Value or evaluated expression |
 
-**Example:**
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_set_counter. Initialize Counter (`logic.set_variable`)
+- **name:** processed_count
+- **value:** 0
+```
+
+**Compiled `flow.json`:**
 ```json
 {
   "id": "step_set_counter",
@@ -266,7 +1016,13 @@ Pauses execution for a specified duration.
 |---|---|---|---|---|
 | `seconds` | number | No | `1.0` | Sleep duration in seconds |
 
-**Example:**
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_wait. Wait for Page Stabilization (`logic.delay`)
+- **seconds:** 2.5
+```
+
+**Compiled `flow.json`:**
 ```json
 {
   "id": "step_wait",
@@ -305,7 +1061,23 @@ Conditionally branches execution into `sub_steps` (when condition evaluates to t
 
 *\*Note: Either `left` or `condition` parameter is required.*
 
-**Example:**
+**Example in `flow.md` (Markdown):**
+```markdown
+### sub_check_role. Check If Role is Programmer (`logic.if`)
+- **left:** ${row.Role in Company}
+- **operator:** equals
+- **right:** Programmer
+- **Sub-steps:**
+  - Fill Form (`web.type`):
+    - **label:** First Name
+    - **text:** ${row.First Name}
+- **Else-steps:**
+  - Append to Audit (`logic.append`):
+    - **target:** non_programmers
+    - **item:** {"First Name": "${row.First Name}", "Role": "${row.Role in Company}"}
+```
+
+**Compiled `flow.json`:**
 ```json
 {
   "id": "sub_check_role",
@@ -349,7 +1121,19 @@ Iterates over an array or list of objects, binding each element to an item varia
 | `items` | list / string | Yes | Array or variable reference `${var}` to iterate |
 | `item_var` | string | No (default: item) | Context variable name representing the current iteration item |
 
-**Example:**
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_loop_rows. Iterate Dataset Rows (`logic.loop`)
+- **items:** ${challenge_data}
+- **item_var:** row
+- **Sub-steps:**
+  - Process Row Item (`logic.if`):
+    - **left:** ${row.Status}
+    - **operator:** equals
+    - **right:** Active
+```
+
+**Compiled `flow.json`:**
 ```json
 {
   "id": "step_loop_rows",
@@ -385,7 +1169,14 @@ Appends an item, dictionary, or primitive value to a list in context variables. 
 | `target` | string | Yes | Name of the list variable in context |
 | `item` | any | Yes | Item or object to append |
 
-**Example:**
+**Example in `flow.md` (Markdown):**
+```markdown
+### append_record. Add Non-Programmer to List (`logic.append`)
+- **target:** non_programmers
+- **item:** {"First Name": "${row.First Name}", "Role in Company": "${row.Role in Company}"}
+```
+
+**Compiled `flow.json`:**
 ```json
 {
   "id": "append_record",
@@ -419,7 +1210,17 @@ Executes an HTTP request and outputs status code, response headers, and body.
 | `payload` | dict / string | No | `null` | Request body (JSON dict or raw string) |
 | `timeout` | number | No | `30` | Request timeout in seconds |
 
-**Example:**
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_send_webhook. Notify Notification Webhook (`http.request`)
+- **output_var:** `api_response`
+- **url:** https://api.example.com/v1/notify
+- **method:** POST
+- **headers:** {"Content-Type": "application/json", "Authorization": "Bearer ${env.API_KEY}"}
+- **payload:** {"status": "completed", "total_processed": 10}
+```
+
+**Compiled `flow.json`:**
 ```json
 {
   "id": "step_send_webhook",
@@ -438,6 +1239,40 @@ Executes an HTTP request and outputs status code, response headers, and body.
     }
   },
   "output_var": "api_response"
+}
+```
+
+---
+
+### `http.download`
+Downloads a file from an HTTP/HTTPS URL directly to the filesystem without launching a browser.
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `url` | string | Yes | - | Direct HTTP/HTTPS file URL to download |
+| `target_path` | string | Yes | - | Local path to save the downloaded file |
+| `timeout` | number | No | `60` | Network download timeout in seconds |
+
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_download_pdf. Download Invoice PDF (`http.download`)
+- **output_var:** `downloaded_file`
+- **url:** https://example.com/files/invoice_102.pdf
+- **target_path:** ./downloads/invoice_102.pdf
+```
+
+**Compiled `flow.json`:**
+```json
+{
+  "id": "step_download_pdf",
+  "name": "Download Invoice PDF",
+  "action": "http.download",
+  "parameters": {
+    "url": "https://example.com/files/invoice_102.pdf",
+    "target_path": "./downloads/invoice_102.pdf"
+  },
+  "output_var": "downloaded_file"
 }
 ```
 
@@ -468,7 +1303,15 @@ Executes an external child flow (subflow) within an isolated context.
 - **Circular Call Detection:** Detects and immediately blocks circular recursion (e.g. A calling B calling A).
 - **Browser Safeguard:** If a subflow calls `web.close` while sharing the parent's browser, the engine intercepts the call and protects the parent's active browser session.
 
-**Example:**
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_send_alert. Send Reusable LINE Alert (`flow.call`)
+- **output_var:** `alert_result`
+- **flow:** @shared/notify_line.json
+- **inputs:** {"message": "Invoice #4891 verified successfully", "recipient": "Finance Lead", "alert_level": "SUCCESS"}
+```
+
+**Compiled `flow.json`:**
 ```json
 {
   "id": "step_send_alert",
@@ -496,7 +1339,13 @@ Stops subflow execution early and returns a structured payload to the caller's `
 |---|---|---|---|---|
 | `value` | any | Yes | - | Payload (dict, list, string, number, or boolean) returned to parent flow |
 
-**Example:**
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_return_payload. Return Extracted Data (`flow.return`)
+- **value:** {"status": "success", "records_count": "${total_count}", "file_path": "${saved_pdf}"}
+```
+
+**Compiled `flow.json`:**
 ```json
 {
   "id": "step_return_payload",
@@ -525,7 +1374,7 @@ Constructs and dispatches an email message with support for plain text, HTML bod
 | Parameter | Type | Required | Default | Description |
 |---|---|---|---|---|
 | `to` | string / list | Yes | - | Primary recipient email address or list of addresses |
-| `subject` | string | No | `"BAT Automate Notification"` | Subject line of the email |
+| `subject` | string | No | `"Kinenix Notification"` | Subject line of the email |
 | `body` | string | No | `""` | Plain-text email message body |
 | `html` | string | No | `null` | Optional rich HTML email body |
 | `cc` | string / list | No | `null` | Carbon copy recipient address(es) |
@@ -538,7 +1387,21 @@ Constructs and dispatches an email message with support for plain text, HTML bod
 | `use_tls` | boolean | No | `true` | Establish STARTTLS secure connection |
 | `dry_run` | boolean | No | `false` | When true, formats message without sending to SMTP |
 
-**Example:**
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_send_report. Send Daily Processing Report (`email.send`)
+- **output_var:** `email_result`
+- **to:** manager@company.com
+- **subject:** Daily RPA Processing Summary - [${status}]
+- **body:** Hello,
+
+The automated workflow has completed successfully.
+Processed records: ${count}
+- **attachments:** ["./assets/daily_summary.xlsx"]
+- **dry_run:** false
+```
+
+**Compiled `flow.json`:**
 ```json
 {
   "id": "step_send_report",
@@ -554,5 +1417,153 @@ Constructs and dispatches an email message with support for plain text, HTML bod
     "dry_run": false
   },
   "output_var": "email_result"
+}
+```
+
+---
+
+## AI and Local LLM (`ai.*`)
+
+Integrates local LLMs powered by Ollama (or compatible HTTP endpoints like vLLM) for intelligent unstructured text understanding, zero-shot extraction, and decision making without cloud token costs.
+
+### `ai.prompt`
+Sends a prompt to an Ollama model with optional JSON schema enforcement and image inputs.
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `prompt` | string | Yes | - | Prompt text or user query |
+| `model` | string | No | `"qwen2.5:1.5b"` | Local LLM model tag |
+| `system` | string | No | `null` | System instruction prompt |
+| `format` | string | No | `null` | Set to `"json"` for structured JSON output |
+| `images` | list | No | `[]` | List of image paths for vision models |
+| `temperature` | number | No | `0.1` | Sampling temperature |
+| `base_url` | string | No | `"http://localhost:11434"` | Ollama service base URL |
+| `timeout` | number | No | `60` | Request timeout in seconds |
+
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_summarize_lead. Classify Lead Intent (`ai.prompt`)
+- **output_var:** `lead_analysis`
+- **model:** qwen2.5:1.5b
+- **prompt:** Classify whether this inquiry is urgent: '${email_body}'
+- **format:** json
+```
+
+**Compiled `flow.json`:**
+```json
+{
+  "id": "step_summarize_lead",
+  "name": "Classify Lead Intent",
+  "action": "ai.prompt",
+  "parameters": {
+    "model": "qwen2.5:1.5b",
+    "prompt": "Classify whether this inquiry is urgent: '${email_body}'",
+    "format": "json"
+  },
+  "output_var": "lead_analysis"
+}
+```
+
+---
+
+### `ai.extract`
+Specialized action that extracts structured fields directly from raw unstructured text.
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `text` | string | Yes | - | Raw text, email, or OCR string to extract from |
+| `schema` | dict | Yes | - | Key-description dictionary of target fields |
+| `model` | string | No | `"qwen2.5:1.5b"` | Local LLM model tag |
+| `base_url` | string | No | `"http://localhost:11434"` | Ollama service base URL |
+
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_extract_invoice. Extract Invoice Data (`ai.extract`)
+- **output_var:** `invoice`
+- **text:** ${ocr_text}
+- **schema:** {"invoice_number": "Invoice identifier number", "total_amount": "Total due as float number", "due_date": "Due date in YYYY-MM-DD"}
+```
+
+**Compiled `flow.json`:**
+```json
+{
+  "id": "step_extract_invoice",
+  "name": "Extract Invoice Data",
+  "action": "ai.extract",
+  "parameters": {
+    "text": "${ocr_text}",
+    "schema": {
+      "invoice_number": "Invoice identifier number",
+      "total_amount": "Total due as float number",
+      "due_date": "Due date in YYYY-MM-DD"
+    }
+  },
+  "output_var": "invoice"
+}
+```
+
+---
+
+### `ai.decide`
+Executes rapid, zero-hallucination semantic decisions, intent classification, priority scoring, or boolean validations using **OpenThai-SystemOne** (0.8B) in a single forward pass (<50ms).
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `state` | string / dict | Yes | - | Input context, user message, or record data |
+| `question` | dict | Optional | - | Single decision question definition (see below) |
+| `questions` | dict | Optional | - | Multi-question dictionary |
+| `base_url` | string | No | `"http://localhost:8000"` | OpenThai-SystemOne API base URL |
+| `timeout` | number | No | `30` | Request timeout in seconds |
+| `fallback_to_ollama` | boolean | No | `true` | Fallback to local Ollama if SystemOne server is offline |
+
+**Question Object Properties:**
+* **`type`**: `"choice"` (pick one from list), `"score"` (rate 1-5 or 1-10), or `"noul"` (yes/no).
+* **`instructions`**: Guidance string describing what decision to make.
+* **`options`**: List of string options (for `choice` type). Automatically converted to criteria.
+* **`criteria`**: Key-value mapping of option names to descriptions (or `null`).
+
+**Example (Intent Classification) in `flow.md` (Markdown):**
+```markdown
+### step_classify_inquiry. Route Customer Inquiry (`ai.decide`)
+- **output_var:** `route_decision`
+- **state:** ${email.body}
+- **question:** {"name": "intent", "type": "choice", "instructions": "ระบุเจตนาหลักของอีเมลฉบับนี้", "options": ["ขอใบเสร็จรับเงิน", "แจ้งปัญหาการใช้งาน", "สอบถามราคา", "ยกเลิกบริการ"]}
+```
+
+**Compiled `flow.json`:**
+```json
+{
+  "id": "step_classify_inquiry",
+  "name": "Route Customer Inquiry",
+  "action": "ai.decide",
+  "parameters": {
+    "state": "${email.body}",
+    "question": {
+      "name": "intent",
+      "type": "choice",
+      "instructions": "ระบุเจตนาหลักของอีเมลฉบับนี้",
+      "options": ["ขอใบเสร็จรับเงิน", "แจ้งปัญหาการใช้งาน", "สอบถามราคา", "ยกเลิกบริการ"]
+    }
+  },
+  "output_var": "route_decision"
+}
+```
+
+**Output Format:**
+```json
+{
+  "choice": "ขอใบเสร็จรับเงิน",
+  "confidence": 0.94,
+  "probabilities": {
+    "ขอใบเสร็จรับเงิน": 0.94,
+    "แจ้งปัญหาการใช้งาน": 0.03,
+    "สอบถามราคา": 0.02,
+    "ยกเลิกบริการ": 0.01
+  },
+  "type": "choice",
+  "model": "openthai-systemone"
 }
 ```
