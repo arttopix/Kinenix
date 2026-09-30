@@ -1,7 +1,6 @@
 import logging
 from typing import Any, Dict, List, Optional
 from fastapi import FastAPI, Depends, HTTPException, Query
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
@@ -10,6 +9,7 @@ from sqlalchemy.orm import Session
 from .config import HOST, PORT, STATIC_DIR
 from .database import get_db, init_db
 from .models import Worker, Execution
+from .security import require_worker_api_key, require_dashboard_auth, log_auth_mode
 from .services.telemetry_service import record_heartbeat, ingest_execution_log
 from .services.ai_summarizer import analyze_failure
 
@@ -24,6 +24,7 @@ logger = logging.getLogger("batautomate.orchestrator")
 async def lifespan(app: FastAPI):
     init_db()
     logger.info("Database initialized successfully.")
+    log_auth_mode()
     yield
 
 
@@ -37,13 +38,8 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# No CORS middleware: the dashboard is served from this same origin and workers are not browsers.
+# Adding a permissive CORS policy would let any website read dashboard data through a logged-in browser.
 
 
 # ---------------------------------------------------------
@@ -74,7 +70,7 @@ def health_check():
     return {"status": "healthy", "service": "BatAutomate Central Orchestrator"}
 
 
-@app.post("/api/v1/heartbeat")
+@app.post("/api/v1/heartbeat", dependencies=[Depends(require_worker_api_key)])
 def heartbeat(req: HeartbeatRequest, db: Session = Depends(get_db)):
     worker = record_heartbeat(
         db=db,
@@ -89,13 +85,13 @@ def heartbeat(req: HeartbeatRequest, db: Session = Depends(get_db)):
     return {"status": "ok", "worker": worker.to_dict()}
 
 
-@app.get("/api/v1/workers")
+@app.get("/api/v1/workers", dependencies=[Depends(require_dashboard_auth)])
 def list_workers(db: Session = Depends(get_db)):
     workers = db.query(Worker).all()
     return {"workers": [w.to_dict() for w in workers]}
 
 
-@app.post("/api/v1/telemetry")
+@app.post("/api/v1/telemetry", dependencies=[Depends(require_worker_api_key)])
 def receive_telemetry(req: TelemetryRequest, db: Session = Depends(get_db)):
     execution = ingest_execution_log(
         db=db,
@@ -111,7 +107,7 @@ def receive_telemetry(req: TelemetryRequest, db: Session = Depends(get_db)):
     }
 
 
-@app.get("/api/v1/executions")
+@app.get("/api/v1/executions", dependencies=[Depends(require_dashboard_auth)])
 def list_executions(
     limit: int = Query(50, ge=1, le=200),
     status: Optional[str] = None,
@@ -124,7 +120,7 @@ def list_executions(
     return {"executions": [e.to_dict() for e in items]}
 
 
-@app.get("/api/v1/executions/{execution_id}")
+@app.get("/api/v1/executions/{execution_id}", dependencies=[Depends(require_dashboard_auth)])
 def get_execution(execution_id: str, db: Session = Depends(get_db)):
     execution = db.query(Execution).filter(Execution.id == execution_id).first()
     if not execution:
@@ -132,7 +128,7 @@ def get_execution(execution_id: str, db: Session = Depends(get_db)):
     return execution.to_dict()
 
 
-@app.post("/api/v1/executions/{execution_id}/reanalyze")
+@app.post("/api/v1/executions/{execution_id}/reanalyze", dependencies=[Depends(require_worker_api_key)])
 def reanalyze_execution(execution_id: str, db: Session = Depends(get_db)):
     execution = db.query(Execution).filter(Execution.id == execution_id).first()
     if not execution:
@@ -163,7 +159,7 @@ if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
-@app.get("/")
+@app.get("/", dependencies=[Depends(require_dashboard_auth)])
 def serve_dashboard():
     index_path = STATIC_DIR / "index.html"
     if index_path.exists():

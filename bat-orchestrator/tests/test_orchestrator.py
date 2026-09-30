@@ -12,9 +12,21 @@ if str(root_dir) not in sys.path:
 
 from importlib import import_module
 orchestrator_app = import_module("bat-orchestrator.app")
+orchestrator_config = import_module("bat-orchestrator.config")
 app = orchestrator_app.app
 
-client = TestClient(app)
+# Local-dev client: no API key configured, requests arrive from loopback
+client = TestClient(app, client=("127.0.0.1", 50000))
+remote_client = TestClient(app, client=("192.168.1.77", 50000))
+
+HEARTBEAT_PAYLOAD = {"worker_id": "rpi-auth-01", "name": "Auth Test Node"}
+
+
+@pytest.fixture(autouse=True)
+def no_credentials_by_default(monkeypatch):
+    monkeypatch.setattr(orchestrator_config, "API_KEY", "")
+    monkeypatch.setattr(orchestrator_config, "DASHBOARD_USER", "admin")
+    monkeypatch.setattr(orchestrator_config, "DASHBOARD_PASSWORD", "")
 
 
 def test_orchestrator_healthz():
@@ -119,3 +131,119 @@ def test_list_executions():
     items = response.json()["executions"]
     assert len(items) >= 2
 
+
+
+def test_remote_worker_rejected_when_api_key_not_configured():
+    response = remote_client.post("/api/v1/heartbeat", json=HEARTBEAT_PAYLOAD)
+    assert response.status_code == 403
+
+
+def test_remote_worker_missing_api_key_rejected(monkeypatch):
+    monkeypatch.setattr(orchestrator_config, "API_KEY", "s3cret-key")
+    response = remote_client.post("/api/v1/heartbeat", json=HEARTBEAT_PAYLOAD)
+    assert response.status_code == 401
+
+
+def test_remote_worker_wrong_api_key_rejected(monkeypatch):
+    monkeypatch.setattr(orchestrator_config, "API_KEY", "s3cret-key")
+    response = remote_client.post(
+        "/api/v1/telemetry",
+        json={"worker_id": "rpi-auth-01", "payload": {"flow_name": "X"}},
+        headers={"X-API-Key": "wrong-key"},
+    )
+    assert response.status_code == 401
+
+
+def test_remote_worker_valid_api_key_accepted(monkeypatch):
+    monkeypatch.setattr(orchestrator_config, "API_KEY", "s3cret-key")
+    response = remote_client.post(
+        "/api/v1/heartbeat", json=HEARTBEAT_PAYLOAD, headers={"X-API-Key": "s3cret-key"}
+    )
+    assert response.status_code == 200
+    assert response.json()["worker"]["id"] == "rpi-auth-01"
+
+
+def test_localhost_must_send_api_key_once_configured(monkeypatch):
+    monkeypatch.setattr(orchestrator_config, "API_KEY", "s3cret-key")
+    response = client.post("/api/v1/heartbeat", json=HEARTBEAT_PAYLOAD)
+    assert response.status_code == 401
+
+
+def test_reanalyze_requires_api_key(monkeypatch):
+    monkeypatch.setattr(orchestrator_config, "API_KEY", "s3cret-key")
+    response = remote_client.post("/api/v1/executions/any-id/reanalyze")
+    assert response.status_code == 401
+
+
+def test_healthz_remains_public(monkeypatch):
+    monkeypatch.setattr(orchestrator_config, "API_KEY", "s3cret-key")
+    monkeypatch.setattr(orchestrator_config, "DASHBOARD_PASSWORD", "dash-pass")
+    assert remote_client.get("/api/v1/healthz").status_code == 200
+
+
+DASHBOARD_PATHS = ["/", "/api/v1/workers", "/api/v1/executions"]
+
+
+@pytest.mark.parametrize("path", DASHBOARD_PATHS)
+def test_remote_dashboard_rejected_when_password_not_configured(path):
+    response = remote_client.get(path)
+    assert response.status_code == 403
+
+
+@pytest.mark.parametrize("path", DASHBOARD_PATHS)
+def test_remote_dashboard_missing_credentials_prompts_login(monkeypatch, path):
+    monkeypatch.setattr(orchestrator_config, "DASHBOARD_PASSWORD", "dash-pass")
+    response = remote_client.get(path)
+    assert response.status_code == 401
+    assert response.headers["WWW-Authenticate"].startswith("Basic")
+
+
+@pytest.mark.parametrize("auth", [("admin", "wrong-pass"), ("intruder", "dash-pass")])
+def test_remote_dashboard_wrong_credentials_rejected(monkeypatch, auth):
+    monkeypatch.setattr(orchestrator_config, "DASHBOARD_PASSWORD", "dash-pass")
+    response = remote_client.get("/api/v1/executions", auth=auth)
+    assert response.status_code == 401
+
+
+@pytest.mark.parametrize("path", DASHBOARD_PATHS)
+def test_remote_dashboard_valid_credentials_accepted(monkeypatch, path):
+    monkeypatch.setattr(orchestrator_config, "DASHBOARD_PASSWORD", "dash-pass")
+    response = remote_client.get(path, auth=("admin", "dash-pass"))
+    assert response.status_code == 200
+
+
+def test_localhost_dashboard_requires_credentials_once_configured(monkeypatch):
+    monkeypatch.setattr(orchestrator_config, "DASHBOARD_PASSWORD", "dash-pass")
+    response = client.get("/api/v1/workers")
+    assert response.status_code == 401
+
+
+def test_worker_api_key_does_not_grant_dashboard_access(monkeypatch):
+    monkeypatch.setattr(orchestrator_config, "API_KEY", "s3cret-key")
+    monkeypatch.setattr(orchestrator_config, "DASHBOARD_PASSWORD", "dash-pass")
+    response = remote_client.get("/api/v1/executions", headers={"X-API-Key": "s3cret-key"})
+    assert response.status_code == 401
+
+
+def test_cross_origin_requests_get_no_cors_headers():
+    response = client.get("/api/v1/healthz", headers={"Origin": "https://evil.example"})
+    assert response.status_code == 200
+    assert "access-control-allow-origin" not in response.headers
+
+
+def test_cors_preflight_is_not_allowed():
+    response = client.options(
+        "/api/v1/executions",
+        headers={"Origin": "https://evil.example", "Access-Control-Request-Method": "GET"},
+    )
+    assert "access-control-allow-origin" not in response.headers
+
+
+def test_default_host_is_localhost(monkeypatch):
+    import importlib
+    monkeypatch.delenv("ORCHESTRATOR_HOST", raising=False)
+    try:
+        assert importlib.reload(orchestrator_config).HOST == "127.0.0.1"
+    finally:
+        monkeypatch.undo()
+        importlib.reload(orchestrator_config)

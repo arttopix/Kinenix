@@ -183,8 +183,8 @@ def main():
 
     # Command: orchestrator
     orch_parser = subparsers.add_parser("orchestrator", help="Start the Central Orchestrator & AI Dashboard web service")
-    orch_parser.add_argument("--port", type=int, default=8080, help="Port to bind the orchestrator server (default: 8080)")
-    orch_parser.add_argument("--host", default="0.0.0.0", help="Host to bind the orchestrator server (default: 0.0.0.0)")
+    orch_parser.add_argument("--port", type=int, default=None, help="Port to bind the orchestrator server (default: $ORCHESTRATOR_PORT or 8080)")
+    orch_parser.add_argument("--host", default=None, help="Host to bind the orchestrator server (default: $ORCHESTRATOR_HOST or 127.0.0.1; use 0.0.0.0 to accept remote connections)")
 
     # Command: version
     subparsers.add_parser("version", help="Show batautomate version and environment details")
@@ -322,15 +322,19 @@ def main():
         if root and str(root) not in sys.path:
             sys.path.insert(0, str(root))
         orch_app = import_module("bat-orchestrator.app")
-        host_display = "localhost" if args.host == "0.0.0.0" else args.host
+        orch_config = import_module("bat-orchestrator.config")
+        host = args.host or orch_config.HOST
+        port = args.port or orch_config.PORT
+        host_display = "localhost" if host == "0.0.0.0" else host
+        network_note = "all interfaces, remote access enabled" if host == "0.0.0.0" else "this address only"
         print(f"\n=======================================================")
         print(f"  [BatAutomate] Central Orchestrator & AI Dashboard")
         print(f"=======================================================")
-        print(f"  Web Dashboard:  http://{host_display}:{args.port}")
-        print(f"  Local Loopback: http://127.0.0.1:{args.port}")
-        print(f"  Central LLM:    http://127.0.0.1:8000/v1/systemone")
+        print(f"  Web Dashboard:  http://{host_display}:{port}")
+        print(f"  Listening on:   {host} ({network_note})")
+        print(f"  Central LLM:    {orch_config.CENTRAL_LLM_URL}")
         print(f"=======================================================\n")
-        uvicorn.run(orch_app.app, host=args.host, port=args.port)
+        uvicorn.run(orch_app.app, host=host, port=port)
         sys.exit(0)
     else:
         parser.print_help()
