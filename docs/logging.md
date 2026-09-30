@@ -1,12 +1,12 @@
 # Structured Logging & Telemetry Standards
 
-This document describes BAT Automate's structured logging architecture, directory partitioning, exception classification, and telemetry data schema. Logging rules for contributors are in `.agents/rules/logging.md`; uploading logs to the Orchestrator is covered in [orchestrator.md](orchestrator.md).
+This document describes Kinenix's structured logging architecture, directory partitioning, exception classification, and telemetry data schema. Logging rules for contributors are in `.agents/rules/logging.md`; uploading logs to the Orchestrator is covered in [orchestrator.md](orchestrator.md).
 
 ---
 
 ## 1. Directory Structure & Partitioning
 
-BAT Automate records every workflow execution into **Structured JSON Logs** organized by flow name and execution date:
+Kinenix records every workflow execution into **Structured JSON Logs** organized by flow name and execution date:
 
 ```text
 logs/

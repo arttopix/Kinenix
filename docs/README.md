@@ -21,11 +21,11 @@ Each topic has one owning document. Other files link here instead of repeating t
 
 | Document | Covers |
 | :--- | :--- |
-| [cli_guide.md](cli_guide.md) | `batautomate` commands and options |
+| [cli_guide.md](cli_guide.md) | `kinenix` commands and options |
 | [orchestrator.md](orchestrator.md) | Running the Orchestrator, environment variables, worker authentication |
 | [logging.md](logging.md) | Execution log layout and JSON format |
-| [../bat-worker/README.md](../bat-worker/README.md) | Worker CLI and Raspberry Pi setup |
-| [../bat-studio/README.md](../bat-studio/README.md) | Studio design and layout |
+| [../kinenix-worker/README.md](../kinenix-worker/README.md) | Worker CLI and Raspberry Pi setup |
+| [../kinenix-studio/README.md](../kinenix-studio/README.md) | Studio design and layout |
 
 ## Contribute
 

@@ -4,7 +4,7 @@
   "screenshot_path": "./output/screenshots/result_rpachallenge.png",
   "error_dir": "./output/errors/",
   "email_to": "arttopix@gmail.com",
-  "email_subject": "[BAT Automate] RPA Challenge Benchmark Completed",
+  "email_subject": "[Kinenix] RPA Challenge Benchmark Completed",
   "send_notification": false,
   "dry_run": false
 }

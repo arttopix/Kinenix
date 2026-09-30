@@ -5,8 +5,8 @@
   "version": "1.0.0",
   "variables": {
     "to": "arttopix@example.com",
-    "subject": "Automated Notification from BAT Automate",
-    "body": "Hello, this is an automated message from BAT Automate.",
+    "subject": "Automated Notification from Kinenix",
+    "body": "Hello, this is an automated message from Kinenix.",
     "html": null,
     "attachments": [],
     "dry_run": false

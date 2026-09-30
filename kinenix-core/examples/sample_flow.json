@@ -1,0 +1,40 @@
+{
+  "$schema": "../../schemas/flow.schema.json",
+  "name": "Sample Kinenix Flow",
+  "description": "Test flow executing variables, logic, delay, and HTTP API actions",
+  "version": "1.0.0",
+  "variables": {
+    "welcome_msg": "Hello Kinenix",
+    "target_url": "https://httpbin.org/get"
+  },
+  "steps": [
+    {
+      "id": "step_1",
+      "name": "Set Initial Variable",
+      "action": "logic.set_variable",
+      "parameters": {
+        "name": "status_flag",
+        "value": "active"
+      },
+      "output_var": "set_result"
+    },
+    {
+      "id": "step_2",
+      "name": "Short Delay",
+      "action": "logic.delay",
+      "parameters": {
+        "seconds": 0.5
+      }
+    },
+    {
+      "id": "step_3",
+      "name": "Execute HTTP GET Request",
+      "action": "http.request",
+      "parameters": {
+        "url": "${target_url}",
+        "method": "GET"
+      },
+      "output_var": "api_response"
+    }
+  ]
+}

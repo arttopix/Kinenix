@@ -1,4 +1,4 @@
-# batautomate
+# kinenix
 
 [![Status](https://img.shields.io/badge/Status-Active%20Development%20(WIP)-orange.svg?style=flat-square)](#)
 [![Version](https://img.shields.io/badge/Version-v0.1.0--alpha-blue.svg?style=flat-square)](#)
@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
 > **Project Status: Active Development (Pre-Alpha / Work-in-Progress)**  
-> batautomate is currently under rapid, active development. Core engine APIs, subflow execution specifications, and action schemas are evolving. It is not yet intended for mission-critical production deployments. Community feedback and contributions are warmly welcome!
+> kinenix is currently under rapid, active development. Core engine APIs, subflow execution specifications, and action schemas are evolving. It is not yet intended for mission-critical production deployments. Community feedback and contributions are warmly welcome!
 
 > **Open-Source, Local AI-Native Agentic Automation Framework**  
 > Next-generation Enterprise RPA powered by Python and on-device Small Language Models (SLMs). Eliminate commercial licensing overhead with autonomous agent workflows, zero-license Excel automation, and 100% free unattended robot workers.
@@ -27,10 +27,10 @@
 
 | Module | Role | Status |
 | :--- | :--- | :--- |
-| **`bat-core`** | Flow interpreter, action plugins, and `batautomate` CLI | Implemented |
-| **`bat-worker`** | Unattended runner with schedule and file-watch triggers | Implemented (WebSocket dispatch planned) |
-| **`bat-studio`** | Web-based flow editor and runner | In progress |
-| **`bat-orchestrator`** | Central telemetry server, dashboard, and AI failure summaries | Early |
+| **`kinenix-core`** | Flow interpreter, action plugins, and `kinenix` CLI | Implemented |
+| **`kinenix-worker`** | Unattended runner with schedule and file-watch triggers | Implemented (WebSocket dispatch planned) |
+| **`kinenix-studio`** | Web-based flow editor and runner | In progress |
+| **`kinenix-orchestrator`** | Central telemetry server, dashboard, and AI failure summaries | Early |
 
 Flows are packaged as self-contained project bundles under `flows/`. See [Architecture](docs/architecture.md) for the execution pipeline, AI integration, and target design, and [Roadmap](docs/roadmap.md) for delivery status.
 
@@ -38,7 +38,7 @@ Flows are packaged as self-contained project bundles under `flows/`. See [Archit
 
 ## 3. Prerequisites
 
-Before installing and running batautomate, ensure your system meets the following requirements:
+Before installing and running kinenix, ensure your system meets the following requirements:
 
 ### Core Requirements
 | Component | Minimum Version | Notes |
@@ -63,7 +63,7 @@ playwright install --with-deps chromium
 #### Windows
 Ensure Python 3.10+ is installed with **"Add python.exe to PATH"** checked. Install Playwright browser binaries with:
 ```powershell
-batautomate install-browsers
+kinenix install-browsers
 # or: playwright install chromium
 ```
 
@@ -72,7 +72,7 @@ batautomate install-browsers
   ```bash
   ollama run qwen2.5:1.5b
   ```
-- **bat-studio Web UI Development:** [Node.js 18+](https://nodejs.org/) and `npm` (only required if developing or building `bat-studio/frontend`).
+- **kinenix-studio Web UI Development:** [Node.js 18+](https://nodejs.org/) and `npm` (only required if developing or building `kinenix-studio/frontend`).
 
 ---
 
@@ -84,32 +84,34 @@ Clone the repository and install the modules in editable mode within your Python
 
 ```bash
 # Clone repository from dev branch
-git clone -b dev https://github.com/arttopix/batautomate.git
-cd batautomate
+git clone -b dev https://github.com/arttopix/batautomate.git kinenix
+cd kinenix
 
 # Create and activate virtual environment
 python3 -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\Activate.ps1
 
 # Install core engine and worker daemon in editable mode
-pip install -e ./bat-core -e ./bat-worker
+pip install -e ./kinenix-core -e ./kinenix-worker
+# Optional: Studio and the Central Orchestrator
+pip install -e ./kinenix-studio -e ./kinenix-orchestrator
 ```
 
 ### Verification & Execution
 
 ```bash
 # Check installed version and runtime info
-batautomate version
-batworker info
+kinenix version
+kinenix-worker info
 
 # List available flows (clean, deduplicated view)
-batautomate list
+kinenix list
 
 # Run the RPA Challenge benchmark (auto-compiles flow.md if needed)
-batautomate run rpachallenge
+kinenix run rpachallenge
 
 # Run with unattended worker daemon
-batworker run flows/examples/rpachallenge/
+kinenix-worker run flows/examples/rpachallenge/
 ```
 
 ---

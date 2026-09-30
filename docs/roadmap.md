@@ -25,8 +25,8 @@ Ordered so that safety and predictable runtime behavior come before new distribu
 Create a GitHub Actions workflow on pull requests and pushes that:
 
 - Tests the supported Python versions (at least 3.10 and the latest supported version).
-- Installs `bat-core`, `bat-worker`, and `bat-studio` with development dependencies.
-- Runs every pytest suite, including `bat-orchestrator/tests`.
+- Installs `kinenix-core`, `kinenix-worker`, `kinenix-studio`, and `kinenix-orchestrator` with development dependencies.
+- Runs every pytest suite, including `kinenix-orchestrator/tests`.
 - Builds the Studio frontend with `npm ci` and `npm run build`.
 - Later: formatting, linting, type checking, dependency vulnerability checks, and JSON schema validation of the flows in `flows/`.
 
@@ -51,7 +51,7 @@ The README should show a CI status badge instead of a hard-coded test count.
 ### 1.7 Worker WebSocket Protocol and Orchestrator Dispatch
 
 ```text
-Orchestrator -> versioned job bundle -> Worker (WebSocket) -> bat-core executes flow
+Orchestrator -> versioned job bundle -> Worker (WebSocket) -> kinenix-core executes flow
                                               |
                                               +-> status, logs, metrics, screenshots -> Orchestrator
 ```
@@ -67,18 +67,18 @@ Orchestrator -> versioned job bundle -> Worker (WebSocket) -> bat-core executes 
 
 ## 2. Phases
 
-### Phase 1: Core Engine (`bat-core`) - Done
+### Phase 1: Core Engine (`kinenix-core`) - Done
 - [x] Flow JSON schema and Pydantic v2 models
 - [x] Interpreter, execution context, and `${var}` evaluator (no `eval`)
 - [x] Actions: Web (Playwright), Excel/CSV, file system, HTTP, email, logic, flow control
 - [x] Error handling: `on_error` with `continue`, `retry`, and `fallback_step_id`; failure screenshots
 - [x] Hierarchical structured logging (`logs/<flow>/<date>/<HHMMSS>_<status>.json`)
-- [x] CLI and smart flow resolver (`batautomate list`, `batautomate run <flow>`)
+- [x] CLI and smart flow resolver (`kinenix list`, `kinenix run <flow>`)
 - [x] Project bundles (`flow.call`, `@shared/`, `config.json`, `.env`)
 - [x] `flow.md` authoring format with compiler to `flow.json`
 - [x] Local AI actions: `ai.prompt`, `ai.extract` (Ollama), `ai.decide` (OpenThai-SystemOne)
 
-### Phase 2: Studio (`bat-studio`) - In progress
+### Phase 2: Studio (`kinenix-studio`) - In progress
 - [x] FastAPI backend: flow discovery, read/save with schema validation, step update, action metadata, run
 - [x] Path containment to `flows/` and restricted CORS
 - [x] React/Vite 3-column UI (step timeline, inspector, context panel) served by the backend
@@ -88,7 +88,7 @@ Orchestrator -> versioned job bundle -> Worker (WebSocket) -> bat-core executes 
 - [ ] AI prompt bar for natural-language flow generation
 - [ ] Tauri desktop shell
 
-### Phase 3: Orchestrator (`bat-orchestrator`) - In progress
+### Phase 3: Orchestrator (`kinenix-orchestrator`) - In progress
 - [x] FastAPI service with heartbeat and telemetry ingestion over HTTP
 - [x] Execution and worker storage via SQLAlchemy (SQLite default, `DATABASE_URL` for others)
 - [x] Web dashboard for workers and executions
@@ -101,9 +101,9 @@ Orchestrator -> versioned job bundle -> Worker (WebSocket) -> bat-core executes 
 - [ ] Business ROI dashboard: hours saved, cost saved, transaction audit trail
 - [ ] Alerts and daily digests (LINE Messaging API first, then Teams and Email)
 
-### Phase 4: Worker (`bat-worker`) - In progress
-- [x] `batworker run`, `watch` (file trigger), `schedule` (interval), `daemon` (multi-trigger config)
-- [x] Optional per-job sandbox workspace (`~/.batautomate/workspaces/<job_id>`)
+### Phase 4: Worker (`kinenix-worker`) - In progress
+- [x] `kinenix-worker run`, `watch` (file trigger), `schedule` (interval), `daemon` (multi-trigger config)
+- [x] Optional per-job sandbox workspace (`~/.kinenix/workspaces/<job_id>`)
 - [x] Verified on Raspberry Pi 4 (ARM64) with setup script
 - [ ] Heartbeat sender to the Orchestrator
 - [ ] WebSocket job client (see 1.7)

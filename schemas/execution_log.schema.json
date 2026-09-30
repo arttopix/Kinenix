@@ -259,7 +259,7 @@
   "required": [
     "flow_name"
   ],
-  "title": "BAT Automate Execution Log Schema",
+  "title": "Kinenix Execution Log Schema",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema"
 }

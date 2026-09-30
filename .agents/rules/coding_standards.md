@@ -1,6 +1,6 @@
 # Coding Standards & Module Guidelines
 
-This document defines code conventions, typing standards, and module implementation patterns for the **BAT Automate** project.
+This document defines code conventions, typing standards, and module implementation patterns for the **Kinenix** project.
 
 ---
 
@@ -15,7 +15,7 @@ This document defines code conventions, typing standards, and module implementat
 
 ---
 
-## 2. Python Standards (`bat-core`)
+## 2. Python Standards (`kinenix-core`)
 
 - **Runtime Target:** Python 3.10 or higher.
 - **Type Annotations:** All function signatures and class definitions must include full type hints.
@@ -31,7 +31,7 @@ This document defines code conventions, typing standards, and module implementat
 
 ---
 
-## 3. Frontend Standards (`bat-studio` & Dashboard)
+## 3. Frontend Standards (`kinenix-studio` & Dashboard)
 
 - **Framework:** Tauri + React + TypeScript.
 - **Canvas Components:** Build canvas nodes and edges using standard React components to allow code reuse between Desktop Studio and the Web Orchestrator.
@@ -39,7 +39,7 @@ This document defines code conventions, typing standards, and module implementat
 
 ---
 
-## 4. API & Backend Standards (`bat-orchestrator`)
+## 4. API & Backend Standards (`kinenix-orchestrator`)
 
 - **Framework:** FastAPI with asynchronous endpoint handlers.
 - **Notification Priority:** Notifications must support LINE Messaging API first, followed by Microsoft Teams and Email.

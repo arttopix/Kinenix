@@ -1,12 +1,12 @@
 # Modular Project Architecture & Unattended Lifecycle
 
-This guide documents BAT Automate's **Self-Contained Project Bundle** architecture, subflow execution standards, and the complete lifecycle from development to unattended deployment.
+This guide documents Kinenix's **Self-Contained Project Bundle** architecture, subflow execution standards, and the complete lifecycle from development to unattended deployment.
 
 ---
 
 ## 1. Self-Contained Project Bundle Overview
 
-Enterprise automation workflows often contain multiple sub-processes, data files, and external templates. To avoid path dependencies, broken references, or variable collisions, BAT Automate organizes workflows into **Self-Contained Project Bundles**:
+Enterprise automation workflows often contain multiple sub-processes, data files, and external templates. To avoid path dependencies, broken references, or variable collisions, Kinenix organizes workflows into **Self-Contained Project Bundles**:
 
 ```text
 flows/
@@ -83,34 +83,34 @@ To invoke a reusable organization-wide component from the central `@shared/` dir
 
 ## 3. Flow Lifecycle & Unattended Deployment Strategy
 
-The project bundle structure directly enables a robust deployment pipeline to unattended robot workers (`bat-worker`):
+The project bundle structure directly enables a robust deployment pipeline to unattended robot workers (`kinenix-worker`):
 
-> **Status:** Phase 1 and the sandbox workspace in Phase 4 (`batworker run --sandbox`) are implemented. Packaging, Orchestrator distribution, the worker cache, and WebSocket streaming (Phases 2, 3, 5) are planned. See [roadmap.md](roadmap.md).
+> **Status:** Phase 1 and the sandbox workspace in Phase 4 (`kinenix-worker run --sandbox`) are implemented. Packaging, Orchestrator distribution, the worker cache, and WebSocket streaming (Phases 2, 3, 5) are planned. See [roadmap.md](roadmap.md).
 
 ```text
-[ Developer Machine ] -> [ BAT Orchestrator ] -> [ Unattended Worker Daemon ]
+[ Developer Machine ] -> [ Kinenix Orchestrator ] -> [ Unattended Worker Daemon ]
   Local Dev & Test          Package & Version          Isolated Sandbox Execution
 ```
 
 ### Phase 1: Local Development & Verification
 - Developer authors and tests the workflow locally within `flows/<dept>/<project>/`.
-- Run and debug via CLI: `batautomate run <project_name>`.
+- Run and debug via CLI: `kinenix run <project_name>`.
 - All assets remain inside `./assets/` and logs are written to central `logs/`.
 
 ### Phase 2: Packaging & Versioning
 - The project bundle directory is packaged into a versioned archive (e.g. `invoice_tax_filing-1.0.0.batpkg` or `.zip`).
 - Any referenced `@shared/` flows are inlined by the packaging tool into the bundle, ensuring the archive is 100% self-contained.
-- The package is published to **BAT Orchestrator**.
+- The package is published to **Kinenix Orchestrator**.
 
 ### Phase 3: Distribution & Local Worker Cache
-- Background daemons (`bat-worker`) running on target worker machines (Windows VMs, PCs, or Raspberry Pi) connect to Orchestrator via WebSocket.
-- When a job is dispatched, the worker checks its local package cache (`~/.batautomate/packages/` or `C:\ProgramData\BatAutomate\packages\`).
+- Background daemons (`kinenix-worker`) running on target worker machines (Windows VMs, PCs, or Raspberry Pi) connect to Orchestrator via WebSocket.
+- When a job is dispatched, the worker checks its local package cache (`~/.kinenix/packages/` or `C:\ProgramData\Kinenix\packages\`).
 - If the requested version is not present or updated, the worker downloads and verifies the package archive.
 
 ### Phase 4: Sandbox Workspace Isolation
 - Prior to execution, the worker unpacks the project bundle into an isolated, per-job workspace directory:
   ```text
-  ~/.batautomate/workspaces/job_20260911_001/
+  ~/.kinenix/workspaces/job_20260911_001/
   ├── flow.json
   ├── subflows/
   └── assets/
@@ -118,5 +118,5 @@ The project bundle structure directly enables a robust deployment pipeline to un
 - This ensures complete filesystem isolation, eliminates cross-job file locking or corruption, and allows clean workspace disposal after job completion.
 
 ### Phase 5: Execution & Telemetry
-- Worker executes the bundle: `batautomate run .../flow.json`.
+- Worker executes the bundle: `kinenix run .../flow.json`.
 - Step results, business metrics, and failure screenshots are streamed in real time to the Orchestrator dashboard.

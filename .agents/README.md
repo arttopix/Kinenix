@@ -1,8 +1,8 @@
 # .agents/
 
-Engineering rules for AI coding assistants working on BAT Automate. Antigravity IDE auto-loads every file in `.agents/rules/`; other tools reach these rules through [AGENTS.md](../AGENTS.md) at the repository root, which is the main entry point.
+Engineering rules for AI coding assistants working on Kinenix. Antigravity IDE auto-loads every file in `.agents/rules/`; other tools reach these rules through [AGENTS.md](../AGENTS.md) at the repository root, which is the main entry point.
 
-This directory is for AI developer tooling only. It is unrelated to `bat-worker`, the runtime robot daemon.
+This directory is for AI developer tooling only. It is unrelated to `kinenix-worker`, the runtime robot daemon.
 
 ## Rules
 

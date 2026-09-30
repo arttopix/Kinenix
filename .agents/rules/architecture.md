@@ -17,7 +17,7 @@ Rules that every change must respect. For how the system is structured today and
 
 ## 2. Module Boundaries
 
-- `bat-core` must stay lean: it must run non-AI flows without any ML runtime installed. AI integrations are optional sidecars reached over HTTP.
+- `kinenix-core` must stay lean: it must run non-AI flows without any ML runtime installed. AI integrations are optional sidecars reached over HTTP.
 - Actions must not depend on GUI frameworks.
 - AI copilot and diagnostic tools must run as detached sidecar services or optional add-ons.
 
@@ -38,7 +38,7 @@ When implementing worker-orchestrator messaging, follow the Hybrid Protocol in `
 - Machine state travels as structured JSON (`type`, `job_id`, `status`, `metrics`) with explicit states `PENDING`, `RUNNING`, `SUCCESS`, `FAILED`.
 - Natural-language reports travel inside the envelope as Markdown (`agent_report_md`), never as the only carrier of state.
 - Remote workers must not share state through mounted disks.
-- Every worker-facing write endpoint must require authentication (see `bat-orchestrator/security.py`).
+- Every worker-facing write endpoint must require authentication (see `kinenix-orchestrator/kinenix_orchestrator/security.py`).
 
 ---
 
