@@ -86,7 +86,7 @@ Clone the repository and install the modules in editable mode within your Python
 
 ```bash
 # Clone repository from dev branch
-git clone -b dev https://github.com/arttopix/batautomate.git kinenix
+git clone -b dev https://github.com/arttopix/Kinenix.git kinenix
 cd kinenix
 
 # Create and activate virtual environment
