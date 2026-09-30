@@ -28,7 +28,7 @@ The project uses a virtual environment at `.venv/` in the repository root. On Wi
 
 ```powershell
 # Install (editable)
-.venv/Scripts/python.exe -m pip install -e "kinenix-core[dev]" -e kinenix-worker -e kinenix-studio -e "kinenix-orchestrator[dev]"
+.venv/Scripts/python.exe -m pip install -e "kinenix-core[dev]" -e "kinenix-worker[dev]" -e "kinenix-studio[dev]" -e "kinenix-orchestrator[dev]"
 
 # Tests: run kinenix-core from its own directory, the others from the repo root
 cd kinenix-core; ../.venv/Scripts/python.exe -m pytest -q; cd ..
@@ -44,7 +44,7 @@ kinenix run flows/examples/rpachallenge
 kinenix orchestrator --port 8080
 ```
 
-Run the test suites for every module you touch before reporting work as done. There is no CI yet, so local test runs are the only safety net.
+Run the test suites for every module you touch before reporting work as done. GitHub Actions (`.github/workflows/ci.yml`) runs the same commands on every push and pull request to `main` and `dev`; keep the workflow in sync when these commands change.
 
 ## Rules Index
 

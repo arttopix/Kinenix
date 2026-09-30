@@ -15,22 +15,22 @@ Ordered so that safety and predictable runtime behavior come before new distribu
 | 1 | Studio path containment and CORS restriction | Done |
 | 2 | Retry and fallback runtime behavior with tests | Done |
 | 3 | Orchestrator worker authentication (API key) | Done |
-| 4 | Continuous integration for Python tests and the Studio frontend build | Not started |
+| 4 | Continuous integration for Python tests and the Studio frontend build | Done |
 | 5 | Orchestrator dashboard authentication, CORS, and safe default host | Done |
 | 6 | Persistent Studio sessions, single-step execution, and live telemetry | Not started |
 | 7 | Worker WebSocket protocol and job dispatch from the Orchestrator | Not started |
 
 ### 1.4 Continuous Integration
 
-Create a GitHub Actions workflow on pull requests and pushes that:
+GitHub Actions workflow `.github/workflows/ci.yml` runs on pushes and pull requests to `main` and `dev`:
 
-- Tests the supported Python versions (at least 3.10 and the latest supported version).
-- Installs `kinenix-core`, `kinenix-worker`, `kinenix-studio`, and `kinenix-orchestrator` with development dependencies.
-- Runs every pytest suite, including `kinenix-orchestrator/tests`.
-- Builds the Studio frontend with `npm ci` and `npm run build`.
-- Later: formatting, linting, type checking, dependency vulnerability checks, and JSON schema validation of the flows in `flows/`.
-
-The README should show a CI status badge instead of a hard-coded test count.
+- [x] Python 3.10 and 3.14 on Ubuntu, and Python 3.10 on Windows.
+- [x] Installs `kinenix-core`, `kinenix-worker`, `kinenix-studio`, and `kinenix-orchestrator` with development dependencies.
+- [x] Runs every pytest suite, including `kinenix-orchestrator/tests`.
+- [x] Builds the Studio frontend with `npm ci` and `npm run build`.
+- [x] CI status badge in the README.
+- [ ] Formatting, linting, type checking, dependency vulnerability checks, and JSON schema validation of the flows in `flows/`.
+- [ ] Publish `kinenix` to PyPI from a tagged release (Trusted Publishing).
 
 ### 1.5 Orchestrator Hardening
 

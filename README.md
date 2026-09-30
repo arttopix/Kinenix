@@ -3,6 +3,7 @@ https://buymeacoffee.com/arttopix
 # kinenix
 
 [![Status](https://img.shields.io/badge/Status-Active%20Development%20(WIP)-orange.svg?style=flat-square)](#)
+[![CI](https://github.com/arttopix/Kinenix/actions/workflows/ci.yml/badge.svg)](https://github.com/arttopix/Kinenix/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/kinenix.svg?style=flat-square)](https://pypi.org/project/kinenix/)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-brightgreen.svg?style=flat-square)](#)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
