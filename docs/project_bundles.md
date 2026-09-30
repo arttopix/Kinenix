@@ -85,6 +85,8 @@ To invoke a reusable organization-wide component from the central `@shared/` dir
 
 The project bundle structure directly enables a robust deployment pipeline to unattended robot workers (`bat-worker`):
 
+> **Status:** Phase 1 and the sandbox workspace in Phase 4 (`batworker run --sandbox`) are implemented. Packaging, Orchestrator distribution, the worker cache, and WebSocket streaming (Phases 2, 3, 5) are planned. See [roadmap.md](roadmap.md).
+
 ```text
 [ Developer Machine ] -> [ BAT Orchestrator ] -> [ Unattended Worker Daemon ]
   Local Dev & Test          Package & Version          Isolated Sandbox Execution
