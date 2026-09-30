@@ -130,9 +130,11 @@ class ExecutionLogger:
             )
             clean_url = str(orchestrator_url).rstrip("/")
             target_endpoint = f"{clean_url}/api/v1/telemetry"
+            # Round-trip through JSON with the same datetime handling as the log file,
+            # since requests' json= encoder cannot serialize datetime values
             payload = {
                 "worker_id": worker_id,
-                "payload": raw_data
+                "payload": json.loads(json.dumps(raw_data, default=str))
             }
             headers = {}
             api_key = os.environ.get("KINENIX_ORCHESTRATOR_API_KEY")
@@ -149,5 +151,5 @@ class ExecutionLogger:
             else:
                 self.logger.warning(f"Orchestrator returned HTTP {res.status_code}: {res.text}")
         except Exception as err:
-            self.logger.debug(f"Telemetry transmission skipped: {err}")
+            self.logger.warning(f"Telemetry transmission to Orchestrator failed: {err}")
 
