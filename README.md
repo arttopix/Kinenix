@@ -3,7 +3,7 @@ https://buymeacoffee.com/arttopix
 # kinenix
 
 [![Status](https://img.shields.io/badge/Status-Active%20Development%20(WIP)-orange.svg?style=flat-square)](#)
-[![Version](https://img.shields.io/badge/Version-v0.1.0--alpha-blue.svg?style=flat-square)](#)
+[![PyPI](https://img.shields.io/pypi/v/kinenix.svg?style=flat-square)](https://pypi.org/project/kinenix/)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-brightgreen.svg?style=flat-square)](#)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
@@ -81,6 +81,20 @@ kinenix install-browsers
 ## 4. Quick Start
 
 ### Installation
+
+#### From PyPI (core engine and CLI)
+
+The core engine is published on PyPI as [`kinenix`](https://pypi.org/project/kinenix/):
+
+```bash
+pip install kinenix
+kinenix install-browsers   # Playwright Chromium, needed for web actions
+kinenix --version
+```
+
+The worker, Studio, and Orchestrator are not on PyPI yet. Install them from source as shown below.
+
+#### From source (all modules, for development)
 
 Clone the repository and install the modules in editable mode within your Python virtual environment:
 
