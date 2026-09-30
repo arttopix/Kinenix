@@ -1,6 +1,6 @@
 # Error Handling & Telemetry Standards
 
-This document establishes exception handling classification and error telemetry requirements for **BAT Automate**.
+This document establishes exception handling classification and error telemetry requirements for **Kinenix**.
 
 ---
 

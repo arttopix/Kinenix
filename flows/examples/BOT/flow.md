@@ -84,6 +84,6 @@
 ### 10. Send Exchange Rates Report Email via Outlook/SMTP (`flow.call`)
 - **condition:** `${config.send_email} == true`
 - **flow:** `@shared/send_email.json`
-- **inputs:** `{"to": "${config.email_recipient}", "subject": "${config.email_subject}", "body": "Hello,\n\nPlease find attached the Bank of Thailand Foreign Exchange Rates report (USD, GBP, SGD, JPY, EUR) for the period 01-12-2024 to 31-12-2024.\n\nBest regards,\nBatAutomate Worker", "attachments": ["${config.excel_output_path}"], "dry_run": "${config.dry_run}"}`
+- **inputs:** `{"to": "${config.email_recipient}", "subject": "${config.email_subject}", "body": "Hello,\n\nPlease find attached the Bank of Thailand Foreign Exchange Rates report (USD, GBP, SGD, JPY, EUR) for the period 01-12-2024 to 31-12-2024.\n\nBest regards,\nKinenix Worker", "attachments": ["${config.excel_output_path}"], "dry_run": "${config.dry_run}"}`
 - **output_var:** `email_delivery_result`
 - **on_error:** continue

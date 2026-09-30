@@ -1,26 +1,26 @@
 # AGENTS.md
 
-Entry point for AI coding assistants (any vendor) working on **BAT Automate**, a local AI-native RPA framework in Python. Read this file first, then open the rule or doc files relevant to your task. Detailed rules live in `.agents/rules/`; this file does not duplicate them.
+Entry point for AI coding assistants (any vendor) working on **Kinenix**, a local AI-native RPA framework in Python. Read this file first, then open the rule or doc files relevant to your task. Detailed rules live in `.agents/rules/`; this file does not duplicate them.
 
 ## Repository Map
 
 | Path | What it is | State |
 | :--- | :--- | :--- |
-| `bat-core/` | Flow interpreter, variable evaluator, action plugins, `batautomate` CLI | Implemented |
-| `bat-worker/` | Unattended runner with schedule and file-watch triggers | Implemented |
-| `bat-studio/` | FastAPI server + React/Vite web UI for viewing and editing flows | Implemented (web, not Tauri yet) |
-| `bat-orchestrator/` | FastAPI + SQLAlchemy telemetry receiver and dashboard | Early (HTTP push, SQLite default) |
+| `kinenix-core/` | Flow interpreter, variable evaluator, action plugins, `kinenix` CLI | Implemented |
+| `kinenix-worker/` | Unattended runner with schedule and file-watch triggers | Implemented |
+| `kinenix-studio/` | FastAPI server + React/Vite web UI for viewing and editing flows | Implemented (web, not Tauri yet) |
+| `kinenix-orchestrator/` | FastAPI + SQLAlchemy telemetry receiver and dashboard | Early (HTTP push, SQLite default) |
 | `flows/` | Project bundles (`flow.json`, `flow.md`, `config/`, `assets/`, `subflows/`); `@shared/` holds reusable subflows | |
 | `schemas/` | JSON schemas for flows and execution logs | |
 | `docs/` | Human and AI reference documentation | |
 | `.agents/rules/` | Detailed engineering rules | |
 
 Key code locations:
-- Interpreter and retry/fallback logic: `bat-core/batautomate/engine/interpreter.py`
-- `${var}` expression resolution (no `eval`): `bat-core/batautomate/engine/evaluator.py`
-- `flow.md` to `flow.json` compiler: `bat-core/batautomate/engine/markdown.py`
-- Action base class and registry: `bat-core/batautomate/actions/base.py`, `registry.py`
-- Orchestrator auth (worker API key, dashboard Basic Auth): `bat-orchestrator/security.py`
+- Interpreter and retry/fallback logic: `kinenix-core/kinenix/engine/interpreter.py`
+- `${var}` expression resolution (no `eval`): `kinenix-core/kinenix/engine/evaluator.py`
+- `flow.md` to `flow.json` compiler: `kinenix-core/kinenix/engine/markdown.py`
+- Action base class and registry: `kinenix-core/kinenix/actions/base.py`, `registry.py`
+- Orchestrator auth (worker API key, dashboard Basic Auth): `kinenix-orchestrator/kinenix_orchestrator/security.py`
 
 ## Setup and Commands
 
@@ -28,20 +28,20 @@ The project uses a virtual environment at `.venv/` in the repository root. On Wi
 
 ```powershell
 # Install (editable)
-.venv/Scripts/python.exe -m pip install -e "bat-core[dev]" -e bat-worker -e bat-studio
+.venv/Scripts/python.exe -m pip install -e "kinenix-core[dev]" -e kinenix-worker -e kinenix-studio -e "kinenix-orchestrator[dev]"
 
-# Tests: run bat-core from its own directory, the others from the repo root
-cd bat-core; ../.venv/Scripts/python.exe -m pytest -q; cd ..
-.venv/Scripts/python.exe -m pytest -q bat-worker/tests
-.venv/Scripts/python.exe -m pytest -q bat-studio/tests
-.venv/Scripts/python.exe -m pytest -q bat-orchestrator/tests
+# Tests: run kinenix-core from its own directory, the others from the repo root
+cd kinenix-core; ../.venv/Scripts/python.exe -m pytest -q; cd ..
+.venv/Scripts/python.exe -m pytest -q kinenix-worker/tests
+.venv/Scripts/python.exe -m pytest -q kinenix-studio/tests
+.venv/Scripts/python.exe -m pytest -q kinenix-orchestrator/tests
 
 # Studio frontend
-cd bat-studio/frontend; npm ci; npm run build
+cd kinenix-studio/frontend; npm ci; npm run build
 
 # Run a flow / start the orchestrator
-batautomate run flows/examples/rpachallenge
-batautomate orchestrator --port 8080
+kinenix run flows/examples/rpachallenge
+kinenix orchestrator --port 8080
 ```
 
 Run the test suites for every module you touch before reporting work as done. There is no CI yet, so local test runs are the only safety net.
@@ -83,11 +83,10 @@ Some rule files and the README describe the target architecture, not what exists
 | Topic | Target (in rules/README) | Current code |
 | :--- | :--- | :--- |
 | Action parameters | Pydantic model per action | Actions receive a plain `Dict[str, Any]` |
-| Action tests | `bat-core/tests/actions/` | Tests live directly in `bat-core/tests/` |
+| Action tests | `kinenix-core/tests/actions/` | Tests live directly in `kinenix-core/tests/` |
 | Studio | Tauri desktop app | FastAPI + React/Vite in the browser |
 | Orchestrator backend | Async handlers, PostgreSQL, Redis/Celery | Sync handlers, SQLite by default, no queue |
 | Worker communication | WebSocket job dispatch and log streaming | Workers push telemetry over HTTP; no dispatch |
-| Orchestrator package | Standard Python package | Directory `bat-orchestrator/` (hyphen), imported via `import_module("bat-orchestrator.app")`, no `pyproject.toml` |
 
 When you change code so that it matches a target, update this table and `docs/roadmap.md`.
 
@@ -95,14 +94,14 @@ When you change code so that it matches a target, update this table and `docs/ro
 
 | Variable | Used by | Purpose |
 | :--- | :--- | :--- |
-| `BATAUTOMATE_ORCHESTRATOR_URL` | bat-core | Orchestrator URL for telemetry upload |
-| `BATAUTOMATE_ORCHESTRATOR_API_KEY` | bat-core | API key sent as `X-API-Key` |
-| `BATAUTOMATE_WORKER_ID` | bat-core | Worker identifier in telemetry |
-| `ORCHESTRATOR_API_KEY` | bat-orchestrator | Required key for write endpoints; unset means localhost-only |
-| `ORCHESTRATOR_DASHBOARD_USER` / `ORCHESTRATOR_DASHBOARD_PASSWORD` | bat-orchestrator | Basic Auth for the dashboard and read endpoints; unset password means localhost-only |
-| `ORCHESTRATOR_HOST` / `ORCHESTRATOR_PORT` | bat-orchestrator | Bind address (default `127.0.0.1`, localhost only) and port |
-| `DATABASE_URL` | bat-orchestrator | SQLAlchemy connection string |
-| `CENTRAL_LLM_URL` | bat-orchestrator | LLM endpoint for failure analysis |
+| `KINENIX_ORCHESTRATOR_URL` | kinenix-core | Orchestrator URL for telemetry upload |
+| `KINENIX_ORCHESTRATOR_API_KEY` | kinenix-core | API key sent as `X-API-Key` |
+| `KINENIX_WORKER_ID` | kinenix-core | Worker identifier in telemetry |
+| `ORCHESTRATOR_API_KEY` | kinenix-orchestrator | Required key for write endpoints; unset means localhost-only |
+| `ORCHESTRATOR_DASHBOARD_USER` / `ORCHESTRATOR_DASHBOARD_PASSWORD` | kinenix-orchestrator | Basic Auth for the dashboard and read endpoints; unset password means localhost-only |
+| `ORCHESTRATOR_HOST` / `ORCHESTRATOR_PORT` | kinenix-orchestrator | Bind address (default `127.0.0.1`, localhost only) and port |
+| `DATABASE_URL` | kinenix-orchestrator | SQLAlchemy connection string |
+| `CENTRAL_LLM_URL` | kinenix-orchestrator | LLM endpoint for failure analysis |
 
 ## Keeping This File Accurate
 

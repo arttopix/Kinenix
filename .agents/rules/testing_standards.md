@@ -1,13 +1,13 @@
 # Testing Standards & Quality Assurance
 
-This document defines testing conventions, validation benchmarks, and regression prevention guidelines for **BAT Automate**.
+This document defines testing conventions, validation benchmarks, and regression prevention guidelines for **Kinenix**.
 
 ---
 
-## 1. Unit Testing (`bat-core`)
+## 1. Unit Testing (`kinenix-core`)
 
 - **Framework:** Use `pytest` for all unit and component tests.
-- **Location:** Place test files under `bat-core/tests/` with the standard naming convention `test_*.py`.
+- **Location:** Place test files under `kinenix-core/tests/` with the standard naming convention `test_*.py`.
 - **Scope of Coverage:**
   - Action execution logic (`BaseAction` subclasses).
   - Variable context interpolation, expression evaluation, and environment resolution.

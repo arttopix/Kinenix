@@ -1,6 +1,6 @@
 # Git Workflow & Commit Guidelines
 
-This document establishes Git branch naming conventions, commit message standards, and repository hygiene for **batautomate**.
+This document establishes Git branch naming conventions, commit message standards, and repository hygiene for **kinenix**.
 
 ---
 
@@ -16,7 +16,7 @@ Adopt Conventional Commits format for all commit messages. Emojis in commit mess
 ```
 
 ### Supported Types
-- `feat`: A new feature or capability (e.g., `feat(bat-core): add support for subflow calls`)
+- `feat`: A new feature or capability (e.g., `feat(kinenix-core): add support for subflow calls`)
 - `fix`: A bug fix (e.g., `fix(engine): resolve variable resolution for nested objects`)
 - `docs`: Documentation updates (e.g., `docs(rules): split rules into modular files`)
 - `refactor`: Code changes that neither fix a bug nor add a feature

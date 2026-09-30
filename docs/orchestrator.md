@@ -1,17 +1,23 @@
 # Central Orchestrator Guide
 
-The Central Orchestrator (`bat-orchestrator`) receives worker heartbeats and execution telemetry, stores them in a database, and serves the web dashboard with AI-assisted failure summaries.
+The Central Orchestrator (`kinenix-orchestrator`) receives worker heartbeats and execution telemetry, stores them in a database, and serves the web dashboard with AI-assisted failure summaries.
 
 ---
 
 ## 1. Starting the Orchestrator
 
+Install it once (it is a separate package from `kinenix-core`):
+
+```powershell
+pip install -e kinenix-orchestrator
+```
+
 ```powershell
 # Local only (default): dashboard at http://127.0.0.1:8080
-batautomate orchestrator
+kinenix orchestrator
 
 # Accept remote workers and viewers: set credentials first (sections 2 and 3)
-batautomate orchestrator --host 0.0.0.0 --port 8080
+kinenix orchestrator --host 0.0.0.0 --port 8080
 ```
 
 The Orchestrator listens on `127.0.0.1` by default, so nothing on the network can reach it until you opt in with `--host 0.0.0.0` (or `ORCHESTRATOR_HOST`). The startup banner shows which address it is listening on.
@@ -25,7 +31,7 @@ No CORS policy is configured: the dashboard is served from the Orchestrator's ow
 | `ORCHESTRATOR_API_KEY` | *(unset)* | Shared secret workers must send in the `X-API-Key` header. See [Worker Authentication](#2-worker-authentication). |
 | `ORCHESTRATOR_DASHBOARD_USER` | `admin` | Username for the dashboard login. See [Dashboard Authentication](#3-dashboard-authentication). |
 | `ORCHESTRATOR_DASHBOARD_PASSWORD` | *(unset)* | Password for the dashboard login. |
-| `DATABASE_URL` | `sqlite:///bat-orchestrator/orchestrator.db` | SQLAlchemy connection string (e.g. PostgreSQL). |
+| `DATABASE_URL` | `sqlite:///kinenix-orchestrator/kinenix_orchestrator/orchestrator.db` | SQLAlchemy connection string (e.g. PostgreSQL). |
 | `CENTRAL_LLM_URL` | `http://127.0.0.1:8000/v1/systemone` | LLM endpoint used for failure analysis. |
 | `ORCHESTRATOR_HOST` / `ORCHESTRATOR_PORT` | `127.0.0.1` / `8080` | Bind address and port. The CLI flags `--host` / `--port` override them. Use `0.0.0.0` to accept remote connections. |
 
@@ -67,17 +73,17 @@ When the key is unset, the Orchestrator still binds to the network but refuses r
 
    ```powershell
    $env:ORCHESTRATOR_API_KEY = "<generated-key>"
-   batautomate orchestrator
+   kinenix orchestrator
    ```
 
 3. On every worker, set the same key and point telemetry at the Orchestrator:
 
    ```powershell
-   $env:BATAUTOMATE_ORCHESTRATOR_API_KEY = "<generated-key>"
-   batautomate run flows/examples/BOT --orchestrator http://<orchestrator-ip>:8080
+   $env:KINENIX_ORCHESTRATOR_API_KEY = "<generated-key>"
+   kinenix run flows/examples/BOT --orchestrator http://<orchestrator-ip>:8080
    ```
 
-   The Orchestrator URL can also be set with `BATAUTOMATE_ORCHESTRATOR_URL` instead of `--orchestrator`.
+   The Orchestrator URL can also be set with `KINENIX_ORCHESTRATOR_URL` instead of `--orchestrator`.
 
 4. Verify from a worker machine:
 
@@ -89,7 +95,7 @@ When the key is unset, the Orchestrator still binds to the network but refuses r
 
    A `401` response means the key is missing or does not match; a `403` means the Orchestrator has no key configured.
 
-If the Orchestrator rejects telemetry, the worker logs a warning asking you to check `BATAUTOMATE_ORCHESTRATOR_API_KEY`. The flow itself still completes; only the telemetry upload fails.
+If the Orchestrator rejects telemetry, the worker logs a warning asking you to check `KINENIX_ORCHESTRATOR_API_KEY`. The flow itself still completes; only the telemetry upload fails.
 
 ### 2.3 Security Notes
 
@@ -118,7 +124,7 @@ The dashboard page and its read endpoints use HTTP Basic Auth. Browsers show a b
 ```powershell
 $env:ORCHESTRATOR_DASHBOARD_USER = "admin"            # optional, defaults to admin
 $env:ORCHESTRATOR_DASHBOARD_PASSWORD = "<strong-password>"
-batautomate orchestrator
+kinenix orchestrator
 ```
 
 Open `http://<orchestrator-ip>:8080` and sign in. For scripts, pass the same credentials:

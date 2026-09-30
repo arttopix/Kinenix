@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes how BAT Automate is structured: its principles, modules, execution pipeline, AI integration, and the planned distributed architecture. It separates what exists today from the target design. For delivery status and priorities, see [roadmap.md](roadmap.md).
+This document describes how Kinenix is structured: its principles, modules, execution pipeline, AI integration, and the planned distributed architecture. It separates what exists today from the target design. For delivery status and priorities, see [roadmap.md](roadmap.md).
 
 ---
 
@@ -20,22 +20,22 @@ This document describes how BAT Automate is structured: its principles, modules,
 
 | Module | Role | Current implementation | Target |
 | :--- | :--- | :--- | :--- |
-| **`bat-core`** | Flow interpreter, variable evaluator, action plugins, `batautomate` CLI | Python 3.10+, Pydantic, Playwright, openpyxl, pandas | Same |
-| **`bat-worker`** | Runs flows unattended on target machines | CLI with `run`, `watch`, `schedule`, `daemon`; optional per-job sandbox workspace | Persistent WebSocket client receiving jobs from the Orchestrator |
-| **`bat-studio`** | Flow authoring and debugging | FastAPI backend + React/Vite web UI: flow discovery, editing, validation, run | Tauri desktop shell, persistent browser sessions, element picker, live debugger |
-| **`bat-orchestrator`** | Central monitoring and control | FastAPI + SQLAlchemy (SQLite default); receives heartbeats and telemetry over HTTP; web dashboard; AI failure summaries; API key auth | Job dispatch over WebSocket, PostgreSQL + Redis queue, ROI dashboard, LINE/Teams/Email alerts |
+| **`kinenix-core`** | Flow interpreter, variable evaluator, action plugins, `kinenix` CLI | Python 3.10+, Pydantic, Playwright, openpyxl, pandas | Same |
+| **`kinenix-worker`** | Runs flows unattended on target machines | CLI with `run`, `watch`, `schedule`, `daemon`; optional per-job sandbox workspace | Persistent WebSocket client receiving jobs from the Orchestrator |
+| **`kinenix-studio`** | Flow authoring and debugging | FastAPI backend + React/Vite web UI: flow discovery, editing, validation, run | Tauri desktop shell, persistent browser sessions, element picker, live debugger |
+| **`kinenix-orchestrator`** | Central monitoring and control | FastAPI + SQLAlchemy (SQLite default); receives heartbeats and telemetry over HTTP; web dashboard; AI failure summaries; API key auth | Job dispatch over WebSocket, PostgreSQL + Redis queue, ROI dashboard, LINE/Teams/Email alerts |
 
 ### Current Data Flow
 
 ```mermaid
 graph LR
-    Studio["bat-studio<br>(edit / run flows)"] -->|reads and writes| Flows["flows/ bundles"]
-    Worker["bat-worker<br>(run / watch / schedule)"] -->|executes| Core["bat-core<br>interpreter"]
-    CLI["batautomate CLI"] -->|executes| Core
+    Studio["kinenix-studio<br>(edit / run flows)"] -->|reads and writes| Flows["flows/ bundles"]
+    Worker["kinenix-worker<br>(run / watch / schedule)"] -->|executes| Core["kinenix-core<br>interpreter"]
+    CLI["kinenix CLI"] -->|executes| Core
     Core -->|reads| Flows
     Core <-->|HTTP| AI["Local AI<br>(Ollama / SystemOne)"]
     Core -->|JSON logs| Logs["logs/"]
-    Core -->|HTTP telemetry + X-API-Key| Orch["bat-orchestrator"]
+    Core -->|HTTP telemetry + X-API-Key| Orch["kinenix-orchestrator"]
     Orch <-->|HTTP| AI
 ```
 
@@ -43,16 +43,16 @@ graph LR
 
 ```mermaid
 graph TD
-    Studio["BAT Studio<br>Visual designer and inspector"] -->|Deploy bundle| Orchestrator["BAT Orchestrator<br>Scheduling, ROI dashboard, alerts"]
-    Orchestrator -->|Dispatch job via WebSocket| Worker["BAT Worker<br>Daemon on VM / PC / edge device"]
-    Worker -->|Execute flow| Core["BAT Core<br>Interpreter engine"]
+    Studio["Kinenix Studio<br>Visual designer and inspector"] -->|Deploy bundle| Orchestrator["Kinenix Orchestrator<br>Scheduling, ROI dashboard, alerts"]
+    Orchestrator -->|Dispatch job via WebSocket| Worker["Kinenix Worker<br>Daemon on VM / PC / edge device"]
+    Worker -->|Execute flow| Core["Kinenix Core<br>Interpreter engine"]
     Core <-->|HTTP REST / JSON| AI["Local SLM sidecar<br>Ollama / llama.cpp"]
     Worker -->|Stream logs and screenshots| Orchestrator
 ```
 
 ---
 
-## 3. Execution Pipeline (`bat-core`)
+## 3. Execution Pipeline (`kinenix-core`)
 
 ```mermaid
 sequenceDiagram
@@ -87,10 +87,10 @@ sequenceDiagram
 ```
 
 Key implementation files:
-- Interpreter, error handling, retry and fallback: `bat-core/batautomate/engine/interpreter.py`
-- Expression evaluation (no `eval`): `bat-core/batautomate/engine/evaluator.py`
-- `flow.md` compiler: `bat-core/batautomate/engine/markdown.py` (spec: [flow_markdown_spec.md](flow_markdown_spec.md))
-- Log writer and telemetry upload: `bat-core/batautomate/engine/logger.py` (format: [logging.md](logging.md))
+- Interpreter, error handling, retry and fallback: `kinenix-core/kinenix/engine/interpreter.py`
+- Expression evaluation (no `eval`): `kinenix-core/kinenix/engine/evaluator.py`
+- `flow.md` compiler: `kinenix-core/kinenix/engine/markdown.py` (spec: [flow_markdown_spec.md](flow_markdown_spec.md))
+- Log writer and telemetry upload: `kinenix-core/kinenix/engine/logger.py` (format: [logging.md](logging.md))
 
 Flows are organized as self-contained project bundles; see [project_bundles.md](project_bundles.md).
 
@@ -98,12 +98,12 @@ Flows are organized as self-contained project bundles; see [project_bundles.md](
 
 ## 4. AI Integration
 
-AI runs as a **decoupled sidecar**. `bat-core` stays lightweight and can run every non-AI flow without any ML runtime installed.
+AI runs as a **decoupled sidecar**. `kinenix-core` stays lightweight and can run every non-AI flow without any ML runtime installed.
 
 | Where | What it does | Implementation |
 | :--- | :--- | :--- |
-| Flow actions | `ai.prompt` (JSON-constrained prompts), `ai.extract` (structured fields from text or images), `ai.decide` | Ollama and OpenThai-SystemOne over HTTP (`bat-core/batautomate/actions/ai_*.py`) |
-| Orchestrator | Classifies failures and suggests fixes from execution telemetry | `bat-orchestrator/services/ai_summarizer.py`, with a rule-based fallback when the LLM is unreachable |
+| Flow actions | `ai.prompt` (JSON-constrained prompts), `ai.extract` (structured fields from text or images), `ai.decide` | Ollama and OpenThai-SystemOne over HTTP (`kinenix-core/kinenix/actions/ai_*.py`) |
+| Orchestrator | Classifies failures and suggests fixes from execution telemetry | `kinenix-orchestrator/kinenix_orchestrator/services/ai_summarizer.py`, with a rule-based fallback when the LLM is unreachable |
 
 See [actions_reference.md](actions_reference.md) for action parameters and [flows/examples/rpachallenge_ocr/](../flows/examples/rpachallenge_ocr/) for an end-to-end example.
 
@@ -137,7 +137,7 @@ Today, workers send telemetry to the Orchestrator over HTTP (`POST /api/v1/telem
 
 ## 6. GitOps Deployment (Planned)
 
-1. **Author:** Build and tune flows locally with the CLI or `bat-studio`.
+1. **Author:** Build and tune flows locally with the CLI or `kinenix-studio`.
 2. **Version:** Commit `flow.json`, `flow.md`, `config/`, and assets to Git.
 3. **Validate:** CI runs `pytest` and flow schema validation on every pull request.
 4. **Release:** Orchestrator and workers pull approved, versioned bundles via Git tags, release branches, or webhooks.
@@ -147,16 +147,16 @@ Today, workers send telemetry to the Orchestrator over HTTP (`POST /api/v1/telem
 ## 7. Repository Layout
 
 ```text
-BatAutomate/
-├── bat-core/            # Runtime engine and CLI (batautomate)
-│   ├── batautomate/
+Kinenix/
+├── kinenix-core/            # Runtime engine and CLI (kinenix)
+│   ├── kinenix/
 │   │   ├── actions/     # Web, Excel/CSV, file, HTTP, email, logic, flow, AI actions
 │   │   ├── engine/      # Interpreter, evaluator, flow.md compiler, logger
 │   │   └── models/      # Pydantic flow and context models
 │   └── tests/
-├── bat-worker/          # Unattended runner and triggers (batworker)
-├── bat-studio/          # FastAPI backend (batstudio) + frontend/ (React/Vite)
-├── bat-orchestrator/    # Central telemetry server and dashboard
+├── kinenix-worker/          # Unattended runner and triggers (kinenix-worker)
+├── kinenix-studio/          # FastAPI backend (kinenix-studio) + frontend/ (React/Vite)
+├── kinenix-orchestrator/    # Central telemetry server and dashboard
 ├── flows/               # Project bundles; @shared/ holds reusable subflows
 ├── schemas/             # JSON schemas for flows and execution logs
 ├── docs/                # Documentation (index: docs/README.md)

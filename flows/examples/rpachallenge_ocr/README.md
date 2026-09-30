@@ -38,9 +38,9 @@ This flow automates the following steps:
    ```powershell
    ollama run qwen2.5:1.5b
    ```
-2. Run the flow using the BatAutomate CLI:
+2. Run the flow using the Kinenix CLI:
    ```powershell
-   batautomate run flows/examples/rpachallenge_ocr/flow.json
+   kinenix run flows/examples/rpachallenge_ocr/flow.json
    ```
 
 ---

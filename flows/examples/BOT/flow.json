@@ -190,7 +190,7 @@
         "inputs": {
           "to": "${config.email_recipient}",
           "subject": "${config.email_subject}",
-          "body": "Hello,\n\nPlease find attached the Bank of Thailand Foreign Exchange Rates report (USD, GBP, SGD, JPY, EUR) for the period 01-12-2024 to 31-12-2024.\n\nBest regards,\nBatAutomate Worker",
+          "body": "Hello,\n\nPlease find attached the Bank of Thailand Foreign Exchange Rates report (USD, GBP, SGD, JPY, EUR) for the period 01-12-2024 to 31-12-2024.\n\nBest regards,\nKinenix Worker",
           "attachments": [
             "${config.excel_output_path}"
           ],

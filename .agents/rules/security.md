@@ -1,6 +1,6 @@
 # Security & Data Privacy Standards
 
-This document defines credential management, data privacy constraints, and local execution boundaries for **BAT Automate**.
+This document defines credential management, data privacy constraints, and local execution boundaries for **Kinenix**.
 
 ---
 

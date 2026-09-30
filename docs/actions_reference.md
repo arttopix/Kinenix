@@ -1,6 +1,6 @@
-# BAT Automate Actions Reference Guide
+# Kinenix Actions Reference Guide
 
-This document provides a comprehensive specification of standard actions available in BAT Automate. In accordance with the **Dual-Representation Lifecycle** (`docs/flow_markdown_spec.md`), each action contains parameter specifications, return types, and dual examples: the authoring **Markdown (`flow.md`)** syntax as primary, followed by the compiled runtime **JSON (`flow.json`)**.
+This document provides a comprehensive specification of standard actions available in Kinenix. In accordance with the **Dual-Representation Lifecycle** (`docs/flow_markdown_spec.md`), each action contains parameter specifications, return types, and dual examples: the authoring **Markdown (`flow.md`)** syntax as primary, followed by the compiled runtime **JSON (`flow.json`)**.
 
 ---
 
@@ -938,7 +938,7 @@ Core orchestration primitives for variable manipulation, loops, conditions, and 
 
 ### Step Resilience & Error Handling (`error_handler`)
 
-Every step in BAT Automate can define an optional `error_handler` strategy to make execution resilient against transient network hiccups or flaky selectors:
+Every step in Kinenix can define an optional `error_handler` strategy to make execution resilient against transient network hiccups or flaky selectors:
 
 **Configuration Fields:**
 | Field | Type | Required | Default | Description |
@@ -1374,7 +1374,7 @@ Constructs and dispatches an email message with support for plain text, HTML bod
 | Parameter | Type | Required | Default | Description |
 |---|---|---|---|---|
 | `to` | string / list | Yes | - | Primary recipient email address or list of addresses |
-| `subject` | string | No | `"BAT Automate Notification"` | Subject line of the email |
+| `subject` | string | No | `"Kinenix Notification"` | Subject line of the email |
 | `body` | string | No | `""` | Plain-text email message body |
 | `html` | string | No | `null` | Optional rich HTML email body |
 | `cc` | string / list | No | `null` | Carbon copy recipient address(es) |

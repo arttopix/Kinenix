@@ -1,17 +1,17 @@
 # Action Documentation & Extension Standards
 
-This document establishes the mandatory requirements for implementing, updating, and documenting standard actions within the **BAT Automate** project.
+This document establishes the mandatory requirements for implementing, updating, and documenting standard actions within the **Kinenix** project.
 
 ---
 
 ## 1. Action Creation & Extension Protocol
 
-Whenever a developer or AI assistant adds a new action or modifies an existing action in `bat-core/batautomate/actions/`:
+Whenever a developer or AI assistant adds a new action or modifies an existing action in `kinenix-core/kinenix/actions/`:
 
 1. **Inheritance & Registration:**
-   - Every action must inherit from `BaseAction` (`batautomate.actions.base`).
-   - The action class must be decorated with `@register_action("<category>.<action_name>")` from `batautomate.actions.registry`.
-   - The module must be imported in `bat-core/batautomate/actions/__init__.py`.
+   - Every action must inherit from `BaseAction` (`kinenix.actions.base`).
+   - The action class must be decorated with `@register_action("<category>.<action_name>")` from `kinenix.actions.registry`.
+   - The module must be imported in `kinenix-core/kinenix/actions/__init__.py`.
 
 2. **Parameter Validation & Typing:**
    - Define a dedicated Pydantic model (`BaseModel`) representing input parameters.
@@ -22,7 +22,7 @@ Whenever a developer or AI assistant adds a new action or modifies an existing a
    - Any new action must be included in the Table of Contents and categorized under the appropriate heading.
 
 4. **Unit Test Coverage:**
-   - A dedicated unit test verifying positive execution, parameter validation, and error scenarios must be created in `bat-core/tests/actions/` before merging.
+   - A dedicated unit test verifying positive execution, parameter validation, and error scenarios must be created in `kinenix-core/tests/actions/` before merging.
 
 ---
 

@@ -1,12 +1,12 @@
 # Flow Markdown Specification (`flow.md` Rulebook)
 
-This document establishes the official syntax rules, structural guidelines, and compilation contracts for **`flow.md`** files within **batautomate**.
+This document establishes the official syntax rules, structural guidelines, and compilation contracts for **`flow.md`** files within **kinenix**.
 
 ---
 
 ## 1. Vision & Core Principles
 
-In batautomate, automation workflows maintain a **Dual-Representation Lifecycle**:
+In kinenix, automation workflows maintain a **Dual-Representation Lifecycle**:
 
 1. **`flow.md` (Specification & Living Blueprint):**
    - High-level, human-readable, and AI-native authoring format.
@@ -14,9 +14,9 @@ In batautomate, automation workflows maintain a **Dual-Representation Lifecycle*
    - Clean Git diffs and straightforward pull request reviews.
 2. **`flow.json` (Runtime Execution Contract):**
    - Strict, deterministic JSON schema validated by Pydantic v2.
-   - Directly executed by `bat-core` and `bat-worker` with zero runtime parsing overhead.
+   - Directly executed by `kinenix-core` and `kinenix-worker` with zero runtime parsing overhead.
 
-> **Compilation Principle:** `flow.md` is compiled ahead-of-time (AOT) into `flow.json`. The execution runtime (`bat-core` and `bat-worker`) strictly executes `flow.json` to guarantee sub-millisecond execution speeds, zero hallucination, and pre-flight validation.
+> **Compilation Principle:** `flow.md` is compiled ahead-of-time (AOT) into `flow.json`. The execution runtime (`kinenix-core` and `kinenix-worker`) strictly executes `flow.json` to guarantee sub-millisecond execution speeds, zero hallucination, and pre-flight validation.
 
 ---
 
@@ -230,14 +230,14 @@ Below is the complete `flow.md` specification for the **RPA Challenge Solver** b
 
 1. **Compilation Command (CLI):**
    ```bash
-   batautomate compile flows/examples/rpachallenge/flow.md
+   kinenix compile flows/examples/rpachallenge/flow.md
    ```
 2. **Reverse Export Command (CLI):**
    ```bash
-   batautomate export-md flows/examples/rpachallenge/flow.json
+   kinenix export-md flows/examples/rpachallenge/flow.json
    ```
 3. **Pydantic Validation Guarantee:**
-   During compilation, the resulting dictionary is validated against `batautomate.models.flow.FlowDefinition`.
+   During compilation, the resulting dictionary is validated against `kinenix.models.flow.FlowDefinition`.
    - If validation succeeds, `flow.json` is generated or overwritten atomically.
    - If validation fails, exact error line numbers and missing fields are reported, and existing `flow.json` is left untouched.
 
@@ -248,7 +248,7 @@ Below is the complete `flow.md` specification for the **RPA Challenge Solver** b
 When prompting an LLM or Small Language Model (SLM) to generate a new workflow, provide this system prompt:
 
 ```text
-You are an expert RPA workflow architect for batautomate.
+You are an expert RPA workflow architect for kinenix.
 Generate a valid flow specification adhering strictly to the Flow Markdown Specification rules:
 1. Title with Level 1 Heading (# Flow Name).
 2. Level 3 Heading for each step with explicit action anchor: ### Step Name (`action.name`).
