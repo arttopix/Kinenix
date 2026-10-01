@@ -24,6 +24,7 @@ Each topic has one owning document. Other files link here instead of repeating t
 | [cli_guide.md](cli_guide.md) | `kinenix` commands and options |
 | [orchestrator.md](orchestrator.md) | Running the Orchestrator, environment variables, worker authentication |
 | [logging.md](logging.md) | Execution log layout and JSON format |
+| [ask_router.md](ask_router.md) | Natural-language questions to the Orchestrator (work in progress) |
 | [../kinenix-worker/README.md](../kinenix-worker/README.md) | Worker CLI and Raspberry Pi setup |
 | [../kinenix-studio/README.md](../kinenix-studio/README.md) | Studio design and layout |
 
