@@ -72,9 +72,10 @@ Read the matching file before working in that area:
 3. **No secrets in code, `flow.json`, or `config.json`.** Read them from environment variables. (`security.md`)
 4. **No `eval()` or arbitrary code execution** when evaluating flow expressions.
 5. **Update `docs/actions_reference.md` in the same change** whenever an action is added or modified, with both `flow.md` and `flow.json` examples.
-6. **No emojis** in code, comments, commits, or generated documentation.
+6. **No emojis anywhere:** code, comments, UI text, commits, pull requests, issues, release notes, and documentation.
 7. **Keep business data local.** Do not send flow data to third-party cloud APIs unless an action is explicitly designed for it.
 8. **Use Conventional Commits** (`feat:`, `fix:`, `docs:`, `test:`, ...).
+9. **No AI attribution trailers in commits** (no `Co-Authored-By` for AI assistants). AI help is credited in the README. Pull request descriptions may end with the plain line `Generated with Claude Code`. (`git_workflow.md`)
 
 ## Current State vs. Target Architecture
 

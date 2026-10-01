@@ -146,6 +146,12 @@ AI coding assistants should start at [AGENTS.md](AGENTS.md).
 
 ---
 
-## 6. License
+## 6. Acknowledgments
+
+Kinenix is developed with the help of [Claude Code](https://claude.com/claude-code), Anthropic's AI coding assistant, which assists with code, tests, and documentation. The maintainer reviews and merges every change.
+
+---
+
+## 7. License
 
 This project is licensed under the terms of the Open Source [MIT License](LICENSE).
