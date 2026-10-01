@@ -2,7 +2,7 @@
 
 Goal: let a user ask the Orchestrator questions such as "เมื่อคืนมี job ไหนพังบ้าง" at any time and get an answer built from real execution data, using a local model only.
 
-Status as of 2026-10-01: question understanding and the decision policy are built and measured on the tune split. Nothing answers questions end to end yet. Work lives on branch `test/ask-router-eval` (not committed).
+Status as of 2026-10-01: question understanding and the decision policy are built and measured on the tune split. Nothing answers questions end to end yet. The code was merged into `dev` in PR #19.
 
 ---
 
