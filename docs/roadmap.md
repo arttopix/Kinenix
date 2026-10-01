@@ -100,6 +100,7 @@ Orchestrator -> versioned job bundle -> Worker (WebSocket) -> kinenix-core execu
 - [ ] PostgreSQL + Redis job queue
 - [ ] Business ROI dashboard: hours saved, cost saved, transaction audit trail
 - [ ] Alerts and daily digests (LINE Messaging API first, then Teams and Email)
+- [~] Natural-language questions about jobs and workers with a local model (see [ask_router.md](ask_router.md))
 
 ### Phase 4: Worker (`kinenix-worker`) - In progress
 - [x] `kinenix-worker run`, `watch` (file trigger), `schedule` (interval), `daemon` (multi-trigger config)
