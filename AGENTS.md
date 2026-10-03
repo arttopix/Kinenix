@@ -28,7 +28,7 @@ The project uses a virtual environment at `.venv/` in the repository root. On Wi
 
 ```powershell
 # Install (editable)
-.venv/Scripts/python.exe -m pip install -e "kinenix-core[dev]" -e kinenix-worker -e kinenix-studio -e "kinenix-orchestrator[dev]"
+.venv/Scripts/python.exe -m pip install -e "kinenix-core[dev]" -e "kinenix-worker[dev]" -e "kinenix-studio[dev]" -e "kinenix-orchestrator[dev]"
 
 # Tests: run kinenix-core from its own directory, the others from the repo root
 cd kinenix-core; ../.venv/Scripts/python.exe -m pytest -q; cd ..
@@ -41,10 +41,14 @@ cd kinenix-studio/frontend; npm ci; npm run build
 
 # Run a flow / start the orchestrator
 kinenix run flows/examples/rpachallenge
-kinenix orchestrator --port 8080
+kinenix orchestrator            # first run asks setup questions and saves them
+kinenix orchestrator status     # workers and recent executions of a running server
+kinenix orchestrator logs [ID]  # steps of one execution (latest when ID is omitted)
 ```
 
-Run the test suites for every module you touch before reporting work as done. There is no CI yet, so local test runs are the only safety net.
+CLI output in `kinenix-worker` and `kinenix orchestrator` is rendered with `rich` (`kinenix_worker/display.py`, `kinenix_orchestrator/console.py`); `kinenix-core` itself does not depend on it.
+
+Run the test suites for every module you touch before reporting work as done. GitHub Actions (`.github/workflows/ci.yml`) runs the same commands on every push and pull request to `main` and `dev`; keep the workflow in sync when these commands change.
 
 ## Rules Index
 
@@ -72,9 +76,10 @@ Read the matching file before working in that area:
 3. **No secrets in code, `flow.json`, or `config.json`.** Read them from environment variables. (`security.md`)
 4. **No `eval()` or arbitrary code execution** when evaluating flow expressions.
 5. **Update `docs/actions_reference.md` in the same change** whenever an action is added or modified, with both `flow.md` and `flow.json` examples.
-6. **No emojis** in code, comments, commits, or generated documentation.
+6. **No emojis anywhere:** code, comments, UI text, commits, pull requests, issues, release notes, and documentation.
 7. **Keep business data local.** Do not send flow data to third-party cloud APIs unless an action is explicitly designed for it.
 8. **Use Conventional Commits** (`feat:`, `fix:`, `docs:`, `test:`, ...).
+9. **No AI attribution trailers in commits** (no `Co-Authored-By` for AI assistants). AI help is credited in the README. Pull request descriptions may end with the plain line `Generated with Claude Code`. (`git_workflow.md`)
 
 ## Current State vs. Target Architecture
 
@@ -86,7 +91,7 @@ Some rule files and the README describe the target architecture, not what exists
 | Action tests | `kinenix-core/tests/actions/` | Tests live directly in `kinenix-core/tests/` |
 | Studio | Tauri desktop app | FastAPI + React/Vite in the browser |
 | Orchestrator backend | Async handlers, PostgreSQL, Redis/Celery | Sync handlers, SQLite by default, no queue |
-| Worker communication | WebSocket job dispatch and log streaming | Workers push telemetry over HTTP; no dispatch |
+| Worker communication | WebSocket job dispatch and log streaming | Workers push telemetry and heartbeats over HTTP; no dispatch |
 
 When you change code so that it matches a target, update this table and `docs/roadmap.md`.
 
@@ -96,10 +101,13 @@ When you change code so that it matches a target, update this table and `docs/ro
 | :--- | :--- | :--- |
 | `KINENIX_ORCHESTRATOR_URL` | kinenix-core | Orchestrator URL for telemetry upload |
 | `KINENIX_ORCHESTRATOR_API_KEY` | kinenix-core | API key sent as `X-API-Key` |
-| `KINENIX_WORKER_ID` | kinenix-core | Worker identifier in telemetry |
+| `KINENIX_WORKER_ID` | kinenix-core, kinenix-worker | Worker identifier in telemetry and heartbeats; kinenix-worker defaults to the host name |
+| `KINENIX_HEARTBEAT_INTERVAL` | kinenix-worker | Seconds between heartbeats while a worker command runs (default 30) |
 | `ORCHESTRATOR_API_KEY` | kinenix-orchestrator | Required key for write endpoints; unset means localhost-only |
 | `ORCHESTRATOR_DASHBOARD_USER` / `ORCHESTRATOR_DASHBOARD_PASSWORD` | kinenix-orchestrator | Basic Auth for the dashboard and read endpoints; unset password means localhost-only |
 | `ORCHESTRATOR_HOST` / `ORCHESTRATOR_PORT` | kinenix-orchestrator | Bind address (default `127.0.0.1`, localhost only) and port |
+| `ORCHESTRATOR_SETTINGS_FILE` | kinenix-orchestrator | Saved settings from `kinenix orchestrator setup` (default `~/.kinenix/orchestrator.env`); environment variables override it |
+| `ORCHESTRATOR_WORKER_OFFLINE_SECONDS` | kinenix-orchestrator | Seconds without a heartbeat before a worker shows as offline (default 90) |
 | `DATABASE_URL` | kinenix-orchestrator | SQLAlchemy connection string |
 | `CENTRAL_LLM_URL` | kinenix-orchestrator | LLM endpoint for failure analysis |
 

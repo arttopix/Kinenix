@@ -9,7 +9,7 @@ from .evaluator import VariableEvaluator
 from .logger import ExecutionLogger
 from ..actions.registry import ActionRegistry
 from ..actions.flow_control import SubflowExecutionError
-from ..models.context import ExecutionContext, StepResult, FailureDetails
+from ..models.context import ExecutionContext, StepResult, FailureDetails, local_now
 from ..models.flow import FlowDefinition, Step
 
 
@@ -100,7 +100,7 @@ class FlowInterpreter:
                     err_dir = (base_dir / "output" / "errors").resolve()
 
                 err_dir.mkdir(parents=True, exist_ok=True)
-                timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+                timestamp_str = local_now().strftime("%Y%m%d_%H%M%S")
                 clean_step_id = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in step.id)
                 shot_path = err_dir / f"error_{clean_step_id}_{timestamp_str}.png"
 
@@ -186,7 +186,7 @@ class FlowInterpreter:
                         f"Step '{s_id}' specifies fallback_step_id '{fb_target}' which does not exist in flow definition."
                     )
 
-        start_time = datetime.now()
+        start_time = local_now()
 
         try:
             for step in flow_def.steps:
@@ -212,7 +212,7 @@ class FlowInterpreter:
         finally:
             self._cleanup_resources(context)
 
-        end_time = datetime.now()
+        end_time = local_now()
         total_duration = (end_time - start_time).total_seconds()
 
         context.metrics.total_steps = len(context.step_results)
@@ -229,7 +229,7 @@ class FlowInterpreter:
             return
 
         self.logger.log_step_start(step.id, step.name, step.action)
-        start_time = datetime.now()
+        start_time = local_now()
 
         evaluated_params = VariableEvaluator.evaluate_value(step.parameters, context.variables)
 
@@ -242,7 +242,7 @@ class FlowInterpreter:
                     action=step.action,
                     status="skipped",
                     start_time=start_time,
-                    end_time=datetime.now(),
+                    end_time=local_now(),
                     duration_seconds=0.0,
                     output={"skipped_reason": f"Condition '{step.condition}' not met"}
                 )
@@ -284,7 +284,7 @@ class FlowInterpreter:
         while attempt <= max_retries:
             try:
                 output = _invoke_step_action()
-                end_time = datetime.now()
+                end_time = local_now()
                 duration = (end_time - start_time).total_seconds()
 
                 result = StepResult(
@@ -312,7 +312,7 @@ class FlowInterpreter:
                 else:
                     break
 
-        end_time = datetime.now()
+        end_time = local_now()
         duration = (end_time - start_time).total_seconds()
         failure_diag = self._diagnose_failure(step, last_error, context)
 
@@ -370,7 +370,7 @@ class FlowInterpreter:
                     break
                 self._execute_step(sub_step, context)
 
-        end_time = datetime.now()
+        end_time = local_now()
         duration = (end_time - start_time).total_seconds()
 
         result = StepResult(
@@ -420,7 +420,7 @@ class FlowInterpreter:
         else:
             status = "skipped"
 
-        end_time = datetime.now()
+        end_time = local_now()
         duration = (end_time - start_time).total_seconds()
 
         result = StepResult(
@@ -680,7 +680,7 @@ class FlowInterpreter:
                 if sub_k in child_context.variables:
                     context.set_variable(parent_k, child_context.variables[sub_k])
 
-        end_time = datetime.now()
+        end_time = local_now()
         duration = (end_time - start_time).total_seconds()
 
         # 7. Hierarchical Logging: subflow steps grouped inside parent step output
@@ -708,7 +708,7 @@ class FlowInterpreter:
         context.set_variable("__return_value__", value)
         context.set_variable("__early_exit__", True)
 
-        end_time = datetime.now()
+        end_time = local_now()
         duration = (end_time - start_time).total_seconds()
 
         result = StepResult(

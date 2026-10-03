@@ -37,3 +37,6 @@ config.json
 # Node.js & Frontend Artifacts
 node_modules/
 .vite/
+
+# Ask router evaluation reports
+kinenix-orchestrator/tests/eval/results/

@@ -120,11 +120,14 @@ function renderExecutions(executions) {
       ? `<span class="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-rose-500/15 text-rose-400 border border-rose-500/30">Failed (${e.failed_step_name || e.failed_step_id || 'Error'})</span>`
       : `<span class="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">Success</span>`;
 
+    const stepsButton = `<button onclick="openStepsModal('${escapeHtml(e.id)}')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium transition">
+          ดู Steps
+        </button>`;
     const actionCell = isError
-      ? `<button onclick="openModal('${e.id}')" class="px-2.5 py-1 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/30 font-medium inline-flex items-center gap-1.5 transition">
-          <span>🧠</span> ดู AI สรุป
-        </button>`
-      : `<span class="text-slate-400">สมบูรณ์ (100%)</span>`;
+      ? `<div class="inline-flex gap-2">${stepsButton}<button onclick="openModal('${escapeHtml(e.id)}')" class="px-2.5 py-1 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/30 font-medium inline-flex items-center gap-1.5 transition">
+          ดู AI สรุป
+        </button></div>`
+      : stepsButton;
 
     const timeFormatted = e.start_time ? new Date(e.start_time).toLocaleTimeString('th-TH') : '-';
     const duration = e.duration_seconds ? `${e.duration_seconds.toFixed(1)}s` : '-';
@@ -176,6 +179,64 @@ function openModal(executionId) {
 
 function closeModal() {
   document.getElementById('ai-modal').classList.add('hidden');
+}
+
+// Step values come from workers, so they are escaped before being placed in HTML
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+const STEP_STATUS_CLASSES = {
+  success: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+  failed: 'bg-rose-500/15 text-rose-400 border-rose-500/30',
+  skipped: 'bg-slate-700/50 text-slate-400 border-slate-600',
+};
+
+async function openStepsModal(executionId) {
+  const tbody = document.getElementById('steps-tbody');
+  document.getElementById('steps-title').innerText = 'Steps';
+  document.getElementById('steps-subtitle').innerText = '';
+  tbody.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-slate-500">กำลังโหลด...</td></tr>';
+  document.getElementById('steps-modal').classList.remove('hidden');
+
+  try {
+    const res = await fetch(`/api/v1/executions/${encodeURIComponent(executionId)}/steps`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const e = data.execution;
+    const steps = data.steps || [];
+
+    document.getElementById('steps-title').innerText = `${e.flow_name} (${steps.length} steps)`;
+    document.getElementById('steps-subtitle').innerText =
+      `Worker: ${e.worker_id} • ${e.status} • ${(e.duration_seconds || 0).toFixed(1)}s • ID: ${e.id}`;
+
+    if (steps.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-slate-500">ไม่มีรายละเอียด step สำหรับการรันนี้</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = steps.map((s, i) => {
+      const status = escapeHtml(s.status || '-');
+      const pill = STEP_STATUS_CLASSES[s.status] || STEP_STATUS_CLASSES.skipped;
+      const duration = typeof s.duration_seconds === 'number' ? `${s.duration_seconds.toFixed(1)}s` : '-';
+      const error = s.error_message ? `${s.error_type ? s.error_type + ': ' : ''}${s.error_message}` : '';
+      return `
+        <tr class="${s.status === 'failed' ? 'bg-rose-950/30' : ''}">
+          <td class="py-2 px-3 text-slate-500 font-mono">${i + 1}</td>
+          <td class="py-2 px-3 text-slate-100">${escapeHtml(s.step_name || s.step_id)}</td>
+          <td class="py-2 px-3 text-slate-400 font-mono">${escapeHtml(s.action)}</td>
+          <td class="py-2 px-3"><span class="px-2 py-0.5 rounded-full text-[10px] border ${pill}">${status}</span></td>
+          <td class="py-2 px-3 font-mono text-slate-300">${duration}</td>
+          <td class="py-2 px-3 text-rose-300 break-words">${escapeHtml(error)}</td>
+        </tr>`;
+    }).join('');
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-rose-400">โหลดไม่สำเร็จ (${escapeHtml(err.message)})</td></tr>`;
+  }
+}
+
+function closeStepsModal() {
+  document.getElementById('steps-modal').classList.add('hidden');
 }
 
 function formatTimeAgo(isoString) {

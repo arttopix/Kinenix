@@ -15,6 +15,20 @@ Adopt Conventional Commits format for all commit messages. Emojis in commit mess
 [optional body explaining rationale]
 ```
 
+### AI Attribution
+
+Do not add `Co-Authored-By` or any other AI attribution trailer to commit messages. AI assistance is credited once, in the Acknowledgments section of the README.
+
+A pull request description written with an AI assistant may end with this plain line, with no emoji and no link:
+
+```text
+Generated with Claude Code
+```
+
+### No Emojis
+
+Emojis are prohibited everywhere in this project: code, comments, UI text, commit messages, pull request titles and descriptions, issues, release notes, and documentation.
+
 ### Supported Types
 - `feat`: A new feature or capability (e.g., `feat(kinenix-core): add support for subflow calls`)
 - `fix`: A bug fix (e.g., `fix(engine): resolve variable resolution for nested objects`)

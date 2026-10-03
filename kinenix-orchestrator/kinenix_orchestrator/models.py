@@ -1,7 +1,9 @@
 import datetime
 import uuid
 from sqlalchemy import Column, String, Float, Boolean, DateTime, Text
+from . import config
 from .database import Base
+from .timeutils import isoformat_utc, utc_now
 
 
 class Worker(Base):
@@ -15,7 +17,16 @@ class Worker(Base):
     current_task = Column(String(128), nullable=True)
     cpu_percent = Column(Float, default=0.0)
     ram_usage = Column(String(32), default="0.0 GB")
-    last_heartbeat = Column(DateTime, default=datetime.datetime.utcnow)
+    last_heartbeat = Column(DateTime, default=utc_now)
+
+    def effective_status(self) -> str:
+        """Stored status, or "offline" when the last heartbeat is older than WORKER_OFFLINE_SECONDS."""
+        if self.last_heartbeat is None:
+            return "offline"
+        age = utc_now() - self.last_heartbeat
+        if age > datetime.timedelta(seconds=config.WORKER_OFFLINE_SECONDS):
+            return "offline"
+        return self.status
 
     def to_dict(self):
         return {
@@ -23,11 +34,11 @@ class Worker(Base):
             "name": self.name,
             "ip_address": self.ip_address,
             "os_info": self.os_info,
-            "status": self.status,
+            "status": self.effective_status(),
             "current_task": self.current_task,
             "cpu_percent": self.cpu_percent,
             "ram_usage": self.ram_usage,
-            "last_heartbeat": self.last_heartbeat.isoformat() if self.last_heartbeat else None,
+            "last_heartbeat": isoformat_utc(self.last_heartbeat),
         }
 
 
@@ -38,7 +49,7 @@ class Execution(Base):
     worker_id = Column(String(64), default="local-worker", index=True)
     flow_name = Column(String(128), nullable=False, index=True)
     status = Column(String(32), default="success", index=True)  # success, failed, running
-    start_time = Column(DateTime, default=datetime.datetime.utcnow)
+    start_time = Column(DateTime, default=utc_now)
     end_time = Column(DateTime, nullable=True)
     duration_seconds = Column(Float, default=0.0)
     has_error = Column(Boolean, default=False)
@@ -59,7 +70,7 @@ class Execution(Base):
     ai_root_cause = Column(Text, nullable=True)
     ai_suggestion = Column(Text, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
     def to_dict(self):
         return {
@@ -67,8 +78,8 @@ class Execution(Base):
             "worker_id": self.worker_id,
             "flow_name": self.flow_name,
             "status": self.status,
-            "start_time": self.start_time.isoformat() if self.start_time else None,
-            "end_time": self.end_time.isoformat() if self.end_time else None,
+            "start_time": isoformat_utc(self.start_time),
+            "end_time": isoformat_utc(self.end_time),
             "duration_seconds": self.duration_seconds,
             "has_error": self.has_error,
             "failed_step_id": self.failed_step_id,
@@ -82,6 +93,6 @@ class Execution(Base):
             "ai_summary": self.ai_summary,
             "ai_root_cause": self.ai_root_cause,
             "ai_suggestion": self.ai_suggestion,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "created_at": isoformat_utc(self.created_at),
         }
 

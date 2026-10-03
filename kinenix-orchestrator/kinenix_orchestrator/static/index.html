@@ -131,7 +131,7 @@
               <th class="py-3 px-4">Worker</th>
               <th class="py-3 px-4">ระยะเวลา</th>
               <th class="py-3 px-4">สถานะ</th>
-              <th class="py-3 px-4 text-right rounded-r-xl">ผลการวิเคราะห์ AI</th>
+              <th class="py-3 px-4 text-right rounded-r-xl">รายละเอียด</th>
             </tr>
           </thead>
           <tbody id="executions-tbody" class="divide-y divide-slate-800/60 font-sans">
@@ -216,6 +216,39 @@
         </button>
       </div>
 
+    </div>
+  </div>
+
+  <!-- Execution Steps Modal -->
+  <div id="steps-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden" onclick="if (event.target === this) closeStepsModal()">
+    <div class="bg-slate-900 border border-slate-700 max-w-4xl w-full rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+      <div class="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-950/60">
+        <div>
+          <h3 id="steps-title" class="font-bold text-slate-100 text-sm">Steps</h3>
+          <p id="steps-subtitle" class="text-[11px] text-slate-400"></p>
+        </div>
+        <button onclick="closeStepsModal()" class="text-slate-400 hover:text-white p-1 rounded-lg">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      <div class="overflow-y-auto flex-1">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-slate-950/70 text-slate-400 uppercase tracking-wider text-[10px] sticky top-0">
+            <tr>
+              <th class="py-2 px-3">#</th>
+              <th class="py-2 px-3">Step</th>
+              <th class="py-2 px-3">Action</th>
+              <th class="py-2 px-3">สถานะ</th>
+              <th class="py-2 px-3">เวลา</th>
+              <th class="py-2 px-3">Error</th>
+            </tr>
+          </thead>
+          <tbody id="steps-tbody" class="divide-y divide-slate-800/60"></tbody>
+        </table>
+      </div>
+      <div class="p-3 border-t border-slate-800 bg-slate-950/40 text-[11px] text-slate-500">
+        แสดงเฉพาะชื่อ step, สถานะ, เวลา และ error โดยไม่แสดง variables และ output ของ flow
+      </div>
     </div>
   </div>
 

@@ -13,6 +13,8 @@ from kinenix.engine.interpreter import FlowInterpreter
 from kinenix.engine.logger import ExecutionLogger
 from kinenix.models.flow import FlowDefinition
 
+from .orchestrator_client import OrchestratorClient
+
 logger = logging.getLogger("kinenix_worker")
 
 
@@ -21,6 +23,9 @@ class WorkerRunner:
     Execution engine for unattended worker nodes (e.g. Raspberry Pi, VMs).
     Handles bundle resolution, sandbox workspace isolation, and execution telemetry.
     """
+
+    def __init__(self, client: Optional[OrchestratorClient] = None):
+        self.client = client or OrchestratorClient()
 
     @staticmethod
     def get_system_info() -> Dict[str, Any]:
@@ -95,6 +100,8 @@ class WorkerRunner:
 
         if extra_vars:
             flow_def.variables.update(extra_vars)
+        # Telemetry from kinenix-core uses the same identifier as this worker's heartbeats
+        flow_def.variables.setdefault("worker_id", self.client.worker_id)
 
         actual_log_dir = Path(log_dir) if log_dir else None
         exec_logger = ExecutionLogger(log_dir=actual_log_dir)
@@ -102,7 +109,11 @@ class WorkerRunner:
         interpreter = FlowInterpreter(logger=exec_logger)
 
         start_time = time.time()
-        ctx = interpreter.run_flow(flow_def, initial_vars={"__flow_dir__": str(work_dir)})
+        self.client.set_task(flow_def.name)
+        try:
+            ctx = interpreter.run_flow(flow_def, initial_vars={"__flow_dir__": str(work_dir)})
+        finally:
+            self.client.set_task(None)
         duration = round(time.time() - start_time, 2)
 
         result = {
@@ -113,8 +124,17 @@ class WorkerRunner:
             "steps_total": len(flow_def.steps),
             "steps_executed": len(ctx.step_results),
             "has_error": ctx.has_error,
-            "error": ctx.error_message if ctx.has_error else None,
+            "error": self._error_summary(ctx),
             "worker_system": system_info
         }
 
         return result
+
+    @staticmethod
+    def _error_summary(ctx: Any) -> Optional[str]:
+        if not ctx.has_error:
+            return None
+        details = ctx.failure_details
+        if details is None:
+            return "Flow failed without failure details"
+        return f"Step '{details.failed_step_name}' ({details.error_type}): {details.error_message}"

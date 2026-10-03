@@ -1,6 +1,7 @@
 # kinenix
 
 [![Status](https://img.shields.io/badge/Status-Active%20Development%20(WIP)-orange.svg?style=flat-square)](#)
+[![CI](https://github.com/arttopix/Kinenix/actions/workflows/ci.yml/badge.svg)](https://github.com/arttopix/Kinenix/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/kinenix.svg?style=flat-square)](https://pypi.org/project/kinenix/)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-brightgreen.svg?style=flat-square)](#)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
@@ -143,6 +144,12 @@ AI coding assistants should start at [AGENTS.md](AGENTS.md).
 
 ---
 
-## 6. License
+## 6. Acknowledgments
+
+Kinenix is developed with the help of [Claude Code](https://claude.com/claude-code), Anthropic's AI coding assistant, which assists with code, tests, and documentation. The maintainer reviews and merges every change.
+
+---
+
+## 7. License
 
 This project is licensed under the terms of the Open Source [MIT License](LICENSE).

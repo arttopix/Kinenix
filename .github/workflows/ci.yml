@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python-tests:
+    name: Python ${{ matrix.python-version }} (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ["3.10", "3.14"]
+        include:
+          # Windows is the primary development platform
+          - os: windows-latest
+            python-version: "3.10"
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: "**/pyproject.toml"
+
+      - name: Install modules
+        run: >
+          python -m pip install
+          -e "kinenix-core[dev]"
+          -e "kinenix-worker[dev]"
+          -e "kinenix-studio[dev]"
+          -e "kinenix-orchestrator[dev]"
+
+      # kinenix-core tests run from their own directory, the others from the repository root
+      - name: Test kinenix-core
+        working-directory: kinenix-core
+        run: python -m pytest -q
+
+      - name: Test kinenix-worker
+        run: python -m pytest -q kinenix-worker/tests
+
+      - name: Test kinenix-studio
+        run: python -m pytest -q kinenix-studio/tests
+
+      - name: Test kinenix-orchestrator
+        run: python -m pytest -q kinenix-orchestrator/tests
+
+  studio-frontend:
+    name: Studio frontend build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: kinenix-studio/frontend
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: kinenix-studio/frontend/package-lock.json
+
+      - run: npm ci
+
+      - run: npm run build
