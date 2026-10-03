@@ -11,7 +11,7 @@ from .config import HOST, PORT, STATIC_DIR
 from .database import get_db, init_db
 from .models import Worker, Execution
 from .security import require_worker_api_key, require_dashboard_auth, log_auth_mode
-from .services.telemetry_service import record_heartbeat, ingest_execution_log
+from .services.telemetry_service import record_heartbeat, ingest_execution_log, step_summaries
 from .services.ai_summarizer import analyze_failure
 
 from contextlib import asynccontextmanager
@@ -127,6 +127,14 @@ def get_execution(execution_id: str, db: Session = Depends(get_db)):
     if not execution:
         raise HTTPException(status_code=404, detail="Execution not found")
     return execution.to_dict()
+
+
+@app.get("/api/v1/executions/{execution_id}/steps", dependencies=[Depends(require_dashboard_auth)])
+def get_execution_steps(execution_id: str, db: Session = Depends(get_db)):
+    execution = db.query(Execution).filter(Execution.id == execution_id).first()
+    if not execution:
+        raise HTTPException(status_code=404, detail="Execution not found")
+    return {"execution": execution.to_dict(), "steps": step_summaries(execution.raw_log)}
 
 
 @app.post("/api/v1/executions/{execution_id}/reanalyze", dependencies=[Depends(require_worker_api_key)])

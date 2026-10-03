@@ -17,6 +17,7 @@ from .settings_file import hash_password, read_settings, write_settings
 
 WORKER_STATUS_STYLES = {"online": "green", "busy": "yellow", "offline": "red"}
 EXECUTION_STATUS_STYLES = {"success": "green", "failed": "red", "running": "yellow"}
+STEP_STATUS_STYLES = {"success": "green", "failed": "red", "skipped": "dim"}
 
 
 def lan_ip() -> Optional[str]:
@@ -209,21 +210,104 @@ def print_status(console: Console, base_url: str, data: Dict[str, Any], now: Opt
         )
 
     executions = Table(title=f"Recent executions ({len(data['executions'])})", title_justify="left", title_style="bold")
-    for column in ("When", "Flow", "Worker", "Status", "Duration", "Failure"):
-        executions.add_column(column, no_wrap=column in ("When", "Status", "Duration"))
+    for column in ("ID", "When", "Flow", "Worker", "Status", "Duration", "Failure"):
+        executions.add_column(column, no_wrap=column in ("ID", "When", "Status", "Duration"))
     for e in data["executions"]:
         failure = "-"
         if e.get("has_error"):
             failure = e.get("ai_summary") or e.get("error_message") or e.get("failed_step_name") or "failed"
         executions.add_row(
+            Text(short_id(e.get("id")), style="dim"),
             _ago(e.get("created_at"), now),
-            e.get("flow_name") or "-",
-            e.get("worker_id") or "-",
+            Text(e.get("flow_name") or "-"),
+            Text(e.get("worker_id") or "-"),
             _styled(e.get("status"), EXECUTION_STATUS_STYLES),
             f"{e.get('duration_seconds') or 0:.1f}s",
-            Text(failure, style="red") if e.get("has_error") else failure,
+            Text(failure, style="red" if e.get("has_error") else ""),
         )
 
     console.print(f"[bold]Kinenix Orchestrator[/] [dim]{base_url}[/]")
     console.print(workers if data["workers"] else "[dim]No workers have sent a heartbeat yet.[/]")
     console.print(executions if data["executions"] else "[dim]No executions recorded yet.[/]")
+    if data["executions"]:
+        console.print("[dim]Step details: kinenix orchestrator logs <ID>  (latest run when ID is omitted)[/]")
+
+
+SHORT_ID_LENGTH = 8
+
+
+def short_id(execution_id: Optional[str]) -> str:
+    return (execution_id or "-")[:SHORT_ID_LENGTH]
+
+
+def fetch_execution_log(base_url: str, auth: Optional[Tuple[str, str]], id_prefix: Optional[str]) -> Dict[str, Any]:
+    """Find an execution by ID prefix (latest when None) among recent runs and return it with its steps.
+
+    Raises LookupError when no or several executions match, and requests.RequestException on network or HTTP errors.
+    """
+    base_url = base_url.rstrip("/")
+    res = requests.get(f"{base_url}/api/v1/executions", params={"limit": 200}, auth=auth, timeout=5)
+    res.raise_for_status()
+    executions = res.json()["executions"]
+    if not executions:
+        raise LookupError("No executions recorded yet.")
+
+    if id_prefix:
+        matches = [e for e in executions if e["id"].startswith(id_prefix)]
+        if not matches:
+            raise LookupError(f"No recent execution ID starts with '{id_prefix}'.")
+        if len(matches) > 1:
+            raise LookupError(f"'{id_prefix}' matches {len(matches)} executions; type more characters of the ID.")
+        execution_id = matches[0]["id"]
+    else:
+        execution_id = executions[0]["id"]
+
+    res = requests.get(f"{base_url}/api/v1/executions/{execution_id}/steps", auth=auth, timeout=5)
+    res.raise_for_status()
+    return res.json()
+
+
+def print_execution_log(console: Console, data: Dict[str, Any], now: Optional[datetime] = None) -> None:
+    e = data["execution"]
+    failed = bool(e.get("has_error"))
+
+    header = Table.grid(padding=(0, 2))
+    header.add_column(style="bold cyan", no_wrap=True)
+    header.add_column(overflow="fold")
+    header.add_row("Flow", Text(e.get("flow_name") or "-"))
+    header.add_row("Worker", Text(e.get("worker_id") or "-"))
+    header.add_row("Status", _styled(e.get("status"), EXECUTION_STATUS_STYLES))
+    header.add_row("Started", f"{e.get('start_time') or '-'} ({_ago(e.get('created_at'), now)})")
+    header.add_row("Duration", f"{e.get('duration_seconds') or 0:.1f}s")
+    header.add_row("ID", e.get("id") or "-")
+    if failed:
+        header.add_row("Failed step", Text(e.get("failed_step_name") or e.get("failed_step_id") or "-", style="red"))
+        header.add_row("Error", Text(e.get("error_message") or "-", style="red"))
+        if e.get("ai_summary"):
+            header.add_row("AI summary", Text(e["ai_summary"]))
+        if e.get("ai_suggestion"):
+            header.add_row("Suggestion", Text(e["ai_suggestion"]))
+    console.print(Panel(header, title="[bold]Execution[/]", border_style="red" if failed else "green", expand=False))
+
+    steps = data.get("steps") or []
+    if not steps:
+        console.print("[dim]No step details were recorded for this execution.[/]")
+        return
+
+    table = Table(title=f"Steps ({len(steps)})", title_justify="left", title_style="bold")
+    for column in ("#", "Step", "Action", "Status", "Duration", "Error"):
+        table.add_column(column, no_wrap=column in ("#", "Status", "Duration"))
+    for number, step in enumerate(steps, start=1):
+        duration = step.get("duration_seconds")
+        error = step.get("error_message") or "-"
+        if step.get("error_type") and step.get("error_message"):
+            error = f"{step['error_type']}: {step['error_message']}"
+        table.add_row(
+            str(number),
+            Text(step.get("step_name") or step.get("step_id") or "-"),
+            Text(step.get("action") or "-", style="dim"),
+            _styled(step.get("status"), STEP_STATUS_STYLES),
+            f"{duration:.1f}s" if isinstance(duration, (int, float)) else "-",
+            Text(error, style="red" if step.get("error_message") else ""),
+        )
+    console.print(table)
