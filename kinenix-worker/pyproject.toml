@@ -10,7 +10,8 @@ requires-python = ">=3.10"
 dependencies = [
     "kinenix>=0.1.0b1",
     "psutil>=5.9.0",
-    "requests>=2.28.0"
+    "requests>=2.28.0",
+    "rich>=13.0.0"
 ]
 
 [project.optional-dependencies]

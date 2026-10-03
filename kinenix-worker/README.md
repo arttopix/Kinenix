@@ -42,6 +42,7 @@ The script automatically:
 3. Installs `kinenix-core` and `kinenix-worker` in editable mode.
 4. Installs the ARM64 Playwright Chromium browser.
 5. Verifies the installation with `kinenix-worker info`.
+6. Installs and starts the `kinenix-worker` systemd service (see [section 3E](#e-run-as-a-systemd-service)). Pass `--no-service` to skip it.
 
 ---
 
@@ -111,6 +112,44 @@ With the URL set:
 - Every run reports the worker as busy while the flow runs and online when it finishes.
 - Every command that runs flows (`run`, `watch`, `schedule`, `daemon`) also sends a heartbeat every `KINENIX_HEARTBEAT_INTERVAL` seconds, including during long flows. The dashboard shows the worker as offline when heartbeats stop.
 - If the Orchestrator is unreachable, flows still run. The worker logs one warning, then logs again when the connection recovers.
+
+### E. Run as a systemd Service
+
+The service keeps `kinenix-worker daemon` running in the background, starts it at boot, and restarts it within 10 seconds if it stops. It runs as the user who installed it, from the repository directory, so relative flow paths such as `flows/examples/rpachallenge` work. While it runs, the worker sends heartbeats and shows as online in the Orchestrator.
+
+`setup_rpi.sh` installs it. To install or update it on an existing setup, run as your normal user (not root):
+
+```bash
+./kinenix-worker/scripts/install_service.sh
+```
+
+It reads two files in `~/.kinenix/`, creating them if they do not exist (existing files are never overwritten):
+
+| File | Contents |
+| :--- | :--- |
+| `worker.env` | `KINENIX_ORCHESTRATOR_URL`, `KINENIX_ORCHESTRATOR_API_KEY`, `KINENIX_WORKER_ID` as `export` lines; owner-readable only. Add `source ~/.kinenix/worker.env` to `~/.bashrc` to use the same values in your shell. |
+| `triggers.json` | Triggers for the daemon. The default `{"triggers": []}` runs no flows and only sends heartbeats. |
+
+Example `triggers.json`:
+
+```json
+{
+  "triggers": [
+    { "type": "scheduler", "flow": "flows/examples/rpachallenge", "interval_seconds": 3600 },
+    { "type": "file_watcher", "flow": "flows/my_excel_bot", "watch_dir": "/home/pi/inbox", "pattern": "*.xlsx" }
+  ]
+}
+```
+
+| Task | Command |
+| :--- | :--- |
+| Apply changes to `worker.env` or `triggers.json` | `sudo systemctl restart kinenix-worker` |
+| Status | `systemctl status kinenix-worker` |
+| Follow logs | `journalctl -u kinenix-worker -f` |
+| Stop until next boot | `sudo systemctl stop kinenix-worker` |
+| Remove the service | `./kinenix-worker/scripts/install_service.sh --uninstall` |
+
+The scheduler runs at fixed intervals only; time-of-day schedules and jobs sent from the Orchestrator are not supported yet.
 
 ---
 
