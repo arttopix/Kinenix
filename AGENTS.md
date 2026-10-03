@@ -43,6 +43,7 @@ cd kinenix-studio/frontend; npm ci; npm run build
 kinenix run flows/examples/rpachallenge
 kinenix orchestrator            # first run asks setup questions and saves them
 kinenix orchestrator status     # workers and recent executions of a running server
+kinenix orchestrator logs [ID]  # steps of one execution (latest when ID is omitted)
 ```
 
 CLI output in `kinenix-worker` and `kinenix orchestrator` is rendered with `rich` (`kinenix_worker/display.py`, `kinenix_orchestrator/console.py`); `kinenix-core` itself does not depend on it.

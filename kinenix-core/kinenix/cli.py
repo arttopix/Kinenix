@@ -183,11 +183,14 @@ def main():
 
     # Command: orchestrator
     orch_parser = subparsers.add_parser("orchestrator", help="Start the Central Orchestrator, set it up, or show its workers and executions")
-    orch_parser.add_argument("action", nargs="?", choices=["start", "status", "setup", "show-key"], default="start",
+    orch_parser.add_argument("action", nargs="?", choices=["start", "status", "logs", "setup", "show-key"], default="start",
                              help="'start' runs the server (default; asks setup questions on first run); "
                                   "'status' shows workers and recent executions of a running server; "
+                                  "'logs [ID]' shows the steps of one execution (latest when ID is omitted); "
                                   "'setup' changes the saved settings; 'show-key' prints the worker API key")
-    orch_parser.add_argument("--url", default=None, help="Orchestrator URL for 'status' (default: http://127.0.0.1:<port>)")
+    orch_parser.add_argument("execution_id", nargs="?", default=None,
+                             help="For 'logs': execution ID or its first characters, as shown by 'status'")
+    orch_parser.add_argument("--url", default=None, help="Orchestrator URL for 'status' and 'logs' (default: http://127.0.0.1:<port>)")
     orch_parser.add_argument("--limit", type=int, default=10, help="Number of recent executions shown by 'status' (default: 10)")
     orch_parser.add_argument("--no-prompt", action="store_true", help="Never ask questions (for services and scripts); use the environment and saved settings only")
     orch_parser.add_argument("--port", type=int, default=None, help="Port to bind the orchestrator server (default: $ORCHESTRATOR_PORT or 8080)")
@@ -360,7 +363,7 @@ def main():
 
         port = args.port or orch_config.PORT
 
-        if args.action == "status":
+        if args.action in ("status", "logs"):
             import requests
             url = args.url or f"http://127.0.0.1:{port}"
             # Same credentials the server reads; unset password works only against a localhost server
@@ -368,8 +371,14 @@ def main():
             while True:
                 try:
                     with console.status(f"Reading {url}..."):
-                        data = orch_console.fetch_status(url, auth, args.limit)
+                        if args.action == "status":
+                            data = orch_console.fetch_status(url, auth, args.limit)
+                        else:
+                            data = orch_console.fetch_execution_log(url, auth, args.execution_id)
                     break
+                except LookupError as e:
+                    console.print(f"[bold red]Error:[/] {e}")
+                    sys.exit(1)
                 except requests.HTTPError as e:
                     code = e.response.status_code
                     # Ask once for the password when the server requires one and none was given
@@ -384,7 +393,10 @@ def main():
                 except requests.RequestException as e:
                     console.print(f"[bold red]Error:[/] cannot reach {url}. Is the Orchestrator running? ({e.__class__.__name__})")
                     sys.exit(1)
-            orch_console.print_status(console, url, data)
+            if args.action == "status":
+                orch_console.print_status(console, url, data)
+            else:
+                orch_console.print_execution_log(console, data)
             sys.exit(0)
 
         import uvicorn

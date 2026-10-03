@@ -56,7 +56,11 @@ The dashboard is optional. From a second terminal, `kinenix orchestrator status`
 ```powershell
 kinenix orchestrator status                                   # http://127.0.0.1:8080
 kinenix orchestrator status --url http://<orchestrator-ip>:8080 --limit 20
+kinenix orchestrator logs                                     # steps of the latest execution
+kinenix orchestrator logs 54f84bd6                            # steps of one execution, by the ID shown in status
 ```
+
+`logs` shows each step's name, action, status, duration, and error, plus the failure and AI summary of a failed run. The dashboard shows the same table from the "ดู Steps" button on each execution. Step output and flow variables are stored in the execution log but are not shown, because they can contain business data. Worker messages outside flow steps (heartbeat problems, service start) stay on the worker; on a Raspberry Pi service, read them with `journalctl -u kinenix-worker -f`.
 
 It reads `ORCHESTRATOR_DASHBOARD_USER` and `ORCHESTRATOR_DASHBOARD_PASSWORD` from the environment, so set them to the server's values when a dashboard password is configured ([section 3](#3-dashboard-authentication)).
 
@@ -87,7 +91,7 @@ The Orchestrator has two independent credentials: an API key for workers (this s
 | `POST /api/v1/telemetry` | Worker API key |
 | `POST /api/v1/executions/{id}/reanalyze` | Worker API key |
 | `GET /` (dashboard page) | Dashboard login |
-| `GET /api/v1/workers`, `/api/v1/executions`, `/api/v1/executions/{id}` | Dashboard login |
+| `GET /api/v1/workers`, `/api/v1/executions`, `/api/v1/executions/{id}`, `/api/v1/executions/{id}/steps` | Dashboard login |
 | `GET /api/v1/healthz`, `/static/*` | Public (no data) |
 
 ### 2.1 Behavior
