@@ -1,5 +1,7 @@
+import datetime
 import uuid
 from sqlalchemy import Column, String, Float, Boolean, DateTime, Text
+from . import config
 from .database import Base
 from .timeutils import isoformat_utc, utc_now
 
@@ -17,13 +19,22 @@ class Worker(Base):
     ram_usage = Column(String(32), default="0.0 GB")
     last_heartbeat = Column(DateTime, default=utc_now)
 
+    def effective_status(self) -> str:
+        """Stored status, or "offline" when the last heartbeat is older than WORKER_OFFLINE_SECONDS."""
+        if self.last_heartbeat is None:
+            return "offline"
+        age = utc_now() - self.last_heartbeat
+        if age > datetime.timedelta(seconds=config.WORKER_OFFLINE_SECONDS):
+            return "offline"
+        return self.status
+
     def to_dict(self):
         return {
             "id": self.id,
             "name": self.name,
             "ip_address": self.ip_address,
             "os_info": self.os_info,
-            "status": self.status,
+            "status": self.effective_status(),
             "current_task": self.current_task,
             "cpu_percent": self.cpu_percent,
             "ram_usage": self.ram_usage,
