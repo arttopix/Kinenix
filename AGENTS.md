@@ -41,8 +41,11 @@ cd kinenix-studio/frontend; npm ci; npm run build
 
 # Run a flow / start the orchestrator
 kinenix run flows/examples/rpachallenge
-kinenix orchestrator --port 8080
+kinenix orchestrator            # first run asks setup questions and saves them
+kinenix orchestrator status     # workers and recent executions of a running server
 ```
+
+CLI output in `kinenix-worker` and `kinenix orchestrator` is rendered with `rich` (`kinenix_worker/display.py`, `kinenix_orchestrator/console.py`); `kinenix-core` itself does not depend on it.
 
 Run the test suites for every module you touch before reporting work as done. GitHub Actions (`.github/workflows/ci.yml`) runs the same commands on every push and pull request to `main` and `dev`; keep the workflow in sync when these commands change.
 
@@ -102,6 +105,7 @@ When you change code so that it matches a target, update this table and `docs/ro
 | `ORCHESTRATOR_API_KEY` | kinenix-orchestrator | Required key for write endpoints; unset means localhost-only |
 | `ORCHESTRATOR_DASHBOARD_USER` / `ORCHESTRATOR_DASHBOARD_PASSWORD` | kinenix-orchestrator | Basic Auth for the dashboard and read endpoints; unset password means localhost-only |
 | `ORCHESTRATOR_HOST` / `ORCHESTRATOR_PORT` | kinenix-orchestrator | Bind address (default `127.0.0.1`, localhost only) and port |
+| `ORCHESTRATOR_SETTINGS_FILE` | kinenix-orchestrator | Saved settings from `kinenix orchestrator setup` (default `~/.kinenix/orchestrator.env`); environment variables override it |
 | `ORCHESTRATOR_WORKER_OFFLINE_SECONDS` | kinenix-orchestrator | Seconds without a heartbeat before a worker shows as offline (default 90) |
 | `DATABASE_URL` | kinenix-orchestrator | SQLAlchemy connection string |
 | `CENTRAL_LLM_URL` | kinenix-orchestrator | LLM endpoint for failure analysis |

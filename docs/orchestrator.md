@@ -20,7 +20,45 @@ kinenix orchestrator
 kinenix orchestrator --host 0.0.0.0 --port 8080
 ```
 
-The Orchestrator listens on `127.0.0.1` by default, so nothing on the network can reach it until you opt in with `--host 0.0.0.0` (or `ORCHESTRATOR_HOST`). The startup banner shows which address it is listening on.
+The Orchestrator listens on `127.0.0.1` by default, so nothing on the network can reach it until you opt in with `--host 0.0.0.0` (or `ORCHESTRATOR_HOST`). The startup banner shows the address it listens on, the URL to open in a browser, the URL workers should use (`Worker URL`, the machine's LAN address when bound to `0.0.0.0`), and whether the worker API key and dashboard password are set.
+
+### Saved Settings (First Run)
+
+The first time `kinenix orchestrator` runs in an interactive terminal, it asks a few questions and saves the answers, so later starts need no flags or environment variables:
+
+1. Allow workers on other machines to connect (binds to `0.0.0.0` instead of `127.0.0.1`)
+2. Port
+3. Worker API key, with hidden input; press Enter to generate one
+4. Dashboard password, typed twice; press Enter to keep the dashboard localhost-only
+
+| Command | Purpose |
+| :--- | :--- |
+| `kinenix orchestrator` | Start; runs the questions on first use |
+| `kinenix orchestrator setup` | Change the saved answers (Enter keeps the current key and password) |
+| `kinenix orchestrator show-key` | Print the worker API key to copy to workers |
+| `kinenix orchestrator --no-prompt` | Never ask (services and scripts) |
+
+The answers are stored in `~/.kinenix/orchestrator.env` (override with `ORCHESTRATOR_SETTINGS_FILE`), outside the repository. The dashboard password is stored only as a salted PBKDF2 hash; the worker API key is stored as is, because the server must compare it, so the file is made owner-readable only on Linux and macOS. Environment variables and the `--host` / `--port` flags always take precedence over the file.
+
+`kinenix orchestrator status` asks for the dashboard password when the server requires one and `ORCHESTRATOR_DASHBOARD_PASSWORD` is not set.
+
+On Windows, remote workers also need an inbound firewall rule for the port, and the network must be in the profile the rule applies to (run as Administrator):
+
+```powershell
+Set-NetConnectionProfile -InterfaceAlias "<adapter>" -NetworkCategory Private   # only on a trusted home or office network
+New-NetFirewallRule -DisplayName "Kinenix Orchestrator 8080" -Direction Inbound -Protocol TCP -LocalPort 8080 -RemoteAddress LocalSubnet -Action Allow -Profile Private
+```
+
+### Checking Status from the Command Line
+
+The dashboard is optional. From a second terminal, `kinenix orchestrator status` shows workers (status, current task, CPU, RAM, last heartbeat) and recent executions with failure summaries:
+
+```powershell
+kinenix orchestrator status                                   # http://127.0.0.1:8080
+kinenix orchestrator status --url http://<orchestrator-ip>:8080 --limit 20
+```
+
+It reads `ORCHESTRATOR_DASHBOARD_USER` and `ORCHESTRATOR_DASHBOARD_PASSWORD` from the environment, so set them to the server's values when a dashboard password is configured ([section 3](#3-dashboard-authentication)).
 
 No CORS policy is configured: the dashboard is served from the Orchestrator's own origin, and workers call the API directly rather than from a browser, so other websites cannot read Orchestrator data through a visitor's browser.
 
@@ -34,6 +72,7 @@ No CORS policy is configured: the dashboard is served from the Orchestrator's ow
 | `DATABASE_URL` | `sqlite:///kinenix-orchestrator/kinenix_orchestrator/orchestrator.db` | SQLAlchemy connection string (e.g. PostgreSQL). |
 | `CENTRAL_LLM_URL` | `http://127.0.0.1:8000/v1/systemone` | LLM endpoint used for failure analysis. |
 | `ORCHESTRATOR_HOST` / `ORCHESTRATOR_PORT` | `127.0.0.1` / `8080` | Bind address and port. The CLI flags `--host` / `--port` override them. Use `0.0.0.0` to accept remote connections. |
+| `ORCHESTRATOR_SETTINGS_FILE` | `~/.kinenix/orchestrator.env` | Saved settings written by `kinenix orchestrator setup`. See [Saved Settings](#saved-settings-first-run). |
 | `ORCHESTRATOR_WORKER_OFFLINE_SECONDS` | `90` | A worker with no heartbeat for this long is shown as `offline`. Keep it above three times the workers' `KINENIX_HEARTBEAT_INTERVAL`. |
 
 ---

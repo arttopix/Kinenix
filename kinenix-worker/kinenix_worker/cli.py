@@ -3,7 +3,9 @@ import json
 import sys
 from pathlib import Path
 
-from . import __version__
+from rich.console import Console
+
+from . import __version__, display
 from .orchestrator_client import HeartbeatThread, OrchestratorClient
 from .runner import WorkerRunner
 
@@ -60,33 +62,24 @@ def main():
         parser.print_help()
         sys.exit(0)
 
+    console = Console()
     client = OrchestratorClient()
     runner = WorkerRunner(client=client)
 
     if args.command == "info":
-        info = runner.get_system_info()
-        print("Kinenix Worker System Information:")
-        print("-------------------------------")
-        for k, v in info.items():
-            print(f"  {k}: {v}")
-        print(f"  worker_id: {client.worker_id}")
-        print(f"  orchestrator_url: {client.url or '(not set)'}")
-        print(f"  orchestrator_api_key: {'(set)' if client.api_key else '(not set)'}")
+        display.print_info(console, runner.get_system_info(), client)
         sys.exit(0)
 
     if args.command == "ping":
-        result = client.ping()
-        print(f"Orchestrator: {client.url or '(not set)'}")
-        print(f"Worker ID:    {client.worker_id}")
-        print(f"Reachable:    {'yes' if result['reachable'] else 'no'}")
-        print(f"Authorized:   {'yes' if result['authorized'] else 'no'}")
-        print(f"Detail:       {result['detail']}")
+        with console.status(f"Contacting {client.url or 'Orchestrator'}..."):
+            result = client.ping()
+        display.print_ping(console, client, result)
         sys.exit(0 if result["authorized"] else 1)
 
     def start_heartbeats() -> None:
         if client.enabled:
             HeartbeatThread(client).start()
-            print(f"Sending heartbeats to {client.url} as '{client.worker_id}'")
+            console.print(f"[dim]Sending heartbeats to {client.url} as '{client.worker_id}'[/]")
 
     if args.command == "run":
         extra_vars = {}
@@ -107,17 +100,8 @@ def main():
                 log_dir=args.log_dir
             )
 
-            print("Execution Result:")
-            print(f"  Job ID: {res['job_id']}")
-            print(f"  Flow Name: {res['flow_name']}")
-            print(f"  Status: {res['status'].upper()}")
-            print(f"  Duration: {res['duration_seconds']}s")
-            print(f"  Steps Executed: {res['steps_executed']}/{res['steps_total']}")
-            if res["has_error"]:
-                print(f"  Error Details: {res['error']}")
-                sys.exit(1)
-            else:
-                sys.exit(0)
+            display.print_run_result(console, res)
+            sys.exit(1 if res["has_error"] else 0)
 
         except Exception as e:
             print(f"Worker execution failed with error: {e}", file=sys.stderr)

@@ -1,12 +1,14 @@
+import hashlib
 import ipaddress
 import logging
 import secrets
-from typing import Optional
+from typing import Dict, Optional
 
 from fastapi import HTTPException, Request, Security, status
 from fastapi.security import APIKeyHeader, HTTPBasic, HTTPBasicCredentials
 
 from . import config
+from .settings_file import verify_password
 
 logger = logging.getLogger("kinenix.orchestrator.security")
 
@@ -30,6 +32,28 @@ def _secret_equals(provided: Optional[str], expected: str) -> bool:
     if provided is None:
         return False
     return secrets.compare_digest(provided.encode("utf-8"), expected.encode("utf-8"))
+
+
+# Fingerprint of the last password that matched the saved hash. The dashboard polls the API, and
+# running PBKDF2 on every request would make it slow; the plaintext password is never kept.
+_verified_password: Dict[str, bytes] = {}
+
+
+def _dashboard_password_matches(provided: Optional[str]) -> bool:
+    if config.DASHBOARD_PASSWORD:
+        return _secret_equals(provided, config.DASHBOARD_PASSWORD)
+    if provided is None:
+        return False
+    stored_hash = config.DASHBOARD_PASSWORD_HASH
+    fingerprint = hashlib.sha256(f"{stored_hash}:{provided}".encode("utf-8")).digest()
+    cached = _verified_password.get(stored_hash)
+    if cached is not None and secrets.compare_digest(cached, fingerprint):
+        return True
+    if verify_password(provided, stored_hash):
+        _verified_password.clear()
+        _verified_password[stored_hash] = fingerprint
+        return True
+    return False
 
 
 def _allow_loopback_only(request: Request, setting_name: str) -> None:
@@ -79,15 +103,13 @@ def require_dashboard_auth(
       Browsers show a login prompt and reuse the credentials for the dashboard's API calls.
     - ORCHESTRATOR_DASHBOARD_PASSWORD unset (local dev mode): only loopback clients are accepted.
     """
-    expected_password = config.DASHBOARD_PASSWORD
-
-    if not expected_password:
+    if not config.dashboard_password_required():
         _allow_loopback_only(request, "ORCHESTRATOR_DASHBOARD_PASSWORD")
         return
 
     # Evaluate both comparisons so the response time does not reveal which one failed
     user_ok = _secret_equals(credentials.username if credentials else None, config.DASHBOARD_USER)
-    password_ok = _secret_equals(credentials.password if credentials else None, expected_password)
+    password_ok = _dashboard_password_matches(credentials.password if credentials else None)
     if not (user_ok and password_ok):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -105,7 +127,7 @@ def log_auth_mode() -> None:
             "Set ORCHESTRATOR_API_KEY to allow remote workers."
         )
 
-    if config.DASHBOARD_PASSWORD:
+    if config.dashboard_password_required():
         logger.info(f"Dashboard authentication enabled (user '{config.DASHBOARD_USER}').")
     else:
         logger.warning(
