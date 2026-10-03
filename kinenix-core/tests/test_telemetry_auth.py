@@ -67,3 +67,18 @@ def test_telemetry_timestamps_carry_utc_offset(monkeypatch):
     sent = datetime.fromisoformat(mock_post.call_args.kwargs["json"]["payload"]["start_time"])
     assert sent.utcoffset() is not None
     assert sent == context.start_time
+
+
+def test_telemetry_is_sent_without_a_log_dir(monkeypatch):
+    # Workers run without --log-dir; telemetry must still reach the Orchestrator
+    monkeypatch.setenv("KINENIX_ORCHESTRATOR_URL", "http://orchestrator:8080")
+    monkeypatch.delenv("KINENIX_ORCHESTRATOR_API_KEY", raising=False)
+    flow = FlowDefinition(
+        name="No Log Dir",
+        steps=[Step(id="s1", name="Set", action="logic.set_variable", parameters={"name": "x", "value": "1"})],
+    )
+    with patch("requests.post") as mock_post:
+        mock_post.return_value = MagicMock(status_code=200)
+        FlowInterpreter(logger=ExecutionLogger(log_dir=None)).run_flow(flow)
+    assert mock_post.called
+    assert mock_post.call_args.args[0] == "http://orchestrator:8080/api/v1/telemetry"

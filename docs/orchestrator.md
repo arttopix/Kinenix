@@ -34,6 +34,7 @@ No CORS policy is configured: the dashboard is served from the Orchestrator's ow
 | `DATABASE_URL` | `sqlite:///kinenix-orchestrator/kinenix_orchestrator/orchestrator.db` | SQLAlchemy connection string (e.g. PostgreSQL). |
 | `CENTRAL_LLM_URL` | `http://127.0.0.1:8000/v1/systemone` | LLM endpoint used for failure analysis. |
 | `ORCHESTRATOR_HOST` / `ORCHESTRATOR_PORT` | `127.0.0.1` / `8080` | Bind address and port. The CLI flags `--host` / `--port` override them. Use `0.0.0.0` to accept remote connections. |
+| `ORCHESTRATOR_WORKER_OFFLINE_SECONDS` | `90` | A worker with no heartbeat for this long is shown as `offline`. Keep it above three times the workers' `KINENIX_HEARTBEAT_INTERVAL`. |
 
 ---
 
@@ -88,12 +89,20 @@ When the key is unset, the Orchestrator still binds to the network but refuses r
 4. Verify from a worker machine:
 
    ```powershell
+   kinenix-worker ping
+   ```
+
+   `ping` reports whether the Orchestrator is reachable and whether the key is accepted. Without kinenix-worker, send a heartbeat by hand:
+
+   ```powershell
    curl.exe -X POST http://<orchestrator-ip>:8080/api/v1/heartbeat `
      -H "X-API-Key: <generated-key>" -H "Content-Type: application/json" `
      -d '{\"worker_id\": \"test-worker\"}'
    ```
 
    A `401` response means the key is missing or does not match; a `403` means the Orchestrator has no key configured.
+
+Workers started with `kinenix-worker` send heartbeats on their own; see the [worker guide](../kinenix-worker/README.md#d-connect-to-the-orchestrator).
 
 If the Orchestrator rejects telemetry, the worker logs a warning asking you to check `KINENIX_ORCHESTRATOR_API_KEY`. The flow itself still completes; only the telemetry upload fails.
 

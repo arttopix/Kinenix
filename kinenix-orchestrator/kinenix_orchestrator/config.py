@@ -21,6 +21,9 @@ API_KEY = os.environ.get("ORCHESTRATOR_API_KEY", "")
 DASHBOARD_USER = os.environ.get("ORCHESTRATOR_DASHBOARD_USER", "admin")
 DASHBOARD_PASSWORD = os.environ.get("ORCHESTRATOR_DASHBOARD_PASSWORD", "")
 
+# A worker with no heartbeat for this many seconds is reported as offline
+WORKER_OFFLINE_SECONDS = int(os.environ.get("ORCHESTRATOR_WORKER_OFFLINE_SECONDS", "90"))
+
 # Static and artifacts directory
 STATIC_DIR = BASE_DIR / "static"
 STATIC_DIR.mkdir(parents=True, exist_ok=True)

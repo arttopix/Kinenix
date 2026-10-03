@@ -87,7 +87,7 @@ Some rule files and the README describe the target architecture, not what exists
 | Action tests | `kinenix-core/tests/actions/` | Tests live directly in `kinenix-core/tests/` |
 | Studio | Tauri desktop app | FastAPI + React/Vite in the browser |
 | Orchestrator backend | Async handlers, PostgreSQL, Redis/Celery | Sync handlers, SQLite by default, no queue |
-| Worker communication | WebSocket job dispatch and log streaming | Workers push telemetry over HTTP; no dispatch |
+| Worker communication | WebSocket job dispatch and log streaming | Workers push telemetry and heartbeats over HTTP; no dispatch |
 
 When you change code so that it matches a target, update this table and `docs/roadmap.md`.
 
@@ -97,10 +97,12 @@ When you change code so that it matches a target, update this table and `docs/ro
 | :--- | :--- | :--- |
 | `KINENIX_ORCHESTRATOR_URL` | kinenix-core | Orchestrator URL for telemetry upload |
 | `KINENIX_ORCHESTRATOR_API_KEY` | kinenix-core | API key sent as `X-API-Key` |
-| `KINENIX_WORKER_ID` | kinenix-core | Worker identifier in telemetry |
+| `KINENIX_WORKER_ID` | kinenix-core, kinenix-worker | Worker identifier in telemetry and heartbeats; kinenix-worker defaults to the host name |
+| `KINENIX_HEARTBEAT_INTERVAL` | kinenix-worker | Seconds between heartbeats while a worker command runs (default 30) |
 | `ORCHESTRATOR_API_KEY` | kinenix-orchestrator | Required key for write endpoints; unset means localhost-only |
 | `ORCHESTRATOR_DASHBOARD_USER` / `ORCHESTRATOR_DASHBOARD_PASSWORD` | kinenix-orchestrator | Basic Auth for the dashboard and read endpoints; unset password means localhost-only |
 | `ORCHESTRATOR_HOST` / `ORCHESTRATOR_PORT` | kinenix-orchestrator | Bind address (default `127.0.0.1`, localhost only) and port |
+| `ORCHESTRATOR_WORKER_OFFLINE_SECONDS` | kinenix-orchestrator | Seconds without a heartbeat before a worker shows as offline (default 90) |
 | `DATABASE_URL` | kinenix-orchestrator | SQLAlchemy connection string |
 | `CENTRAL_LLM_URL` | kinenix-orchestrator | LLM endpoint for failure analysis |
 

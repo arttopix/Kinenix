@@ -77,3 +77,17 @@ def test_parse_timestamp_treats_naive_input_as_host_local_time():
 def test_isoformat_utc():
     assert isoformat_utc(None) is None
     assert isoformat_utc(datetime.datetime(2026, 9, 21, 11, 0, 0)) == "2026-09-21T11:00:00+00:00"
+
+
+def test_worker_is_offline_after_missing_heartbeats(monkeypatch):
+    from kinenix_orchestrator.models import Worker
+    from kinenix_orchestrator.timeutils import utc_now
+
+    monkeypatch.setattr(orchestrator_config, "WORKER_OFFLINE_SECONDS", 90)
+    fresh = Worker(id="w1", name="n", status="busy", last_heartbeat=utc_now())
+    stale = Worker(id="w2", name="n", status="online", last_heartbeat=utc_now() - datetime.timedelta(seconds=91))
+    never = Worker(id="w3", name="n", status="online", last_heartbeat=None)
+    assert fresh.effective_status() == "busy"
+    assert stale.effective_status() == "offline"
+    assert never.effective_status() == "offline"
+    assert stale.to_dict()["status"] == "offline"

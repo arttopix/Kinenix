@@ -106,7 +106,7 @@ Orchestrator -> versioned job bundle -> Worker (WebSocket) -> kinenix-core execu
 - [x] `kinenix-worker run`, `watch` (file trigger), `schedule` (interval), `daemon` (multi-trigger config)
 - [x] Optional per-job sandbox workspace (`~/.kinenix/workspaces/<job_id>`)
 - [x] Verified on Raspberry Pi 4 (ARM64) with setup script
-- [ ] Heartbeat sender to the Orchestrator
+- [x] Heartbeat sender to the Orchestrator (`kinenix-worker ping`, busy/online/offline status)
 - [ ] WebSocket job client (see 1.7)
 - [ ] Bundle packaging (`.kinpkg`), download, and local cache
 - [ ] Real-time log and screenshot streaming

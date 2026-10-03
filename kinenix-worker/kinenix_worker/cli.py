@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 from . import __version__
+from .orchestrator_client import HeartbeatThread, OrchestratorClient
 from .runner import WorkerRunner
 
 
@@ -22,6 +23,9 @@ def main():
 
     # Command: info
     subparsers.add_parser("info", help="Display worker machine hardware, architecture, and runtime stats")
+
+    # Command: ping
+    subparsers.add_parser("ping", help="Check the connection and API key to the Orchestrator (KINENIX_ORCHESTRATOR_URL)")
 
     # Command: run
     run_parser = subparsers.add_parser("run", help="Execute a flow or project bundle on this worker")
@@ -56,7 +60,8 @@ def main():
         parser.print_help()
         sys.exit(0)
 
-    runner = WorkerRunner()
+    client = OrchestratorClient()
+    runner = WorkerRunner(client=client)
 
     if args.command == "info":
         info = runner.get_system_info()
@@ -64,7 +69,24 @@ def main():
         print("-------------------------------")
         for k, v in info.items():
             print(f"  {k}: {v}")
+        print(f"  worker_id: {client.worker_id}")
+        print(f"  orchestrator_url: {client.url or '(not set)'}")
+        print(f"  orchestrator_api_key: {'(set)' if client.api_key else '(not set)'}")
         sys.exit(0)
+
+    if args.command == "ping":
+        result = client.ping()
+        print(f"Orchestrator: {client.url or '(not set)'}")
+        print(f"Worker ID:    {client.worker_id}")
+        print(f"Reachable:    {'yes' if result['reachable'] else 'no'}")
+        print(f"Authorized:   {'yes' if result['authorized'] else 'no'}")
+        print(f"Detail:       {result['detail']}")
+        sys.exit(0 if result["authorized"] else 1)
+
+    def start_heartbeats() -> None:
+        if client.enabled:
+            HeartbeatThread(client).start()
+            print(f"Sending heartbeats to {client.url} as '{client.worker_id}'")
 
     if args.command == "run":
         extra_vars = {}
@@ -75,6 +97,8 @@ def main():
                 print(f"Error parsing --vars JSON: {e}", file=sys.stderr)
                 sys.exit(1)
 
+        # Keep heartbeats going during long flows so the worker is not shown as offline mid-run
+        start_heartbeats()
         try:
             res = runner.execute_flow(
                 flow_path_or_alias=args.flow_path,
@@ -122,6 +146,7 @@ def main():
         print(f"Watching directory '{args.directory}' for pattern '{args.pattern}'...")
         print(f"Target flow: {args.flow}")
         print("Press Ctrl+C to stop.")
+        start_heartbeats()
         watcher.run_loop()
         sys.exit(0)
 
@@ -145,6 +170,7 @@ def main():
         )
         print(f"Scheduled flow '{args.flow}' to run every {args.interval}s...")
         print("Press Ctrl+C to stop.")
+        start_heartbeats()
         scheduler.run_loop()
         sys.exit(0)
 
@@ -156,6 +182,7 @@ def main():
             manager.load_from_config(args.config)
             print(f"Loaded triggers from '{args.config}'. Running daemon...")
             print("Press Ctrl+C to stop.")
+            start_heartbeats()
             manager.start_all(blocking=True)
             sys.exit(0)
         except Exception as e:

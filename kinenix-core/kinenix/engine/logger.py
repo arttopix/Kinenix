@@ -85,17 +85,17 @@ class ExecutionLogger:
         self.logger.info(f"Total Steps: {m.total_steps} (Success: {m.successful_steps}, Failed: {m.failed_steps}, Skipped: {m.skipped_steps})")
         self.logger.info(f"Total Duration: {m.total_duration_seconds:.2f}s")
 
+        raw_data = context.model_dump(mode="python")
+        raw_data = {"$schema": "../../../schemas/execution_log.schema.json", **raw_data}
+
+        # Filter out internal private runtime variables (e.g. __playwright_*)
+        if "variables" in raw_data and isinstance(raw_data["variables"], dict):
+            raw_data["variables"] = {
+                k: v for k, v in raw_data["variables"].items() if not str(k).startswith("__")
+            }
+
         if self.log_dir:
             try:
-                raw_data = context.model_dump(mode="python")
-                raw_data = {"$schema": "../../../schemas/execution_log.schema.json", **raw_data}
-
-                # Filter out internal private runtime variables (e.g. __playwright_*)
-                if "variables" in raw_data and isinstance(raw_data["variables"], dict):
-                    raw_data["variables"] = {
-                        k: v for k, v in raw_data["variables"].items() if not str(k).startswith("__")
-                    }
-
                 import re
                 flow_slug = re.sub(r"[^\w\-]+", "_", context.flow_name.lower().strip()).strip("_")
                 date_str = context.start_time.strftime("%Y-%m-%d")
@@ -108,17 +108,17 @@ class ExecutionLogger:
                 log_file = target_dir / f"{time_str}_{status_str}.json"
                 log_file.write_text(json.dumps(raw_data, default=str, indent=2, ensure_ascii=False), encoding="utf-8")
                 self.logger.info(f"Saved JSON log to: {log_file}")
-
-                # Send telemetry to Central Orchestrator if configured
-                orchestrator_url = (
-                    context.get_variable("orchestrator_url")
-                    or context.get_variable("telemetry_url")
-                    or os.environ.get("KINENIX_ORCHESTRATOR_URL")
-                )
-                if orchestrator_url:
-                    self._send_telemetry(orchestrator_url, raw_data, context)
             except Exception as e:
                 self.logger.error(f"Failed to save JSON execution log: {e}")
+
+        # Send telemetry to Central Orchestrator if configured, whether or not a log file is written
+        orchestrator_url = (
+            context.get_variable("orchestrator_url")
+            or context.get_variable("telemetry_url")
+            or os.environ.get("KINENIX_ORCHESTRATOR_URL")
+        )
+        if orchestrator_url:
+            self._send_telemetry(orchestrator_url, raw_data, context)
 
     def _send_telemetry(self, orchestrator_url: str, raw_data: dict, context: ExecutionContext) -> None:
         try:
