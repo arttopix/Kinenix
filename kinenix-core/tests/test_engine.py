@@ -513,7 +513,7 @@ def test_subflow_shared_component_send_email():
     res = ctx.get_variable("email_result")
     assert isinstance(res, dict)
     assert res["status"] == "simulated"
-    assert res["channel"] == "Gmail SMTP"
+    assert res["channel"].startswith("SMTP ")  # host depends on SMTP_HOST in the environment
     assert res["to"] == "finance@example.com"
     assert res["subject"] == "Monthly Close Completed"
 

@@ -24,5 +24,5 @@ Logs must carry business impact indicators alongside technical data:
 
 ## 3. Telemetry Upload
 
-- Uploading to the Orchestrator must never fail the flow: catch and log upload errors.
-- Credentials for upload come only from environment variables (`KINENIX_ORCHESTRATOR_API_KEY`), never from flow variables or `config.json`.
+- Uploading to the Hub must never fail the flow: catch and log upload errors.
+- Credentials for upload come only from environment variables (`KINENIX_HUB_API_KEY`), never from flow variables or `config.json`.

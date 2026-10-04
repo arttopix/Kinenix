@@ -81,15 +81,15 @@ By default, Kinenix automatically detects the project root and writes structured
 kinenix run rpachallenge --log-dir "./custom_logs"
 ```
 
-### 3.3 Send Telemetry to the Orchestrator (`--orchestrator`)
-Uploads the execution log to a Central Orchestrator after the run. If the Orchestrator requires an API key, set `KINENIX_ORCHESTRATOR_API_KEY` first:
+### 3.3 Send Telemetry to the Hub (`--hub`)
+Uploads the execution log to a Kinenix Hub after the run. If the Hub requires an API key, set `KINENIX_HUB_API_KEY` first:
 
 ```powershell
-$env:KINENIX_ORCHESTRATOR_API_KEY = "<key>"
-kinenix run rpachallenge --orchestrator http://localhost:8080
+$env:KINENIX_HUB_API_KEY = "<key>"
+kinenix run rpachallenge --hub http://localhost:8080
 ```
 
-See the [Central Orchestrator Guide](orchestrator.md#2-worker-authentication) for setup details.
+See the [Kinenix Hub Guide](hub.md#2-worker-authentication) for setup details.
 
 ---
 
