@@ -1,10 +1,12 @@
-"""Connection from a worker to the Kinenix Orchestrator: heartbeats and connection checks.
+"""Connection from a worker to the Kinenix Hub: heartbeats and connection checks.
 
 Configuration comes from the same environment variables kinenix-core uses for telemetry:
-    KINENIX_ORCHESTRATOR_URL      Orchestrator base URL; heartbeats are disabled when unset
-    KINENIX_ORCHESTRATOR_API_KEY  sent as X-API-Key
-    KINENIX_WORKER_ID             worker identifier; defaults to the host name
-    KINENIX_HEARTBEAT_INTERVAL    seconds between heartbeats while a worker command runs (default 30)
+    KINENIX_HUB_URL             Hub base URL; heartbeats are disabled when unset
+    KINENIX_HUB_API_KEY         sent as X-API-Key
+    KINENIX_WORKER_ID           worker identifier; defaults to the host name
+    KINENIX_HEARTBEAT_INTERVAL  seconds between heartbeats while a worker command runs (default 30)
+
+The pre-rename names KINENIX_ORCHESTRATOR_URL and KINENIX_ORCHESTRATOR_API_KEY still work, with a warning.
 
 Network failures never stop the worker; they are logged once and again when the connection recovers.
 """
@@ -18,8 +20,9 @@ from urllib.parse import urlparse
 
 import psutil
 import requests
+from kinenix.env import get_env
 
-logger = logging.getLogger("kinenix_worker.orchestrator")
+logger = logging.getLogger("kinenix_worker.hub")
 
 DEFAULT_HEARTBEAT_INTERVAL = 30.0
 REQUEST_TIMEOUT = 5.0
@@ -30,7 +33,7 @@ def resolve_worker_id() -> str:
 
 
 def _local_ip(target_url: str) -> str:
-    """IP address of the interface used to reach the Orchestrator (no packets are sent)."""
+    """IP address of the interface used to reach the Hub (no packets are sent)."""
     host = urlparse(target_url).hostname or "8.8.8.8"
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
@@ -40,16 +43,16 @@ def _local_ip(target_url: str) -> str:
         return "127.0.0.1"
 
 
-class OrchestratorClient:
+class HubClient:
     def __init__(
         self,
         url: Optional[str] = None,
         api_key: Optional[str] = None,
         worker_id: Optional[str] = None,
     ):
-        raw_url = url if url is not None else os.environ.get("KINENIX_ORCHESTRATOR_URL", "")
+        raw_url = url if url is not None else get_env("KINENIX_HUB_URL")
         self.url = raw_url.rstrip("/")
-        self.api_key = api_key if api_key is not None else os.environ.get("KINENIX_ORCHESTRATOR_API_KEY", "")
+        self.api_key = api_key if api_key is not None else get_env("KINENIX_HUB_API_KEY")
         self.worker_id = worker_id or resolve_worker_id()
         self.current_task: Optional[str] = None
         self._lock = threading.Lock()
@@ -97,15 +100,15 @@ class OrchestratorClient:
                 ok = res.status_code == 200
                 problem = None if ok else f"HTTP {res.status_code}"
                 if res.status_code in (401, 403):
-                    problem += " (check KINENIX_ORCHESTRATOR_API_KEY)"
+                    problem += " (check KINENIX_HUB_API_KEY)"
             except requests.RequestException as e:
                 ok, problem = False, str(e)
 
-            # Log only on state changes so an unreachable Orchestrator does not flood the log
+            # Log only on state changes so an unreachable Hub does not flood the log
             if not ok and self._last_ok is not False:
-                logger.warning(f"Heartbeat to Orchestrator {self.url} failed: {problem}")
+                logger.warning(f"Heartbeat to Hub {self.url} failed: {problem}")
             elif ok and self._last_ok is False:
-                logger.info(f"Heartbeat to Orchestrator {self.url} recovered")
+                logger.info(f"Heartbeat to Hub {self.url} recovered")
             self._last_ok = ok
             return ok
 
@@ -117,7 +120,7 @@ class OrchestratorClient:
     def ping(self) -> Dict[str, Any]:
         """Check reachability and the API key. Returns {"reachable", "authorized", "detail"}."""
         if not self.enabled:
-            return {"reachable": False, "authorized": False, "detail": "KINENIX_ORCHESTRATOR_URL is not set"}
+            return {"reachable": False, "authorized": False, "detail": "KINENIX_HUB_URL is not set"}
         try:
             health = requests.get(f"{self.url}/api/v1/healthz", timeout=REQUEST_TIMEOUT)
         except requests.RequestException as e:
@@ -138,14 +141,14 @@ class OrchestratorClient:
             return {"reachable": True, "authorized": True, "detail": "Heartbeat accepted"}
         if res.status_code in (401, 403):
             return {"reachable": True, "authorized": False,
-                    "detail": f"HTTP {res.status_code}: KINENIX_ORCHESTRATOR_API_KEY does not match ORCHESTRATOR_API_KEY"}
+                    "detail": f"HTTP {res.status_code}: KINENIX_HUB_API_KEY on this worker does not match the Hub's key"}
         return {"reachable": True, "authorized": False, "detail": f"Heartbeat returned HTTP {res.status_code}"}
 
 
 class HeartbeatThread(threading.Thread):
     """Sends a heartbeat at a fixed interval until stopped."""
 
-    def __init__(self, client: OrchestratorClient, interval: Optional[float] = None):
+    def __init__(self, client: HubClient, interval: Optional[float] = None):
         super().__init__(name="kinenix-heartbeat", daemon=True)
         self.client = client
         self.interval = interval or float(os.environ.get("KINENIX_HEARTBEAT_INTERVAL", DEFAULT_HEARTBEAT_INTERVAL))

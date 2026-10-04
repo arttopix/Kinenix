@@ -86,10 +86,10 @@ To invoke a reusable organization-wide component from the central `@shared/` dir
 
 The project bundle structure directly enables a robust deployment pipeline to unattended robot workers (`kinenix-worker`):
 
-> **Status:** Phase 1 and the sandbox workspace in Phase 4 (`kinenix-worker run --sandbox`) are implemented. Packaging, Orchestrator distribution, the worker cache, and WebSocket streaming (Phases 2, 3, 5) are planned. See [roadmap.md](roadmap.md).
+> **Status:** Phase 1 and the sandbox workspace in Phase 4 (`kinenix-worker run --sandbox`) are implemented. Packaging, Hub distribution, the worker cache, and WebSocket streaming (Phases 2, 3, 5) are planned. See [roadmap.md](roadmap.md).
 
 ```text
-[ Developer Machine ] -> [ Kinenix Orchestrator ] -> [ Unattended Worker Daemon ]
+[ Developer Machine ] -> [ Kinenix Hub ] -> [ Unattended Worker Daemon ]
   Local Dev & Test          Package & Version          Isolated Sandbox Execution
 ```
 
@@ -101,10 +101,10 @@ The project bundle structure directly enables a robust deployment pipeline to un
 ### Phase 2: Packaging & Versioning
 - The project bundle directory is packaged into a versioned archive (e.g. `invoice_tax_filing-1.0.0.kinpkg` or `.zip`).
 - Any referenced `@shared/` flows are inlined by the packaging tool into the bundle, ensuring the archive is 100% self-contained.
-- The package is published to **Kinenix Orchestrator**.
+- The package is published to **Kinenix Hub**.
 
 ### Phase 3: Distribution & Local Worker Cache
-- Background daemons (`kinenix-worker`) running on target worker machines (Windows VMs, PCs, or Raspberry Pi) connect to Orchestrator via WebSocket.
+- Background daemons (`kinenix-worker`) running on target worker machines (Windows VMs, PCs, or Raspberry Pi) connect to Hub via WebSocket.
 - When a job is dispatched, the worker checks its local package cache (`~/.kinenix/packages/` or `C:\ProgramData\Kinenix\packages\`).
 - If the requested version is not present or updated, the worker downloads and verifies the package archive.
 
@@ -120,4 +120,4 @@ The project bundle structure directly enables a robust deployment pipeline to un
 
 ### Phase 5: Execution & Telemetry
 - Worker executes the bundle: `kinenix run .../flow.json`.
-- Step results, business metrics, and failure screenshots are streamed in real time to the Orchestrator dashboard.
+- Step results, business metrics, and failure screenshots are streamed in real time to the Hub dashboard.

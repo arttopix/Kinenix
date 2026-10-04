@@ -5,10 +5,10 @@ import pytest
 from fastapi.testclient import TestClient
 from rich.console import Console
 
-from kinenix_orchestrator import config as orchestrator_config
-from kinenix_orchestrator import console as orch_console
-from kinenix_orchestrator.app import app
-from kinenix_orchestrator.services.telemetry_service import STEP_FIELDS, step_summaries
+from kinenix_hub import config as hub_config
+from kinenix_hub import console as hub_console
+from kinenix_hub.app import app
+from kinenix_hub.services.telemetry_service import STEP_FIELDS, step_summaries
 
 client = TestClient(app, client=("127.0.0.1", 50000))
 remote_client = TestClient(app, client=("192.168.1.77", 50000))
@@ -30,9 +30,9 @@ PAYLOAD = {
 
 @pytest.fixture(autouse=True)
 def no_credentials(monkeypatch):
-    monkeypatch.setattr(orchestrator_config, "API_KEY", "")
-    monkeypatch.setattr(orchestrator_config, "DASHBOARD_PASSWORD", "")
-    monkeypatch.setattr(orchestrator_config, "DASHBOARD_PASSWORD_HASH", "")
+    monkeypatch.setattr(hub_config, "API_KEY", "")
+    monkeypatch.setattr(hub_config, "DASHBOARD_PASSWORD", "")
+    monkeypatch.setattr(hub_config, "DASHBOARD_PASSWORD_HASH", "")
 
 
 def _ingest(payload=PAYLOAD) -> str:
@@ -79,22 +79,22 @@ def _response(json_body):
 def test_fetch_execution_log_resolves_prefix_and_latest():
     listing = {"executions": [{"id": "abc12345-1"}, {"id": "abd99999-2"}, {"id": "abd88888-3"}]}
     detail = {"execution": {"id": "abc12345-1"}, "steps": []}
-    with patch("kinenix_orchestrator.console.requests.get", side_effect=[_response(listing), _response(detail)]) as get:
-        assert orch_console.fetch_execution_log("http://orch", None, "abc") == detail
+    with patch("kinenix_hub.console.requests.get", side_effect=[_response(listing), _response(detail)]) as get:
+        assert hub_console.fetch_execution_log("http://orch", None, "abc") == detail
     assert get.call_args_list[1].args[0] == "http://orch/api/v1/executions/abc12345-1/steps"
 
-    with patch("kinenix_orchestrator.console.requests.get", side_effect=[_response(listing), _response(detail)]) as get:
-        orch_console.fetch_execution_log("http://orch", None, None)
+    with patch("kinenix_hub.console.requests.get", side_effect=[_response(listing), _response(detail)]) as get:
+        hub_console.fetch_execution_log("http://orch", None, None)
     assert get.call_args_list[1].args[0].endswith("/abc12345-1/steps")
 
     for prefix, message in (("abd", "matches 2"), ("zzz", "No recent execution")):
-        with patch("kinenix_orchestrator.console.requests.get", return_value=_response(listing)):
+        with patch("kinenix_hub.console.requests.get", return_value=_response(listing)):
             with pytest.raises(LookupError, match=message):
-                orch_console.fetch_execution_log("http://orch", None, prefix)
+                hub_console.fetch_execution_log("http://orch", None, prefix)
 
-    with patch("kinenix_orchestrator.console.requests.get", return_value=_response({"executions": []})):
+    with patch("kinenix_hub.console.requests.get", return_value=_response({"executions": []})):
         with pytest.raises(LookupError, match="No executions"):
-            orch_console.fetch_execution_log("http://orch", None, None)
+            hub_console.fetch_execution_log("http://orch", None, None)
 
 
 def test_print_execution_log_shows_steps_and_failure():
@@ -110,7 +110,7 @@ def test_print_execution_log_shows_steps_and_failure():
         ],
     }
     console = Console(record=True, width=160, color_system=None)
-    orch_console.print_execution_log(console, data, now=datetime(2026, 10, 3, 12, 0, tzinfo=timezone.utc))
+    hub_console.print_execution_log(console, data, now=datetime(2026, 10, 3, 12, 0, tzinfo=timezone.utc))
     out = console.export_text()
     for expected in ("Demo [bold]", "pi4-01", "4.2s", "Button did not appear", "Steps (2)",
                      "web.click", "Technical: Timeout 3000ms", "1m ago"):
@@ -119,5 +119,5 @@ def test_print_execution_log_shows_steps_and_failure():
 
 def test_print_execution_log_without_steps():
     console = Console(record=True, width=120, color_system=None)
-    orch_console.print_execution_log(console, {"execution": {"id": "x", "status": "success"}, "steps": []})
+    hub_console.print_execution_log(console, {"execution": {"id": "x", "status": "success"}, "steps": []})
     assert "No step details" in console.export_text()

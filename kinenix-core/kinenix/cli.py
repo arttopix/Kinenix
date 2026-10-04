@@ -194,7 +194,7 @@ def main():
     run_parser.add_argument("flow_file", help="Flow name or path to flow.json / flow.md file")
     run_parser.add_argument("--vars", help="Optional JSON string of variables to override", default=None)
     run_parser.add_argument("--log-dir", help="Directory to save execution JSON logs (default: auto-detected project root 'logs/')", default=None)
-    run_parser.add_argument("--orchestrator", help="Optional Central Orchestrator URL to transmit telemetry (e.g. http://localhost:8080)", default=None)
+    run_parser.add_argument("--hub", "--orchestrator", dest="hub", help="Optional Hub URL to transmit telemetry (e.g. http://localhost:8080); --orchestrator is the name from before the rename to Hub", default=None)
     run_parser.add_argument("--worker-id", help="Identifier for this worker node (default: local-worker)", default=None)
 
     # Command: compile
@@ -215,20 +215,21 @@ def main():
     # Command: list
     subparsers.add_parser("list", help="List all discovered RPA Flows available to run")
 
-    # Command: orchestrator
-    orch_parser = subparsers.add_parser("orchestrator", help="Start the Central Orchestrator, set it up, or show its workers and executions")
-    orch_parser.add_argument("action", nargs="?", choices=["start", "status", "logs", "setup", "show-key"], default="start",
+    # Command: hub
+    # "orchestrator" is the name from before the rename to Hub and still works as an alias
+    hub_parser = subparsers.add_parser("hub", aliases=["orchestrator"], help="Start the Kinenix Hub, set it up, or show its workers and executions")
+    hub_parser.add_argument("action", nargs="?", choices=["start", "status", "logs", "setup", "show-key"], default="start",
                              help="'start' runs the server (default; asks setup questions on first run); "
                                   "'status' shows workers and recent executions of a running server; "
                                   "'logs [ID]' shows the steps of one execution (latest when ID is omitted); "
                                   "'setup' changes the saved settings; 'show-key' prints the worker API key")
-    orch_parser.add_argument("execution_id", nargs="?", default=None,
+    hub_parser.add_argument("execution_id", nargs="?", default=None,
                              help="For 'logs': execution ID or its first characters, as shown by 'status'")
-    orch_parser.add_argument("--url", default=None, help="Orchestrator URL for 'status' and 'logs' (default: http://127.0.0.1:<port>)")
-    orch_parser.add_argument("--limit", type=int, default=10, help="Number of recent executions shown by 'status' (default: 10)")
-    orch_parser.add_argument("--no-prompt", action="store_true", help="Never ask questions (for services and scripts); use the environment and saved settings only")
-    orch_parser.add_argument("--port", type=int, default=None, help="Port to bind the orchestrator server (default: $ORCHESTRATOR_PORT or 8080)")
-    orch_parser.add_argument("--host", default=None, help="Host to bind the orchestrator server (default: $ORCHESTRATOR_HOST or 127.0.0.1; use 0.0.0.0 to accept remote connections)")
+    hub_parser.add_argument("--url", default=None, help="Hub URL for 'status' and 'logs' (default: http://127.0.0.1:<port>)")
+    hub_parser.add_argument("--limit", type=int, default=10, help="Number of recent executions shown by 'status' (default: 10)")
+    hub_parser.add_argument("--no-prompt", action="store_true", help="Never ask questions (for services and scripts); use the environment and saved settings only")
+    hub_parser.add_argument("--port", type=int, default=None, help="Port to bind the hub server (default: $KINENIX_HUB_PORT or 8080)")
+    hub_parser.add_argument("--host", default=None, help="Host to bind the hub server (default: $KINENIX_HUB_HOST or 127.0.0.1; use 0.0.0.0 to accept remote connections)")
 
     # Command: version
     subparsers.add_parser("version", help="Show kinenix version and environment details")
@@ -368,8 +369,8 @@ def main():
                 sys.exit(1)
 
         extra_vars["__flow_dir__"] = str(resolved_path.parent)
-        if args.orchestrator:
-            extra_vars["orchestrator_url"] = args.orchestrator
+        if args.hub:
+            extra_vars["hub_url"] = args.hub
         if args.worker_id:
             extra_vars["worker_id"] = args.worker_id
 
@@ -381,56 +382,58 @@ def main():
             sys.exit(1)
         sys.exit(0)
 
-    elif args.command == "orchestrator":
+    elif args.command in ("hub", "orchestrator"):
+        if args.command == "orchestrator":
+            print("Note: 'kinenix orchestrator' is now 'kinenix hub'; the old name will be removed in a later release.", file=sys.stderr)
         try:
             from rich.console import Console
-            from kinenix_orchestrator import config as orch_config
-            from kinenix_orchestrator import console as orch_console
+            from kinenix_hub import config as hub_config
+            from kinenix_hub import console as hub_console
         except ImportError as e:
-            print(f"Error: the Orchestrator is not installed ({e}).")
-            print("Install it with: pip install -e kinenix-orchestrator")
+            print(f"Error: the Hub is not installed ({e}).")
+            print("Install it with: pip install -e kinenix-hub")
             sys.exit(1)
         import importlib
         console = Console()
-        interactive = orch_console.can_prompt() and not args.no_prompt
+        interactive = hub_console.can_prompt() and not args.no_prompt
 
         # First start: ask the setup questions once and save them to the settings file
-        first_run = args.action == "start" and not orch_config.SETTINGS_FILE.is_file() and interactive
+        first_run = args.action == "start" and not hub_config.settings_exist() and interactive
         if args.action == "setup" or first_run:
-            if not orch_console.can_prompt():
+            if not hub_console.can_prompt():
                 console.print("[bold red]Error:[/] setup needs an interactive terminal.")
                 sys.exit(1)
             try:
-                orch_console.run_setup(console, orch_config.SETTINGS_FILE)
+                hub_console.run_setup(console, hub_config.SETTINGS_FILE)
             except (EOFError, KeyboardInterrupt):
                 console.print("\n[yellow]Setup cancelled. Nothing was saved.[/]")
                 sys.exit(1)
-            importlib.reload(orch_config)
+            importlib.reload(hub_config)
             if args.action == "setup":
-                console.print("Start the Orchestrator with: [bold]kinenix orchestrator[/]")
+                console.print("Start the Hub with: [bold]kinenix hub[/]")
                 sys.exit(0)
 
         if args.action == "show-key":
-            if not orch_config.API_KEY:
-                console.print("No worker API key is set. Create one with: [bold]kinenix orchestrator setup[/]")
+            if not hub_config.API_KEY:
+                console.print("No worker API key is set. Create one with: [bold]kinenix hub setup[/]")
                 sys.exit(1)
-            console.print(orch_config.API_KEY, soft_wrap=True)
+            console.print(hub_config.API_KEY, soft_wrap=True)
             sys.exit(0)
 
-        port = args.port or orch_config.PORT
+        port = args.port or hub_config.PORT
 
         if args.action in ("status", "logs"):
             import requests
             url = args.url or f"http://127.0.0.1:{port}"
             # Same credentials the server reads; unset password works only against a localhost server
-            auth = (orch_config.DASHBOARD_USER, orch_config.DASHBOARD_PASSWORD) if orch_config.DASHBOARD_PASSWORD else None
+            auth = (hub_config.DASHBOARD_USER, hub_config.DASHBOARD_PASSWORD) if hub_config.DASHBOARD_PASSWORD else None
             while True:
                 try:
                     with console.status(f"Reading {url}..."):
                         if args.action == "status":
-                            data = orch_console.fetch_status(url, auth, args.limit)
+                            data = hub_console.fetch_status(url, auth, args.limit)
                         else:
-                            data = orch_console.fetch_execution_log(url, auth, args.execution_id)
+                            data = hub_console.fetch_execution_log(url, auth, args.execution_id)
                     break
                 except LookupError as e:
                     console.print(f"[bold red]Error:[/] {e}")
@@ -439,32 +442,32 @@ def main():
                     code = e.response.status_code
                     # Ask once for the password when the server requires one and none was given
                     if code == 401 and auth is None and interactive:
-                        password = orch_console.ask_secret(console, f"Dashboard password for '{orch_config.DASHBOARD_USER}'")
+                        password = hub_console.ask_secret(console, f"Dashboard password for '{hub_config.DASHBOARD_USER}'")
                         if password:
-                            auth = (orch_config.DASHBOARD_USER, password)
+                            auth = (hub_config.DASHBOARD_USER, password)
                             continue
-                    hint = " Check ORCHESTRATOR_DASHBOARD_USER and ORCHESTRATOR_DASHBOARD_PASSWORD against the server's values." if code in (401, 403) else ""
+                    hint = " Check KINENIX_HUB_DASHBOARD_USER and KINENIX_HUB_DASHBOARD_PASSWORD against the server's values." if code in (401, 403) else ""
                     console.print(f"[bold red]Error:[/] {url} returned HTTP {code}.{hint}")
                     sys.exit(1)
                 except requests.RequestException as e:
-                    console.print(f"[bold red]Error:[/] cannot reach {url}. Is the Orchestrator running? ({e.__class__.__name__})")
+                    console.print(f"[bold red]Error:[/] cannot reach {url}. Is the Hub running? ({e.__class__.__name__})")
                     sys.exit(1)
             if args.action == "status":
-                orch_console.print_status(console, url, data)
+                hub_console.print_status(console, url, data)
             else:
-                orch_console.print_execution_log(console, data)
+                hub_console.print_execution_log(console, data)
             sys.exit(0)
 
         import uvicorn
-        from kinenix_orchestrator import app as orch_app
-        host = args.host or orch_config.HOST
-        orch_console.print_banner(
-            console, host, port, orch_config.CENTRAL_LLM_URL,
-            api_key_set=bool(orch_config.API_KEY),
-            dashboard_password_set=orch_config.dashboard_password_required(),
+        from kinenix_hub import app as hub_app
+        host = args.host or hub_config.HOST
+        hub_console.print_banner(
+            console, host, port, hub_config.CENTRAL_LLM_URL,
+            api_key_set=bool(hub_config.API_KEY),
+            dashboard_password_set=hub_config.dashboard_password_required(),
         )
-        orch_console.hide_uvicorn_bind_url()
-        uvicorn.run(orch_app.app, host=host, port=port)
+        hub_console.hide_uvicorn_bind_url()
+        uvicorn.run(hub_app.app, host=host, port=port)
         sys.exit(0)
     else:
         parser.print_help()

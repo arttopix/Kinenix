@@ -1,7 +1,7 @@
-"""Saved Orchestrator settings in the user's home directory, written by `kinenix orchestrator setup`.
+"""Saved Hub settings in the user's home directory, written by `kinenix hub setup`.
 
-The file lives outside the repository (default ~/.kinenix/orchestrator.env, override with
-ORCHESTRATOR_SETTINGS_FILE) and holds plain KEY=VALUE lines. Environment variables always take
+The file lives outside the repository (default ~/.kinenix/hub.env, override with
+KINENIX_HUB_SETTINGS_FILE) and holds plain KEY=VALUE lines. Environment variables always take
 precedence over it. The dashboard password is stored only as a salted PBKDF2 hash.
 """
 import base64
@@ -15,27 +15,56 @@ from typing import Dict
 PBKDF2_ITERATIONS = 300_000
 
 
+# The Hub was called the Orchestrator before the rename; its ORCHESTRATOR_* names are still read
+LEGACY_PREFIX = "ORCHESTRATOR_"
+CURRENT_PREFIX = "KINENIX_HUB_"
+LEGACY_SETTINGS_FILE = Path.home() / ".kinenix" / "orchestrator.env"
+
+
+def legacy_name(name: str) -> str:
+    """KINENIX_HUB_API_KEY -> ORCHESTRATOR_API_KEY."""
+    return LEGACY_PREFIX + name[len(CURRENT_PREFIX):] if name.startswith(CURRENT_PREFIX) else name
+
+
 def settings_path() -> Path:
-    override = os.environ.get("ORCHESTRATOR_SETTINGS_FILE")
-    return Path(override).expanduser() if override else Path.home() / ".kinenix" / "orchestrator.env"
+    """Where `kinenix hub setup` writes; also the first file read."""
+    override = os.environ.get("KINENIX_HUB_SETTINGS_FILE") or os.environ.get("ORCHESTRATOR_SETTINGS_FILE")
+    return Path(override).expanduser() if override else DEFAULT_SETTINGS_FILE
 
 
 def read_settings(path: Path) -> Dict[str, str]:
+    """KEY=VALUE pairs; legacy ORCHESTRATOR_* keys are returned under their KINENIX_HUB_* names."""
     if not path.is_file():
         return {}
     values = {}
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in path.read_text(encoding="utf-8-sig").splitlines():
         line = line.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, value = line.split("=", 1)
-        values[key.strip()] = value.strip()
+        key = key.strip()
+        if key.startswith(LEGACY_PREFIX):
+            key = CURRENT_PREFIX + key[len(LEGACY_PREFIX):]
+        values[key] = value.strip()
     return values
+
+
+DEFAULT_SETTINGS_FILE = Path.home() / ".kinenix" / "hub.env"
+
+
+def read_saved_settings(path: Path) -> Dict[str, str]:
+    """Settings from `path`. When the default hub.env does not exist yet, the pre-rename
+    ~/.kinenix/orchestrator.env is read instead; an explicitly chosen file never falls back."""
+    if path.is_file():
+        return read_settings(path)
+    if path == DEFAULT_SETTINGS_FILE:
+        return read_settings(LEGACY_SETTINGS_FILE)
+    return {}
 
 
 def write_settings(path: Path, values: Dict[str, str]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    lines = ["# Kinenix Orchestrator settings, written by `kinenix orchestrator setup`.",
+    lines = ["# Kinenix Hub settings, written by `kinenix hub setup`.",
              "# Environment variables with the same names take precedence. Do not commit this file."]
     lines += [f"{key}={value}" for key, value in values.items() if value != ""]
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")

@@ -10,10 +10,10 @@ from fastapi.security import APIKeyHeader, HTTPBasic, HTTPBasicCredentials
 from . import config
 from .settings_file import verify_password
 
-logger = logging.getLogger("kinenix.orchestrator.security")
+logger = logging.getLogger("kinenix.hub.security")
 
 API_KEY_HEADER_NAME = "X-API-Key"
-DASHBOARD_REALM = "Kinenix Orchestrator"
+DASHBOARD_REALM = "Kinenix Hub"
 
 _api_key_header = APIKeyHeader(name=API_KEY_HEADER_NAME, auto_error=False)
 _basic_auth = HTTPBasic(auto_error=False, realm=DASHBOARD_REALM)
@@ -63,7 +63,7 @@ def _allow_loopback_only(request: Request, setting_name: str) -> None:
     logger.warning(f"Rejected request from {client_host}: {setting_name} is not configured.")
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
-        detail=f"Remote access is disabled. Set {setting_name} on the Orchestrator to allow remote access.",
+        detail=f"Remote access is disabled. Set {setting_name} on the Hub to allow remote access.",
     )
 
 
@@ -74,14 +74,14 @@ def require_worker_api_key(
     """
     Guards worker-facing write endpoints (heartbeat, telemetry, reanalyze).
 
-    - ORCHESTRATOR_API_KEY set: every request must send a matching X-API-Key header.
-    - ORCHESTRATOR_API_KEY unset (local dev mode): only loopback clients are accepted,
+    - KINENIX_HUB_API_KEY set: every request must send a matching X-API-Key header.
+    - KINENIX_HUB_API_KEY unset (local dev mode): only loopback clients are accepted,
       so an unconfigured server bound to the network (e.g. 0.0.0.0) is never writable remotely.
     """
     expected_key = config.API_KEY
 
     if not expected_key:
-        _allow_loopback_only(request, "ORCHESTRATOR_API_KEY")
+        _allow_loopback_only(request, "KINENIX_HUB_API_KEY")
         return
 
     if not _secret_equals(api_key, expected_key):
@@ -99,12 +99,12 @@ def require_dashboard_auth(
     """
     Guards the dashboard page and its read endpoints with HTTP Basic Auth.
 
-    - ORCHESTRATOR_DASHBOARD_PASSWORD set: every request must send matching Basic credentials.
+    - KINENIX_HUB_DASHBOARD_PASSWORD set: every request must send matching Basic credentials.
       Browsers show a login prompt and reuse the credentials for the dashboard's API calls.
-    - ORCHESTRATOR_DASHBOARD_PASSWORD unset (local dev mode): only loopback clients are accepted.
+    - KINENIX_HUB_DASHBOARD_PASSWORD unset (local dev mode): only loopback clients are accepted.
     """
     if not config.dashboard_password_required():
-        _allow_loopback_only(request, "ORCHESTRATOR_DASHBOARD_PASSWORD")
+        _allow_loopback_only(request, "KINENIX_HUB_DASHBOARD_PASSWORD")
         return
 
     # Evaluate both comparisons so the response time does not reveal which one failed
@@ -119,18 +119,19 @@ def require_dashboard_auth(
 
 
 def log_auth_mode() -> None:
+    config.log_legacy_names()
     if config.API_KEY:
         logger.info(f"Worker API key authentication enabled ({API_KEY_HEADER_NAME} header required).")
     else:
         logger.warning(
-            "ORCHESTRATOR_API_KEY is not set: worker endpoints accept requests from localhost only. "
-            "Set ORCHESTRATOR_API_KEY to allow remote workers."
+            "KINENIX_HUB_API_KEY is not set: worker endpoints accept requests from localhost only. "
+            "Set KINENIX_HUB_API_KEY to allow remote workers."
         )
 
     if config.dashboard_password_required():
         logger.info(f"Dashboard authentication enabled (user '{config.DASHBOARD_USER}').")
     else:
         logger.warning(
-            "ORCHESTRATOR_DASHBOARD_PASSWORD is not set: the dashboard is available from localhost only. "
-            "Set ORCHESTRATOR_DASHBOARD_PASSWORD to allow remote viewers."
+            "KINENIX_HUB_DASHBOARD_PASSWORD is not set: the dashboard is available from localhost only. "
+            "Set KINENIX_HUB_DASHBOARD_PASSWORD to allow remote viewers."
         )

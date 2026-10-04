@@ -68,5 +68,5 @@ kinenix-worker run flows/examples/bot_fx_rate
 | Table empty or a column renamed by the site | `web.get_table` fails with the actual headers (`min_rows`, `columns`) |
 | CSV file locked (open in another program) | Retried twice, then fails |
 | Email fails | Retried twice, 10 seconds apart |
-| Any failure | A screenshot is saved in `output/errors/`, and the Orchestrator receives the failed step and error |
+| Any failure | A screenshot is saved in `output/errors/`, and the Hub receives the failed step and error |
 | `config.json` missing or `url` empty | Fails at step 1 instead of continuing on a blank page |

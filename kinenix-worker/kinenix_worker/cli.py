@@ -6,7 +6,7 @@ from pathlib import Path
 from rich.console import Console
 
 from . import __version__, display
-from .orchestrator_client import HeartbeatThread, OrchestratorClient
+from .hub_client import HeartbeatThread, HubClient
 from .runner import WorkerRunner
 
 
@@ -27,7 +27,7 @@ def main():
     subparsers.add_parser("info", help="Display worker machine hardware, architecture, and runtime stats")
 
     # Command: ping
-    subparsers.add_parser("ping", help="Check the connection and API key to the Orchestrator (KINENIX_ORCHESTRATOR_URL)")
+    subparsers.add_parser("ping", help="Check the connection and API key to the Hub (KINENIX_HUB_URL)")
 
     # Command: run
     run_parser = subparsers.add_parser("run", help="Execute a flow or project bundle on this worker")
@@ -65,7 +65,7 @@ def main():
         sys.exit(0)
 
     console = Console()
-    client = OrchestratorClient()
+    client = HubClient()
     runner = WorkerRunner(client=client)
 
     if args.command == "info":
@@ -73,7 +73,7 @@ def main():
         sys.exit(0)
 
     if args.command == "ping":
-        with console.status(f"Contacting {client.url or 'Orchestrator'}..."):
+        with console.status(f"Contacting {client.url or 'Hub'}..."):
             result = client.ping()
         display.print_ping(console, client, result)
         sys.exit(0 if result["authorized"] else 1)

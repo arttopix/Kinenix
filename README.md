@@ -31,7 +31,7 @@
 | **`kinenix-core`** | Flow interpreter, action plugins, and `kinenix` CLI | Implemented |
 | **`kinenix-worker`** | Unattended runner with schedule and file-watch triggers | Implemented (WebSocket dispatch planned) |
 | **`kinenix-studio`** | Web-based flow editor and runner | In progress |
-| **`kinenix-orchestrator`** | Central telemetry server, dashboard, and AI failure summaries | Early |
+| **`kinenix-hub`** | Central telemetry server, dashboard, and AI failure summaries | Early |
 
 Flows are packaged as self-contained project bundles under `flows/`. See [Architecture](docs/architecture.md) for the execution pipeline, AI integration, and target design, and [Roadmap](docs/roadmap.md) for delivery status.
 
@@ -91,7 +91,7 @@ kinenix install-browsers   # Playwright Chromium, needed for web actions
 kinenix --version
 ```
 
-The worker, Studio, and Orchestrator are not on PyPI yet. Install them from source as shown below.
+The worker, Studio, and Hub are not on PyPI yet. Install them from source as shown below.
 
 #### From source (all modules, for development)
 
@@ -108,8 +108,8 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\Activate.ps1
 
 # Install core engine and worker daemon in editable mode
 pip install -e ./kinenix-core -e ./kinenix-worker
-# Optional: Studio and the Central Orchestrator
-pip install -e ./kinenix-studio -e ./kinenix-orchestrator
+# Optional: Studio and the Kinenix Hub
+pip install -e ./kinenix-studio -e ./kinenix-hub
 ```
 
 ### Verification & Execution
@@ -138,7 +138,7 @@ Start at the [documentation index](docs/README.md). Most used:
 - **[Architecture](docs/architecture.md):** Modules, execution pipeline, AI integration, current vs. target design.
 - **[Roadmap](docs/roadmap.md):** What is done, in progress, and next.
 - **[Flow Markdown Specification](docs/flow_markdown_spec.md)** and **[Actions Reference](docs/actions_reference.md):** Writing flows.
-- **[CLI Guide](docs/cli_guide.md)** and **[Orchestrator Guide](docs/orchestrator.md):** Running flows and the central server.
+- **[CLI Guide](docs/cli_guide.md)** and **[Hub Guide](docs/hub.md):** Running flows and the central server.
 
 AI coding assistants should start at [AGENTS.md](AGENTS.md).
 

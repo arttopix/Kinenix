@@ -1,4 +1,4 @@
-"""Timestamp handling for the Orchestrator.
+"""Timestamp handling for the Hub.
 
 Timestamps are stored as naive UTC datetimes, because SQLite drops timezone
 information, and are serialized with an explicit +00:00 offset so browsers
@@ -16,7 +16,7 @@ def utc_now() -> datetime.datetime:
 def to_utc_naive(value: datetime.datetime) -> datetime.datetime:
     """Convert a datetime to naive UTC for storage.
 
-    A naive input is assumed to be in the Orchestrator host's local time, which
+    A naive input is assumed to be in the Hub host's local time, which
     matches older kinenix-core releases that sent local time without an offset.
     """
     return value.astimezone(datetime.timezone.utc).replace(tzinfo=None)

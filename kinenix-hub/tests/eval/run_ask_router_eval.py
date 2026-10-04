@@ -4,8 +4,8 @@ Requires a running SystemOne server:
     OPENTHAI_SYSTEMONE_MODEL=iapp/OpenThai-SystemOne uvicorn openthai_systemone.server:app --port 8000
 
 Usage (from the repository root):
-    python kinenix-orchestrator/tests/eval/run_ask_router_eval.py --split tune
-    python kinenix-orchestrator/tests/eval/run_ask_router_eval.py --split holdout --json results.json
+    python kinenix-hub/tests/eval/run_ask_router_eval.py --split tune
+    python kinenix-hub/tests/eval/run_ask_router_eval.py --split holdout --json results.json
 """
 import argparse
 import json
@@ -15,7 +15,7 @@ from pathlib import Path
 
 import yaml
 
-from kinenix_orchestrator.services.ask_router import decide, route
+from kinenix_hub.services.ask_router import decide, route
 
 CASES_FILE = Path(__file__).with_name("ask_router_cases.yaml")
 SCORED_FIELDS = ["tool", "status", "window", "flow"]

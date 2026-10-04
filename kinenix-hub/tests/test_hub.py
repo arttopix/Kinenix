@@ -2,8 +2,8 @@ import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch, MagicMock
 
-from kinenix_orchestrator import config as orchestrator_config
-from kinenix_orchestrator.app import app
+from kinenix_hub import config as hub_config
+from kinenix_hub.app import app
 
 # Local-dev client: no API key configured, requests arrive from loopback
 client = TestClient(app, client=("127.0.0.1", 50000))
@@ -14,12 +14,12 @@ HEARTBEAT_PAYLOAD = {"worker_id": "rpi-auth-01", "name": "Auth Test Node"}
 
 @pytest.fixture(autouse=True)
 def no_credentials_by_default(monkeypatch):
-    monkeypatch.setattr(orchestrator_config, "API_KEY", "")
-    monkeypatch.setattr(orchestrator_config, "DASHBOARD_USER", "admin")
-    monkeypatch.setattr(orchestrator_config, "DASHBOARD_PASSWORD", "")
+    monkeypatch.setattr(hub_config, "API_KEY", "")
+    monkeypatch.setattr(hub_config, "DASHBOARD_USER", "admin")
+    monkeypatch.setattr(hub_config, "DASHBOARD_PASSWORD", "")
 
 
-def test_orchestrator_healthz():
+def test_hub_healthz():
     response = client.get("/api/v1/healthz")
     assert response.status_code == 200
     assert response.json()["status"] == "healthy"
@@ -129,13 +129,13 @@ def test_remote_worker_rejected_when_api_key_not_configured():
 
 
 def test_remote_worker_missing_api_key_rejected(monkeypatch):
-    monkeypatch.setattr(orchestrator_config, "API_KEY", "s3cret-key")
+    monkeypatch.setattr(hub_config, "API_KEY", "s3cret-key")
     response = remote_client.post("/api/v1/heartbeat", json=HEARTBEAT_PAYLOAD)
     assert response.status_code == 401
 
 
 def test_remote_worker_wrong_api_key_rejected(monkeypatch):
-    monkeypatch.setattr(orchestrator_config, "API_KEY", "s3cret-key")
+    monkeypatch.setattr(hub_config, "API_KEY", "s3cret-key")
     response = remote_client.post(
         "/api/v1/telemetry",
         json={"worker_id": "rpi-auth-01", "payload": {"flow_name": "X"}},
@@ -145,7 +145,7 @@ def test_remote_worker_wrong_api_key_rejected(monkeypatch):
 
 
 def test_remote_worker_valid_api_key_accepted(monkeypatch):
-    monkeypatch.setattr(orchestrator_config, "API_KEY", "s3cret-key")
+    monkeypatch.setattr(hub_config, "API_KEY", "s3cret-key")
     response = remote_client.post(
         "/api/v1/heartbeat", json=HEARTBEAT_PAYLOAD, headers={"X-API-Key": "s3cret-key"}
     )
@@ -154,20 +154,20 @@ def test_remote_worker_valid_api_key_accepted(monkeypatch):
 
 
 def test_localhost_must_send_api_key_once_configured(monkeypatch):
-    monkeypatch.setattr(orchestrator_config, "API_KEY", "s3cret-key")
+    monkeypatch.setattr(hub_config, "API_KEY", "s3cret-key")
     response = client.post("/api/v1/heartbeat", json=HEARTBEAT_PAYLOAD)
     assert response.status_code == 401
 
 
 def test_reanalyze_requires_api_key(monkeypatch):
-    monkeypatch.setattr(orchestrator_config, "API_KEY", "s3cret-key")
+    monkeypatch.setattr(hub_config, "API_KEY", "s3cret-key")
     response = remote_client.post("/api/v1/executions/any-id/reanalyze")
     assert response.status_code == 401
 
 
 def test_healthz_remains_public(monkeypatch):
-    monkeypatch.setattr(orchestrator_config, "API_KEY", "s3cret-key")
-    monkeypatch.setattr(orchestrator_config, "DASHBOARD_PASSWORD", "dash-pass")
+    monkeypatch.setattr(hub_config, "API_KEY", "s3cret-key")
+    monkeypatch.setattr(hub_config, "DASHBOARD_PASSWORD", "dash-pass")
     assert remote_client.get("/api/v1/healthz").status_code == 200
 
 
@@ -182,7 +182,7 @@ def test_remote_dashboard_rejected_when_password_not_configured(path):
 
 @pytest.mark.parametrize("path", DASHBOARD_PATHS)
 def test_remote_dashboard_missing_credentials_prompts_login(monkeypatch, path):
-    monkeypatch.setattr(orchestrator_config, "DASHBOARD_PASSWORD", "dash-pass")
+    monkeypatch.setattr(hub_config, "DASHBOARD_PASSWORD", "dash-pass")
     response = remote_client.get(path)
     assert response.status_code == 401
     assert response.headers["WWW-Authenticate"].startswith("Basic")
@@ -190,27 +190,27 @@ def test_remote_dashboard_missing_credentials_prompts_login(monkeypatch, path):
 
 @pytest.mark.parametrize("auth", [("admin", "wrong-pass"), ("intruder", "dash-pass")])
 def test_remote_dashboard_wrong_credentials_rejected(monkeypatch, auth):
-    monkeypatch.setattr(orchestrator_config, "DASHBOARD_PASSWORD", "dash-pass")
+    monkeypatch.setattr(hub_config, "DASHBOARD_PASSWORD", "dash-pass")
     response = remote_client.get("/api/v1/executions", auth=auth)
     assert response.status_code == 401
 
 
 @pytest.mark.parametrize("path", DASHBOARD_PATHS)
 def test_remote_dashboard_valid_credentials_accepted(monkeypatch, path):
-    monkeypatch.setattr(orchestrator_config, "DASHBOARD_PASSWORD", "dash-pass")
+    monkeypatch.setattr(hub_config, "DASHBOARD_PASSWORD", "dash-pass")
     response = remote_client.get(path, auth=("admin", "dash-pass"))
     assert response.status_code == 200
 
 
 def test_localhost_dashboard_requires_credentials_once_configured(monkeypatch):
-    monkeypatch.setattr(orchestrator_config, "DASHBOARD_PASSWORD", "dash-pass")
+    monkeypatch.setattr(hub_config, "DASHBOARD_PASSWORD", "dash-pass")
     response = client.get("/api/v1/workers")
     assert response.status_code == 401
 
 
 def test_worker_api_key_does_not_grant_dashboard_access(monkeypatch):
-    monkeypatch.setattr(orchestrator_config, "API_KEY", "s3cret-key")
-    monkeypatch.setattr(orchestrator_config, "DASHBOARD_PASSWORD", "dash-pass")
+    monkeypatch.setattr(hub_config, "API_KEY", "s3cret-key")
+    monkeypatch.setattr(hub_config, "DASHBOARD_PASSWORD", "dash-pass")
     response = remote_client.get("/api/v1/executions", headers={"X-API-Key": "s3cret-key"})
     assert response.status_code == 401
 
@@ -231,9 +231,9 @@ def test_cors_preflight_is_not_allowed():
 
 def test_default_host_is_localhost(monkeypatch):
     import importlib
-    monkeypatch.delenv("ORCHESTRATOR_HOST", raising=False)
+    monkeypatch.delenv("KINENIX_HUB_HOST", raising=False)
     try:
-        assert importlib.reload(orchestrator_config).HOST == "127.0.0.1"
+        assert importlib.reload(hub_config).HOST == "127.0.0.1"
     finally:
         monkeypatch.undo()
-        importlib.reload(orchestrator_config)
+        importlib.reload(hub_config)

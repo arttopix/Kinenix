@@ -8,7 +8,7 @@ from ..models import Execution, Worker
 from ..timeutils import parse_timestamp, utc_now
 from .ai_summarizer import analyze_failure
 
-logger = logging.getLogger("kinenix.orchestrator.telemetry")
+logger = logging.getLogger("kinenix.hub.telemetry")
 
 
 def record_heartbeat(

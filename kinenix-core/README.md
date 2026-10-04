@@ -30,7 +30,7 @@ kinenix version                    # version and environment details
 
 ## Related packages
 
-The worker, Studio, and Orchestrator modules live in the same repository and are not yet published on PyPI.
+The worker, Studio, and Hub modules live in the same repository and are not yet published on PyPI.
 
 ## Documentation
 

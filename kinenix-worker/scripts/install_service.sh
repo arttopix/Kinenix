@@ -9,7 +9,7 @@
 # The service runs `kinenix-worker daemon` as that user, starts at boot, and restarts on failure.
 #
 # Per-user files (created if missing, never overwritten):
-#   ~/.kinenix/worker.env      KINENIX_ORCHESTRATOR_URL, KINENIX_ORCHESTRATOR_API_KEY, KINENIX_WORKER_ID
+#   ~/.kinenix/worker.env      KINENIX_HUB_URL, KINENIX_HUB_API_KEY, KINENIX_WORKER_ID
 #   ~/.kinenix/triggers.json   triggers for the daemon; empty means heartbeats only
 # ==============================================================================
 set -euo pipefail
@@ -52,12 +52,12 @@ mkdir -p "$CONFIG_DIR"
 if [ ! -f "$ENV_FILE" ]; then
     cat > "$ENV_FILE" <<'EOF'
 # Kinenix Worker settings, loaded by the kinenix-worker service and by your shell.
-# Fill in the Orchestrator URL and key, then: sudo systemctl restart kinenix-worker
-export KINENIX_ORCHESTRATOR_URL=
-export KINENIX_ORCHESTRATOR_API_KEY=
+# Fill in the Hub URL and key, then: sudo systemctl restart kinenix-worker
+export KINENIX_HUB_URL=
+export KINENIX_HUB_API_KEY=
 export KINENIX_WORKER_ID=$(hostname)
 EOF
-    echo "Created $ENV_FILE (edit it to connect to the Orchestrator)."
+    echo "Created $ENV_FILE (edit it to connect to the Hub)."
 fi
 chmod 600 "$ENV_FILE"
 

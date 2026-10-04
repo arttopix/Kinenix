@@ -6,7 +6,7 @@ Rules that every change must respect. For how the system is structured today and
 
 ## 1. Principles
 
-1. **Open source, no per-bot fees:** Core, Studio, Orchestrator, and Worker must remain open source without per-bot licensing.
+1. **Open source, no per-bot fees:** Core, Studio, Hub, and Worker must remain open source without per-bot licensing.
 2. **No Office dependency:** Spreadsheet processing (`.xlsx`, `.csv`) must use file-level libraries (`openpyxl`, `pandas`). Never require Microsoft Excel or Microsoft 365.
 3. **Business-first telemetry:** Logs and dashboards must include business metrics (transactions, hours saved, cost saved), not only technical traces.
 4. **Local AI-native:** AI features must work with locally hosted models (Ollama, llama.cpp, ONNX). Do not add a hard dependency on a cloud AI provider.
@@ -32,13 +32,13 @@ Flows must follow the self-contained bundle layout in `docs/project_bundles.md`:
 
 ---
 
-## 4. Worker-Orchestrator Communication
+## 4. Worker-Hub Communication
 
-When implementing worker-orchestrator messaging, follow the Hybrid Protocol in `docs/architecture.md`:
+When implementing worker-hub messaging, follow the Hybrid Protocol in `docs/architecture.md`:
 - Machine state travels as structured JSON (`type`, `job_id`, `status`, `metrics`) with explicit states `PENDING`, `RUNNING`, `SUCCESS`, `FAILED`.
 - Natural-language reports travel inside the envelope as Markdown (`agent_report_md`), never as the only carrier of state.
 - Remote workers must not share state through mounted disks.
-- Every worker-facing write endpoint must require authentication (see `kinenix-orchestrator/kinenix_orchestrator/security.py`).
+- Every worker-facing write endpoint must require authentication (see `kinenix-hub/kinenix_hub/security.py`).
 
 ---
 

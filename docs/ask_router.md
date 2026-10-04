@@ -1,6 +1,6 @@
 # Ask Router (Natural-Language Questions) - Work in Progress
 
-Goal: let a user ask the Orchestrator questions such as "เมื่อคืนมี job ไหนพังบ้าง" at any time and get an answer built from real execution data, using a local model only.
+Goal: let a user ask the Hub questions such as "เมื่อคืนมี job ไหนพังบ้าง" at any time and get an answer built from real execution data, using a local model only.
 
 Status as of 2026-10-01: question understanding and the decision policy are built and measured on the tune split. Nothing answers questions end to end yet. The code was merged into `dev` in PR #19.
 
@@ -13,7 +13,7 @@ question
   -> route()   OpenThai-SystemOne picks tool, status, window, flow as choice questions (one request)
   -> decide()  per field: answer, ask back, or use a safe default
   -> resolve   window name -> concrete timestamps (Asia/Bangkok)           [not built]
-  -> tool      read-only query against the Orchestrator database          [not built]
+  -> tool      read-only query against the Hub database          [not built]
   -> reply     Thai template filled from query results                    [not built]
 ```
 
@@ -25,11 +25,11 @@ question
 
 | Item | Location |
 | :--- | :--- |
-| Options, descriptions, `route()`, `decide()` | `kinenix-orchestrator/kinenix_orchestrator/services/ask_router.py` |
-| Unit tests for `decide()` (no model needed) | `kinenix-orchestrator/tests/test_ask_router.py` |
-| 50 labelled questions (30 tune, 20 holdout) | `kinenix-orchestrator/tests/eval/ask_router_cases.yaml` |
-| Evaluation script | `kinenix-orchestrator/tests/eval/run_ask_router_eval.py` |
-| Reports and saved model answers (gitignored) | `kinenix-orchestrator/tests/eval/results/` |
+| Options, descriptions, `route()`, `decide()` | `kinenix-hub/kinenix_hub/services/ask_router.py` |
+| Unit tests for `decide()` (no model needed) | `kinenix-hub/tests/test_ask_router.py` |
+| 50 labelled questions (30 tune, 20 holdout) | `kinenix-hub/tests/eval/ask_router_cases.yaml` |
+| Evaluation script | `kinenix-hub/tests/eval/run_ask_router_eval.py` |
+| Reports and saved model answers (gitignored) | `kinenix-hub/tests/eval/results/` |
 
 Options:
 
@@ -83,7 +83,7 @@ In order:
 7. Blocked by other work:
    - `get_worker_status` needs workers to send heartbeats.
    - `find_missed_runs` needs a `schedules` table.
-8. Optional: CUDA `torch` for speed; `pyyaml` in the Orchestrator `[dev]` extra for the evaluation script; short flow IDs (for example `A01`) so users do not have to type long flow names.
+8. Optional: CUDA `torch` for speed; `pyyaml` in the Hub `[dev]` extra for the evaluation script; short flow IDs (for example `A01`) so users do not have to type long flow names.
 
 ## 5. How to Resume
 
@@ -93,10 +93,10 @@ $env:OPENTHAI_SYSTEMONE_MODEL = "iapp/OpenThai-SystemOne"
 .venv\Scripts\python.exe -m uvicorn openthai_systemone.server:app --host 127.0.0.1 --port 8000
 
 # Evaluate the tune split and write a readable report
-.venv\Scripts\python.exe kinenix-orchestrator/tests/eval/run_ask_router_eval.py --split tune --json kinenix-orchestrator/tests/eval/results/tune_answers.json --report kinenix-orchestrator/tests/eval/results/tune.md
+.venv\Scripts\python.exe kinenix-hub/tests/eval/run_ask_router_eval.py --split tune --json kinenix-hub/tests/eval/results/tune_answers.json --report kinenix-hub/tests/eval/results/tune.md
 
 # Try decide() policy changes without calling the model
-.venv\Scripts\python.exe kinenix-orchestrator/tests/eval/run_ask_router_eval.py --split tune --from-json kinenix-orchestrator/tests/eval/results/tune_answers.json
+.venv\Scripts\python.exe kinenix-hub/tests/eval/run_ask_router_eval.py --split tune --from-json kinenix-hub/tests/eval/results/tune_answers.json
 ```
 
 Do not look at holdout results while tuning; run the holdout split once at the end.

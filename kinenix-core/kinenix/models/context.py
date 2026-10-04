@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 
 def local_now() -> datetime:
-    """Current local time with its UTC offset, so receivers such as the Orchestrator can convert it to UTC."""
+    """Current local time with its UTC offset, so receivers such as the Hub can convert it to UTC."""
     return datetime.now().astimezone()
 
 

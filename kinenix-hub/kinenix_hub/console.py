@@ -1,4 +1,4 @@
-"""Terminal output for `kinenix orchestrator`: the startup banner and the `status` command."""
+"""Terminal output for `kinenix hub`: the startup banner and the `status` command."""
 import logging
 import secrets
 import socket
@@ -13,7 +13,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from .settings_file import hash_password, read_settings, write_settings
+from .settings_file import hash_password, read_saved_settings, write_settings
 
 WORKER_STATUS_STYLES = {"online": "green", "busy": "yellow", "offline": "red"}
 EXECUTION_STATUS_STYLES = {"success": "green", "failed": "red", "running": "yellow"}
@@ -68,7 +68,7 @@ def print_banner(console: Console, host: str, port: int, llm_url: str, api_key_s
     grid.add_row("Dashboard login", Text("set", style="green") if dashboard_password_set else Text("not set: localhost viewers only", style="yellow"))
     grid.add_row("Central LLM", llm_url)
 
-    console.print(Panel(grid, title="[bold]Kinenix Orchestrator[/]", subtitle="[dim]Ctrl+C to stop[/]",
+    console.print(Panel(grid, title="[bold]Kinenix Hub[/]", subtitle="[dim]Ctrl+C to stop[/]",
                         border_style="cyan", expand=False))
 
 
@@ -117,44 +117,44 @@ def _ask_new_password(console: Console, label: str) -> str:
 
 def run_setup(console: Console, path: Path) -> Dict[str, str]:
     """Interactive first-run setup. Saves the answers to the settings file and returns them."""
-    values = read_settings(path)
+    values = read_saved_settings(path)  # carries over a pre-rename orchestrator.env
     console.print(Panel(
-        "Answers are saved to " + str(path) + "\nso next time `kinenix orchestrator` starts without questions.\n"
-        "[dim]Run `kinenix orchestrator setup` again to change them.[/]",
-        title="[bold]Kinenix Orchestrator setup[/]", border_style="cyan", expand=False,
+        "Answers are saved to " + str(path) + "\nso next time `kinenix hub` starts without questions.\n"
+        "[dim]Run `kinenix hub setup` again to change them.[/]",
+        title="[bold]Kinenix Hub setup[/]", border_style="cyan", expand=False,
     ))
 
     remote = ask_yes_no(console, "Allow workers on other machines (e.g. a Raspberry Pi) to connect?",
-                        default=values.get("ORCHESTRATOR_HOST", "0.0.0.0") != "127.0.0.1")
-    values["ORCHESTRATOR_HOST"] = "0.0.0.0" if remote else "127.0.0.1"
-    values["ORCHESTRATOR_PORT"] = _ask_port(console, values.get("ORCHESTRATOR_PORT", "8080"))
+                        default=values.get("KINENIX_HUB_HOST", "0.0.0.0") != "127.0.0.1")
+    values["KINENIX_HUB_HOST"] = "0.0.0.0" if remote else "127.0.0.1"
+    values["KINENIX_HUB_PORT"] = _ask_port(console, values.get("KINENIX_HUB_PORT", "8080"))
 
     new_key = None
     if remote:
-        has_key = bool(values.get("ORCHESTRATOR_API_KEY"))
+        has_key = bool(values.get("KINENIX_HUB_API_KEY"))
         typed = ask_secret(console, "Worker API key (Enter to keep the current key)" if has_key
                            else "Worker API key (Enter to generate a new one)")
         if typed:
-            values["ORCHESTRATOR_API_KEY"] = typed
+            values["KINENIX_HUB_API_KEY"] = typed
         elif not has_key:
-            new_key = values["ORCHESTRATOR_API_KEY"] = secrets.token_urlsafe(32)
+            new_key = values["KINENIX_HUB_API_KEY"] = secrets.token_urlsafe(32)
 
-        user = values.get("ORCHESTRATOR_DASHBOARD_USER", "admin")
-        has_password = bool(values.get("ORCHESTRATOR_DASHBOARD_PASSWORD_HASH"))
+        user = values.get("KINENIX_HUB_DASHBOARD_USER", "admin")
+        has_password = bool(values.get("KINENIX_HUB_DASHBOARD_PASSWORD_HASH"))
         password = _ask_new_password(
             console,
             f"Dashboard password for '{user}' " + ("(Enter to keep the current password)" if has_password
                                                    else "(Enter to allow localhost viewers only)"),
         )
         if password:
-            values["ORCHESTRATOR_DASHBOARD_PASSWORD_HASH"] = hash_password(password)
+            values["KINENIX_HUB_DASHBOARD_PASSWORD_HASH"] = hash_password(password)
 
     write_settings(path, values)
     console.print(f"[green]Saved[/] {path}")
     if new_key:
         console.print(Panel(
-            f"{new_key}\n\n[dim]Set it on each worker as KINENIX_ORCHESTRATOR_API_KEY.\n"
-            "Show it again with: kinenix orchestrator show-key[/]",
+            f"{new_key}\n\n[dim]Set it on each worker as KINENIX_HUB_API_KEY.\n"
+            "Show it again with: kinenix hub show-key[/]",
             title="[bold]New worker API key[/]", border_style="yellow", expand=False,
         ))
     return values
@@ -226,11 +226,11 @@ def print_status(console: Console, base_url: str, data: Dict[str, Any], now: Opt
             Text(failure, style="red" if e.get("has_error") else ""),
         )
 
-    console.print(f"[bold]Kinenix Orchestrator[/] [dim]{base_url}[/]")
+    console.print(f"[bold]Kinenix Hub[/] [dim]{base_url}[/]")
     console.print(workers if data["workers"] else "[dim]No workers have sent a heartbeat yet.[/]")
     console.print(executions if data["executions"] else "[dim]No executions recorded yet.[/]")
     if data["executions"]:
-        console.print("[dim]Step details: kinenix orchestrator logs <ID>  (latest run when ID is omitted)[/]")
+        console.print("[dim]Step details: kinenix hub logs <ID>  (latest run when ID is omitted)[/]")
 
 
 SHORT_ID_LENGTH = 8

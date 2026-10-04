@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Union
 
+from ..env import get_env
 from ..models.context import ExecutionContext, StepResult
 
 
@@ -111,16 +112,17 @@ class ExecutionLogger:
             except Exception as e:
                 self.logger.error(f"Failed to save JSON execution log: {e}")
 
-        # Send telemetry to Central Orchestrator if configured, whether or not a log file is written
-        orchestrator_url = (
-            context.get_variable("orchestrator_url")
+        # Send telemetry to the Hub if configured, whether or not a log file is written
+        hub_url = (
+            context.get_variable("hub_url")
+            or context.get_variable("orchestrator_url")  # flow variable name before the rename to Hub
             or context.get_variable("telemetry_url")
-            or os.environ.get("KINENIX_ORCHESTRATOR_URL")
+            or get_env("KINENIX_HUB_URL")
         )
-        if orchestrator_url:
-            self._send_telemetry(orchestrator_url, raw_data, context)
+        if hub_url:
+            self._send_telemetry(hub_url, raw_data, context)
 
-    def _send_telemetry(self, orchestrator_url: str, raw_data: dict, context: ExecutionContext) -> None:
+    def _send_telemetry(self, hub_url: str, raw_data: dict, context: ExecutionContext) -> None:
         try:
             import requests
             worker_id = (
@@ -128,7 +130,7 @@ class ExecutionLogger:
                 or os.environ.get("KINENIX_WORKER_ID")
                 or "local-worker"
             )
-            clean_url = str(orchestrator_url).rstrip("/")
+            clean_url = str(hub_url).rstrip("/")
             target_endpoint = f"{clean_url}/api/v1/telemetry"
             # Round-trip through JSON with the same datetime handling as the log file,
             # since requests' json= encoder cannot serialize datetime values
@@ -137,19 +139,19 @@ class ExecutionLogger:
                 "payload": json.loads(json.dumps(raw_data, default=str))
             }
             headers = {}
-            api_key = os.environ.get("KINENIX_ORCHESTRATOR_API_KEY")
+            api_key = get_env("KINENIX_HUB_API_KEY")
             if api_key:
                 headers["X-API-Key"] = api_key
             res = requests.post(target_endpoint, json=payload, headers=headers, timeout=4)
             if res.status_code == 200:
-                self.logger.info(f"Transmitted telemetry to Orchestrator: {clean_url}")
+                self.logger.info(f"Transmitted telemetry to Hub: {clean_url}")
             elif res.status_code in (401, 403):
                 self.logger.warning(
-                    f"Orchestrator rejected telemetry (HTTP {res.status_code}). "
-                    "Check that KINENIX_ORCHESTRATOR_API_KEY matches the Orchestrator's ORCHESTRATOR_API_KEY."
+                    f"Hub rejected telemetry (HTTP {res.status_code}). "
+                    "Check that KINENIX_HUB_API_KEY on this worker has the same value as on the Hub."
                 )
             else:
-                self.logger.warning(f"Orchestrator returned HTTP {res.status_code}: {res.text}")
+                self.logger.warning(f"Hub returned HTTP {res.status_code}: {res.text}")
         except Exception as err:
-            self.logger.warning(f"Telemetry transmission to Orchestrator failed: {err}")
+            self.logger.warning(f"Telemetry transmission to Hub failed: {err}")
 

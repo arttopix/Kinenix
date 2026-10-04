@@ -3,17 +3,17 @@ import datetime
 import pytest
 from fastapi.testclient import TestClient
 
-from kinenix_orchestrator import config as orchestrator_config
-from kinenix_orchestrator.app import app
-from kinenix_orchestrator.timeutils import isoformat_utc, parse_timestamp, to_utc_naive
+from kinenix_hub import config as hub_config
+from kinenix_hub.app import app
+from kinenix_hub.timeutils import isoformat_utc, parse_timestamp, to_utc_naive
 
 client = TestClient(app, client=("127.0.0.1", 50000))
 
 
 @pytest.fixture(autouse=True)
 def no_credentials(monkeypatch):
-    monkeypatch.setattr(orchestrator_config, "API_KEY", "")
-    monkeypatch.setattr(orchestrator_config, "DASHBOARD_PASSWORD", "")
+    monkeypatch.setattr(hub_config, "API_KEY", "")
+    monkeypatch.setattr(hub_config, "DASHBOARD_PASSWORD", "")
 
 
 def _ingest(log_payload):
@@ -80,10 +80,10 @@ def test_isoformat_utc():
 
 
 def test_worker_is_offline_after_missing_heartbeats(monkeypatch):
-    from kinenix_orchestrator.models import Worker
-    from kinenix_orchestrator.timeutils import utc_now
+    from kinenix_hub.models import Worker
+    from kinenix_hub.timeutils import utc_now
 
-    monkeypatch.setattr(orchestrator_config, "WORKER_OFFLINE_SECONDS", 90)
+    monkeypatch.setattr(hub_config, "WORKER_OFFLINE_SECONDS", 90)
     fresh = Worker(id="w1", name="n", status="busy", last_heartbeat=utc_now())
     stale = Worker(id="w2", name="n", status="online", last_heartbeat=utc_now() - datetime.timedelta(seconds=91))
     never = Worker(id="w3", name="n", status="online", last_heartbeat=None)

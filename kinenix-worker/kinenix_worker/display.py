@@ -9,7 +9,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from .orchestrator_client import OrchestratorClient
+from .hub_client import HubClient
 
 
 FLOW_SYNC_NOTES = {
@@ -30,9 +30,9 @@ def _key_value_grid() -> Table:
     return grid
 
 
-def print_ping(console: Console, client: OrchestratorClient, result: Dict[str, Any]) -> None:
+def print_ping(console: Console, client: HubClient, result: Dict[str, Any]) -> None:
     grid = _key_value_grid()
-    grid.add_row("Orchestrator", client.url or Text("(not set)", style="yellow"))
+    grid.add_row("Hub", client.url or Text("(not set)", style="yellow"))
     grid.add_row("Worker ID", client.worker_id)
     grid.add_row("Reachable", _yes_no(result["reachable"]))
     grid.add_row("Authorized", _yes_no(result["authorized"]))
@@ -48,21 +48,21 @@ def print_ping(console: Console, client: OrchestratorClient, result: Dict[str, A
     ))
 
 
-def print_info(console: Console, info: Dict[str, Any], client: OrchestratorClient) -> None:
+def print_info(console: Console, info: Dict[str, Any], client: HubClient) -> None:
     system = _key_value_grid()
     for key, value in info.items():
         system.add_row(key, str(value))
 
-    orchestrator = _key_value_grid()
-    orchestrator.add_row("worker_id", client.worker_id)
-    orchestrator.add_row("orchestrator_url", client.url or Text("(not set)", style="yellow"))
-    orchestrator.add_row(
-        "orchestrator_api_key",
+    hub = _key_value_grid()
+    hub.add_row("worker_id", client.worker_id)
+    hub.add_row("hub_url", client.url or Text("(not set)", style="yellow"))
+    hub.add_row(
+        "hub_api_key",
         Text("(set)", style="green") if client.api_key else Text("(not set)", style="yellow"),
     )
 
     console.print(Panel(system, title="[bold]System[/]", border_style="cyan", expand=False))
-    console.print(Panel(orchestrator, title="[bold]Orchestrator[/]", border_style="cyan", expand=False))
+    console.print(Panel(hub, title="[bold]Hub[/]", border_style="cyan", expand=False))
 
 
 def print_run_result(console: Console, res: Dict[str, Any]) -> None:

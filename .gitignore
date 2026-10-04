@@ -39,4 +39,4 @@ node_modules/
 .vite/
 
 # Ask router evaluation reports
-kinenix-orchestrator/tests/eval/results/
+kinenix-hub/tests/eval/results/
