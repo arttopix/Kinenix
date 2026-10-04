@@ -10,10 +10,39 @@ from .models.flow import FlowDefinition
 from .engine.interpreter import FlowInterpreter
 from .engine.logger import ExecutionLogger
 from .engine.markdown import (
+    FlowSync,
     load_flow,
     compile_markdown_to_json,
     export_json_to_markdown,
+    sync_flow_json,
 )
+from .engine.validation import validate_flow
+
+
+def report_validation(flow: FlowDefinition) -> List[str]:
+    """Print validation problems as warnings and return them."""
+    issues = validate_flow(flow)
+    for issue in issues:
+        print(f"Warning: {issue}", file=sys.stderr)
+    return issues
+
+
+def report_flow_sync(status: str, md_path: Path) -> None:
+    """Tell the user when flow.json was rebuilt from flow.md, or when the two disagree."""
+    bundle = md_path.parent
+    if status == FlowSync.CREATED:
+        print(f"Compiled {md_path.name} -> flow.json (flow.json did not exist).")
+    elif status == FlowSync.COMPILED:
+        print(f"Compiled {md_path.name} -> flow.json (flow.md has changes).")
+    elif status == FlowSync.JSON_NEWER:
+        print(
+            f"Warning: {bundle / 'flow.json'} differs from flow.md and was edited after it (for example in Studio).\n"
+            f"         Running flow.json as it is. flow.md is the source of truth, so either keep the edit with\n"
+            f"           kinenix export-md {bundle}\n"
+            f"         or discard it with\n"
+            f"           kinenix compile {bundle}",
+            file=sys.stderr,
+        )
 
 
 def _get_project_root() -> Optional[Path]:
@@ -172,6 +201,11 @@ def main():
     compile_parser = subparsers.add_parser("compile", help="Compile a flow.md specification file into flow.json")
     compile_parser.add_argument("markdown_file", help="Path to flow.md file or project directory containing flow.md")
     compile_parser.add_argument("-o", "--output", help="Optional output flow.json path", default=None)
+    compile_parser.add_argument("--strict", action="store_true", help="Exit with code 1 when validation finds problems (for CI)")
+
+    # Command: validate
+    validate_parser = subparsers.add_parser("validate", help="Check a flow for unknown actions and parameters that would be ignored")
+    validate_parser.add_argument("flow_file", help="Flow name, bundle directory, flow.md, or flow.json")
 
     # Command: export-md
     export_parser = subparsers.add_parser("export-md", help="Export a flow.json file into human-readable flow.md")
@@ -220,6 +254,25 @@ def main():
             print("Installation failed. On Linux/Raspberry Pi, you may also need: sudo playwright install-deps chromium", file=sys.stderr)
         sys.exit(res.returncode)
 
+    elif args.command == "validate":
+        resolved_path = resolve_flow_path(args.flow_file)
+        if not resolved_path:
+            print(f"Error: Could not find flow '{args.flow_file}'.", file=sys.stderr)
+            sys.exit(1)
+        # Check the source: flow.md when the bundle has one, otherwise the given file
+        source = resolved_path.parent / "flow.md" if (resolved_path.parent / "flow.md").is_file() else resolved_path
+        try:
+            flow_def = load_flow(source)
+        except Exception as e:
+            print(f"Error loading flow at '{source}': {e}", file=sys.stderr)
+            sys.exit(1)
+        issues = report_validation(flow_def)
+        if issues:
+            print(f"{len(issues)} problem(s) in {source}", file=sys.stderr)
+            sys.exit(1)
+        print(f"OK: {source} ({flow_def.name})")
+        sys.exit(0)
+
     elif args.command == "compile":
         src = Path(args.markdown_file).resolve()
         if src.is_dir() and (src / "flow.md").is_file():
@@ -232,7 +285,8 @@ def main():
             target = compile_markdown_to_json(src, output_json_path=out)
             print(f"Successfully compiled: {src}")
             print(f"Output saved to:       {target}")
-            sys.exit(0)
+            issues = report_validation(load_flow(target))
+            sys.exit(1 if issues and args.strict else 0)
         except Exception as e:
             print(f"Compilation error: {e}", file=sys.stderr)
             sys.exit(1)
@@ -294,14 +348,16 @@ def main():
             sys.exit(1)
 
         try:
-            if resolved_path.suffix.lower() == ".md":
-                # Auto-compile to flow.json alongside flow.md
-                json_target = resolved_path.parent / "flow.json"
-                compile_markdown_to_json(resolved_path, json_target)
+            # A bundle's flow.md is the source; flow.json is its build output and is what runs
+            if resolved_path.name in ("flow.md", "flow.json") and (resolved_path.parent / "flow.md").is_file():
+                md_source = resolved_path.parent / "flow.md"
+                report_flow_sync(sync_flow_json(md_source), md_source)
+                resolved_path = md_source.parent / "flow.json"
             flow_def = load_flow(resolved_path)
         except Exception as e:
             print(f"Error loading flow at '{resolved_path}': {str(e)}", file=sys.stderr)
             sys.exit(1)
+        report_validation(flow_def)
 
         extra_vars = {}
         if args.vars:

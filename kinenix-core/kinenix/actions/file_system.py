@@ -20,6 +20,8 @@ def _resolve_file_path(path_str: str, context: ExecutionContext) -> Path:
 
 @register_action("file.exists")
 class FileExistsAction(BaseAction):
+    accepted_parameters = ('path',)
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         path_str = parameters.get("path")
         if not path_str:
@@ -32,6 +34,8 @@ class FileExistsAction(BaseAction):
 
 @register_action("file.copy")
 class FileCopyAction(BaseAction):
+    accepted_parameters = ('source', 'destination', 'overwrite')
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         src_str = parameters.get("source")
         dst_str = parameters.get("destination")
@@ -65,6 +69,8 @@ class FileCopyAction(BaseAction):
 
 @register_action("file.move")
 class FileMoveAction(BaseAction):
+    accepted_parameters = ('source', 'destination', 'overwrite')
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         src_str = parameters.get("source")
         dst_str = parameters.get("destination")
@@ -99,6 +105,8 @@ class FileMoveAction(BaseAction):
 
 @register_action("file.delete")
 class FileDeleteAction(BaseAction):
+    accepted_parameters = ('path', 'missing_ok')
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         path_str = parameters.get("path")
         missing_ok = bool(parameters.get("missing_ok", True))

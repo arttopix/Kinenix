@@ -148,6 +148,7 @@ class AiDecideAction(BaseAction):
     Executes fast semantic decisions (Choice, Score, Yes/No) using OpenThai-SystemOne (0.8B).
     Computes calibrated probabilities in a single forward pass without text generation hallucination.
     """
+    accepted_parameters = ('base_url', 'fallback_to_ollama', 'question', 'questions', 'state', 'timeout')
 
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         state = parameters.get("state")

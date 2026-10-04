@@ -127,7 +127,7 @@ It reads two files in `~/.kinenix/`, creating them if they do not exist (existin
 
 | File | Contents |
 | :--- | :--- |
-| `worker.env` | `KINENIX_ORCHESTRATOR_URL`, `KINENIX_ORCHESTRATOR_API_KEY`, `KINENIX_WORKER_ID` as `export` lines; owner-readable only. Add `source ~/.kinenix/worker.env` to `~/.bashrc` to use the same values in your shell. |
+| `worker.env` | `KINENIX_ORCHESTRATOR_URL`, `KINENIX_ORCHESTRATOR_API_KEY`, `KINENIX_WORKER_ID` as `export` lines; owner-readable only. Also put the secrets your flows read here, for example `GMAIL_USER` and `GMAIL_APP_PASSWORD` for `email.send`: the service does not see variables set in your shell. Add `source ~/.kinenix/worker.env` to `~/.bashrc` to use the same values in your shell. |
 | `triggers.json` | Triggers for the daemon. The default `{"triggers": []}` runs no flows and only sends heartbeats. |
 
 Example `triggers.json`:
@@ -136,10 +136,22 @@ Example `triggers.json`:
 {
   "triggers": [
     { "type": "scheduler", "flow": "flows/examples/rpachallenge", "interval_seconds": 3600 },
+    { "type": "scheduler", "flow": "flows/examples/bot_fx_rate", "cron": "0 8 1 * *" },
     { "type": "file_watcher", "flow": "flows/my_excel_bot", "watch_dir": "/home/pi/inbox", "pattern": "*.xlsx" }
   ]
 }
 ```
+
+A scheduler runs either every `interval_seconds` or, when `cron` is set, at the minutes matching a five-field cron expression in the Pi's local time (`minute hour day-of-month month day-of-week`, Sunday is 0 or 7):
+
+| `cron` | Runs |
+| :--- | :--- |
+| `0 8 1 * *` | 08:00 on the 1st of every month |
+| `30 7 * * 1-5` | 07:30 Monday to Friday |
+| `*/15 * * * *` | Every 15 minutes |
+| `0 9 1,15 * *` | 09:00 on the 1st and 15th |
+
+An invalid expression stops the daemon at startup with the field that is wrong. Check the Pi's time zone with `timedatectl` (set it with `sudo timedatectl set-timezone Asia/Bangkok`).
 
 | Task | Command |
 | :--- | :--- |
@@ -149,7 +161,7 @@ Example `triggers.json`:
 | Stop until next boot | `sudo systemctl stop kinenix-worker` |
 | Remove the service | `./kinenix-worker/scripts/install_service.sh --uninstall` |
 
-The scheduler runs at fixed intervals only; time-of-day schedules and jobs sent from the Orchestrator are not supported yet.
+Jobs sent from the Orchestrator are not supported yet; each worker runs the triggers in its own `triggers.json`.
 
 ---
 
@@ -163,7 +175,7 @@ positional arguments:
     ping      Check the connection and API key to the Orchestrator (KINENIX_ORCHESTRATOR_URL)
     run       Execute a flow or project bundle on this worker
     watch     Watch a directory and automatically trigger a flow when new files appear
-    schedule  Execute a flow on a scheduled time interval
+    schedule  Execute a flow on an interval (--interval) or a cron expression (--cron "0 8 1 * *")
     daemon    Run multi-trigger daemon using a configuration file
 
 options:

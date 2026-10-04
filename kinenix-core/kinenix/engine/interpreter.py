@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 from .evaluator import VariableEvaluator
 from .logger import ExecutionLogger
 from ..actions.registry import ActionRegistry
-from ..actions.flow_control import SubflowExecutionError
+from ..actions.flow_control import SubflowExecutionError, is_business_error
 from ..models.context import ExecutionContext, StepResult, FailureDetails, local_now
 from ..models.flow import FlowDefinition, Step
 
@@ -116,7 +116,7 @@ class FlowInterpreter:
     def _diagnose_failure(self, step: Step, exc: Exception, context: Optional[ExecutionContext] = None) -> FailureDetails:
         exc_class = type(exc).__name__
         err_msg = str(exc)
-        error_type = "Business" if "Business" in exc_class else "Technical"
+        error_type = "Business" if is_business_error(exc) else "Technical"
 
         error_screenshot_path = None
         if context:
@@ -302,7 +302,8 @@ class FlowInterpreter:
                 return
             except Exception as e:
                 last_error = e
-                if attempt < max_retries:
+                # Business errors (bad data, a rule not met) fail the same way on every attempt
+                if attempt < max_retries and not is_business_error(e):
                     attempt += 1
                     self.logger.logger.warning(
                         f"Step '{step.id}' ({step.name}) failed attempt {attempt}/{max_retries + 1}: {e}. "
@@ -489,7 +490,7 @@ class FlowInterpreter:
 
         if config_file:
             try:
-                config_data = json.loads(config_file.read_text(encoding="utf-8"))
+                config_data = json.loads(config_file.read_text(encoding="utf-8-sig"))
                 if isinstance(config_data, dict):
                     applied = self._apply_config_data(config_data, context)
                     self.logger.logger.info(f"Loaded project configuration from {config_file.name} ({len(applied)} keys)")
@@ -502,7 +503,7 @@ class FlowInterpreter:
                 f"(Tip: Copy '{template_file.name}' to 'config.json' to customize your project settings)."
             )
             try:
-                config_data = json.loads(template_file.read_text(encoding="utf-8"))
+                config_data = json.loads(template_file.read_text(encoding="utf-8-sig"))
                 if isinstance(config_data, dict):
                     applied = self._apply_config_data(config_data, context)
             except Exception as e:
@@ -520,7 +521,7 @@ class FlowInterpreter:
                 self.logger.logger.warning(f"Failed to load .env from {env_file}: {str(e)}")
 
     def _load_env_file(self, env_path: Path) -> None:
-        lines = env_path.read_text(encoding="utf-8").splitlines()
+        lines = env_path.read_text(encoding="utf-8-sig").splitlines()
         for line in lines:
             line = line.strip()
             if not line or line.startswith("#") or "=" not in line:
@@ -608,7 +609,7 @@ class FlowInterpreter:
 
         # 3. Load child FlowDefinition
         try:
-            data = json.loads(resolved_path.read_text(encoding="utf-8"))
+            data = json.loads(resolved_path.read_text(encoding="utf-8-sig"))
             subflow_def = FlowDefinition.model_validate(data)
         except Exception as e:
             raise RuntimeError(f"Failed to load subflow definition from '{resolved_path}': {str(e)}") from e

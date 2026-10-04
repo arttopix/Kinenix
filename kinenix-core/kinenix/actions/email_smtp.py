@@ -19,6 +19,7 @@ class EmailSendAction(BaseAction):
     Sends an email message via SMTP (e.g. Gmail SMTP).
     Supports plain text, HTML formatted body, CC, BCC, attachments, and dry-run mode.
     """
+    accepted_parameters = ('to', 'cc', 'bcc', 'subject', 'body', 'html', 'attachments', 'smtp_host', 'smtp_port', 'smtp_user', 'smtp_password', 'use_tls', 'dry_run')
 
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         to_addr = parameters.get("to")

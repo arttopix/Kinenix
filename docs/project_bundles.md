@@ -16,7 +16,8 @@ flows/
 │
 └── accounting/                             # Department / Business Domain
     └── invoice_tax_filing/                 # 1 Self-Contained Project Bundle
-        ├── flow.json                       # Main Entry Point
+        ├── flow.md                         # Main flow, the file you edit (source of truth)
+        ├── flow.json                       # Build output of flow.md; do not edit by hand
         ├── config.json                     # Project-specific configuration (Auto-loaded)
         ├── .env                            # Optional local secrets (Git-ignored)
         ├── subflows/                       # Project-specific subflows

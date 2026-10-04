@@ -8,6 +8,8 @@ from ..models.context import ExecutionContext
 
 @register_action("logic.set_variable")
 class SetVariableAction(BaseAction):
+    accepted_parameters = ('name', 'value')
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         name = parameters.get("name")
         value = parameters.get("value")
@@ -18,6 +20,8 @@ class SetVariableAction(BaseAction):
 
 @register_action("logic.delay")
 class DelayAction(BaseAction):
+    accepted_parameters = ('seconds',)
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         seconds = float(parameters.get("seconds", 1.0))
         time.sleep(seconds)
@@ -27,6 +31,8 @@ class DelayAction(BaseAction):
 @register_action("logic.if")
 class IfAction(BaseAction):
     """Conditional branching action. Handled with sub_steps by FlowInterpreter."""
+    accepted_parameters = ('condition', 'left', 'operator', 'right')
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         return {"action": "logic.if"}
 
@@ -34,6 +40,8 @@ class IfAction(BaseAction):
 @register_action("logic.loop")
 class LoopAction(BaseAction):
     """Loop iteration action. Handled with sub_steps by FlowInterpreter."""
+    accepted_parameters = ('items', 'item_var')
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         return {"action": "logic.loop"}
 
@@ -41,6 +49,8 @@ class LoopAction(BaseAction):
 @register_action("logic.append")
 class AppendAction(BaseAction):
     """Appends an item to a list or datatable in context variables."""
+    accepted_parameters = ('target', 'var_name', 'list_var', 'item', 'extend')
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         target = parameters.get("target") or parameters.get("var_name") or parameters.get("list_var")
         item = parameters.get("item")
@@ -53,6 +63,13 @@ class AppendAction(BaseAction):
             context.set_variable(target, current)
         elif not isinstance(current, list):
             raise TypeError(f"Target variable '{target}' must be a list, got {type(current).__name__}")
+
+        # extend: true adds each element of a list item (e.g. the rows from web.get_table) instead of the list itself
+        if parameters.get("extend"):
+            if not isinstance(item, list):
+                raise TypeError(f"logic.append with 'extend' requires a list item, got {type(item).__name__}")
+            current.extend(item)
+            return {"target": target, "total_items": len(current), "appended_count": len(item)}
 
         current.append(item)
         return {"target": target, "total_items": len(current), "appended": item}

@@ -68,7 +68,8 @@ class TriggerManager:
                         flow_path=flow,
                         interval_seconds=sec,
                         runner=self.runner,
-                        extra_vars=item.get("vars", {})
+                        extra_vars=item.get("vars", {}),
+                        cron=item.get("cron")  # e.g. "0 8 1 * *"; an invalid expression stops the daemon at load
                     )
                 )
             else:

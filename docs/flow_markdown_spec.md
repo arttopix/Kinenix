@@ -18,6 +18,23 @@ In kinenix, automation workflows maintain a **Dual-Representation Lifecycle**:
 
 > **Compilation Principle:** `flow.md` is compiled ahead-of-time (AOT) into `flow.json`. The execution runtime (`kinenix-core` and `kinenix-worker`) strictly executes `flow.json` to guarantee sub-millisecond execution speeds, zero hallucination, and pre-flight validation.
 
+### Source of Truth
+
+In a bundle that has a `flow.md`, **`flow.md` is the only file you edit**. `flow.json` is its build output: it stays in git so Studio, workers, and schema tools can read it, but it is never edited by hand.
+
+Before every run, `kinenix run` and `kinenix-worker run` compare the two files by content (not by timestamp, because `git checkout` resets timestamps):
+
+| Situation | What happens |
+| :--- | :--- |
+| `flow.json` missing | Compiled from `flow.md`, then run |
+| Same content | Runs `flow.json` |
+| `flow.md` changed after `flow.json` | `flow.json` is recompiled, then run |
+| `flow.json` changed after `flow.md` (e.g. edited in Studio) | A warning is shown and `flow.json` runs unchanged, so the edit is not lost. Keep it with `kinenix export-md <bundle>` (regenerates `flow.md`, losing hand formatting) or discard it with `kinenix compile <bundle>` |
+
+The `kinenix-core` test suite also checks that every committed `flow.json` under `flows/` matches its `flow.md`, so CI fails when a compile was forgotten. Files with a UTF-8 BOM (written by Windows PowerShell 5 and some editors) are read correctly.
+
+Studio currently saves to `flow.json` only, which triggers the warning above until the bundle is exported or recompiled.
+
 ---
 
 ## 2. The 5 Golden Rules of `flow.md`
@@ -100,6 +117,7 @@ All parameters passed to the action must be written as Markdown bullet items dir
 - **Number:** `- **timeout:** 5000` or `- **delay:** 1.5`
 - **Dynamic Variable Expression:** `- **url:** ${config.website}`
 - **Output Variable:** `- **output_var:** my_result` (stores action result in context)
+- **Error Handling:** `- **on_error:** retry`, `- **max_retries:** 2`, `- **retry_interval:** 3.0`, `- **fallback_step_id:** step_9`. These four keys are compiled into the step's `error_handler`, not into the action parameters (see [Step Resilience & Error Handling](actions_reference.md#step-resilience--error-handling-error_handler)).
 
 #### Example
 ```markdown
@@ -236,7 +254,13 @@ Below is the complete `flow.md` specification for the **RPA Challenge Solver** b
    ```bash
    kinenix export-md flows/examples/rpachallenge/flow.json
    ```
-3. **Pydantic Validation Guarantee:**
+3. **Validation of Actions and Parameters:**
+   ```bash
+   kinenix validate flows/examples/rpachallenge          # exit code 1 when problems are found
+   kinenix compile flows/examples/rpachallenge --strict  # compile, then fail on problems (for CI)
+   ```
+   Each action declares the parameters it reads. `kinenix validate`, `kinenix compile`, `kinenix run`, and `kinenix-worker run` report unknown actions and parameters that no action reads, which would otherwise be ignored silently, and suggest the closest name (for example `timout` -> `timeout`). `compile` and `run` only warn. The `kinenix-core` test suite validates every flow under `flows/`.
+4. **Pydantic Validation Guarantee:**
    During compilation, the resulting dictionary is validated against `kinenix.models.flow.FlowDefinition`.
    - If validation succeeds, `flow.json` is generated or overwritten atomically.
    - If validation fails, exact error line numbers and missing fields are reported, and existing `flow.json` is left untouched.

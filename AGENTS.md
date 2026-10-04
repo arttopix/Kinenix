@@ -39,8 +39,9 @@ cd kinenix-core; ../.venv/Scripts/python.exe -m pytest -q; cd ..
 # Studio frontend
 cd kinenix-studio/frontend; npm ci; npm run build
 
-# Run a flow / start the orchestrator
+# Run or check a flow / start the orchestrator
 kinenix run flows/examples/rpachallenge
+kinenix validate flows/examples/rpachallenge   # unknown actions and ignored parameters
 kinenix orchestrator            # first run asks setup questions and saves them
 kinenix orchestrator status     # workers and recent executions of a running server
 kinenix orchestrator logs [ID]  # steps of one execution (latest when ID is omitted)
@@ -87,7 +88,7 @@ Some rule files and the README describe the target architecture, not what exists
 
 | Topic | Target (in rules/README) | Current code |
 | :--- | :--- | :--- |
-| Action parameters | Pydantic model per action | Actions receive a plain `Dict[str, Any]` |
+| Action parameters | Pydantic model per action | Actions receive a plain `Dict[str, Any]` and declare their parameter names in `accepted_parameters` for flow validation |
 | Action tests | `kinenix-core/tests/actions/` | Tests live directly in `kinenix-core/tests/` |
 | Studio | Tauri desktop app | FastAPI + React/Vite in the browser |
 | Orchestrator backend | Async handlers, PostgreSQL, Redis/Celery | Sync handlers, SQLite by default, no queue |
