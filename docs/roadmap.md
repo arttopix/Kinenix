@@ -14,25 +14,25 @@ Ordered so that safety and predictable runtime behavior come before new distribu
 | :--- | :--- | :--- |
 | 1 | Studio path containment and CORS restriction | Done |
 | 2 | Retry and fallback runtime behavior with tests | Done |
-| 3 | Orchestrator worker authentication (API key) | Done |
+| 3 | Hub worker authentication (API key) | Done |
 | 4 | Continuous integration for Python tests and the Studio frontend build | Done |
-| 5 | Orchestrator dashboard authentication, CORS, and safe default host | Done |
+| 5 | Hub dashboard authentication, CORS, and safe default host | Done |
 | 6 | Persistent Studio sessions, single-step execution, and live telemetry | Not started |
-| 7 | Worker WebSocket protocol and job dispatch from the Orchestrator | Not started |
+| 7 | Worker WebSocket protocol and job dispatch from the Hub | Not started |
 
 ### 1.4 Continuous Integration
 
 GitHub Actions workflow `.github/workflows/ci.yml` runs on pushes and pull requests to `main` and `dev`:
 
 - [x] Python 3.10 and 3.14 on Ubuntu, and Python 3.10 on Windows.
-- [x] Installs `kinenix-core`, `kinenix-worker`, `kinenix-studio`, and `kinenix-orchestrator` with development dependencies.
-- [x] Runs every pytest suite, including `kinenix-orchestrator/tests`.
+- [x] Installs `kinenix-core`, `kinenix-worker`, `kinenix-studio`, and `kinenix-hub` with development dependencies.
+- [x] Runs every pytest suite, including `kinenix-hub/tests`.
 - [x] Builds the Studio frontend with `npm ci` and `npm run build`.
 - [x] CI status badge in the README.
 - [ ] Formatting, linting, type checking, dependency vulnerability checks, and JSON schema validation of the flows in `flows/`.
 - [ ] Publish `kinenix` to PyPI from a tagged release (Trusted Publishing).
 
-### 1.5 Orchestrator Hardening
+### 1.5 Hub Hardening
 
 - [x] Protect the dashboard page and read endpoints (HTTP Basic Auth, localhost-only when unset).
 - [x] Remove the permissive CORS policy; the dashboard is served same-origin.
@@ -48,12 +48,12 @@ GitHub Actions workflow `.github/workflows/ci.yml` runs on pushes and pull reque
 - Add breakpoints and an element picker that returns robust selector candidates.
 - Define session ownership, expiration, cleanup, and isolation so sessions do not leak browser processes.
 
-### 1.7 Worker WebSocket Protocol and Orchestrator Dispatch
+### 1.7 Worker WebSocket Protocol and Hub Dispatch
 
 ```text
-Orchestrator -> versioned job bundle -> Worker (WebSocket) -> kinenix-core executes flow
+Hub -> versioned job bundle -> Worker (WebSocket) -> kinenix-core executes flow
                                               |
-                                              +-> status, logs, metrics, screenshots -> Orchestrator
+                                              +-> status, logs, metrics, screenshots -> Hub
 ```
 
 - Authenticate workers and authorize job delivery (per-worker credentials).
@@ -91,7 +91,8 @@ Orchestrator -> versioned job bundle -> Worker (WebSocket) -> kinenix-core execu
 - [ ] AI prompt bar for natural-language flow generation
 - [ ] Tauri desktop shell
 
-### Phase 3: Orchestrator (`kinenix-orchestrator`) - In progress
+### Phase 3: Hub (`kinenix-hub`) - In progress
+- [x] Renamed from Orchestrator to Hub; old command, flags, environment variables, and settings file still work (see [hub.md](hub.md#5-renamed-from-orchestrator))
 - [x] FastAPI service with heartbeat and telemetry ingestion over HTTP
 - [x] Execution and worker storage via SQLAlchemy (SQLite default, `DATABASE_URL` for others)
 - [x] Web dashboard for workers and executions
@@ -109,7 +110,7 @@ Orchestrator -> versioned job bundle -> Worker (WebSocket) -> kinenix-core execu
 - [x] `kinenix-worker run`, `watch` (file trigger), `schedule` (interval), `daemon` (multi-trigger config)
 - [x] Optional per-job sandbox workspace (`~/.kinenix/workspaces/<job_id>`)
 - [x] Verified on Raspberry Pi 4 (ARM64) with setup script
-- [x] Heartbeat sender to the Orchestrator (`kinenix-worker ping`, busy/online/offline status)
+- [x] Heartbeat sender to the Hub (`kinenix-worker ping`, busy/online/offline status)
 - [x] systemd service installed by the setup script (`install_service.sh`), starts the daemon at boot
 - [x] Cron schedules (`"cron": "0 8 1 * *"` in `triggers.json`, `kinenix-worker schedule --cron`)
 - [ ] WebSocket job client (see 1.7)
@@ -125,4 +126,4 @@ Orchestrator -> versioned job bundle -> Worker (WebSocket) -> kinenix-core execu
 ### Phase 6: Advanced Local Agentic Capabilities - Not started
 - [ ] Self-healing UI selectors with DOM fallback matching
 - [ ] Studio copilot for natural-language flow generation and error diagnosis
-- [ ] GitOps release pipeline to Orchestrator and workers
+- [ ] GitOps release pipeline to Hub and workers

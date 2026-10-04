@@ -1464,7 +1464,7 @@ Stops the flow on purpose with a clear message, usually behind a `condition`. Us
 **Parameters:**
 | Parameter | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `message` | string | Yes | - | Reason recorded as the error message, in the execution log and the Orchestrator |
+| `message` | string | Yes | - | Reason recorded as the error message, in the execution log and the Hub |
 | `category` | string | No | `"business"` | `"business"` (not retried) or `"technical"` |
 
 **Example in `flow.md` (Markdown):**

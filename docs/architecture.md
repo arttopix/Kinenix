@@ -21,9 +21,9 @@ This document describes how Kinenix is structured: its principles, modules, exec
 | Module | Role | Current implementation | Target |
 | :--- | :--- | :--- | :--- |
 | **`kinenix-core`** | Flow interpreter, variable evaluator, action plugins, `kinenix` CLI | Python 3.10+, Pydantic, Playwright, openpyxl, pandas | Same |
-| **`kinenix-worker`** | Runs flows unattended on target machines | CLI with `run`, `watch`, `schedule`, `daemon`; optional per-job sandbox workspace | Persistent WebSocket client receiving jobs from the Orchestrator |
+| **`kinenix-worker`** | Runs flows unattended on target machines | CLI with `run`, `watch`, `schedule`, `daemon`; optional per-job sandbox workspace | Persistent WebSocket client receiving jobs from the Hub |
 | **`kinenix-studio`** | Flow authoring and debugging | FastAPI backend + React/Vite web UI: flow discovery, editing, validation, run | Tauri desktop shell, persistent browser sessions, element picker, live debugger |
-| **`kinenix-orchestrator`** | Central monitoring and control | FastAPI + SQLAlchemy (SQLite default); receives heartbeats and telemetry over HTTP; web dashboard; AI failure summaries; API key auth | Job dispatch over WebSocket, PostgreSQL + Redis queue, ROI dashboard, LINE/Teams/Email alerts |
+| **`kinenix-hub`** | Central monitoring and control | FastAPI + SQLAlchemy (SQLite default); receives heartbeats and telemetry over HTTP; web dashboard; AI failure summaries; API key auth | Job dispatch over WebSocket, PostgreSQL + Redis queue, ROI dashboard, LINE/Teams/Email alerts |
 
 ### Current Data Flow
 
@@ -35,7 +35,7 @@ graph LR
     Core -->|reads| Flows
     Core <-->|HTTP| AI["Local AI<br>(Ollama / SystemOne)"]
     Core -->|JSON logs| Logs["logs/"]
-    Core -->|HTTP telemetry + X-API-Key| Orch["kinenix-orchestrator"]
+    Core -->|HTTP telemetry + X-API-Key| Orch["kinenix-hub"]
     Orch <-->|HTTP| AI
 ```
 
@@ -43,11 +43,11 @@ graph LR
 
 ```mermaid
 graph TD
-    Studio["Kinenix Studio<br>Visual designer and inspector"] -->|Deploy bundle| Orchestrator["Kinenix Orchestrator<br>Scheduling, ROI dashboard, alerts"]
-    Orchestrator -->|Dispatch job via WebSocket| Worker["Kinenix Worker<br>Daemon on VM / PC / edge device"]
+    Studio["Kinenix Studio<br>Visual designer and inspector"] -->|Deploy bundle| Hub["Kinenix Hub<br>Scheduling, ROI dashboard, alerts"]
+    Hub -->|Dispatch job via WebSocket| Worker["Kinenix Worker<br>Daemon on VM / PC / edge device"]
     Worker -->|Execute flow| Core["Kinenix Core<br>Interpreter engine"]
     Core <-->|HTTP REST / JSON| AI["Local SLM sidecar<br>Ollama / llama.cpp"]
-    Worker -->|Stream logs and screenshots| Orchestrator
+    Worker -->|Stream logs and screenshots| Hub
 ```
 
 ---
@@ -103,7 +103,7 @@ AI runs as a **decoupled sidecar**. `kinenix-core` stays lightweight and can run
 | Where | What it does | Implementation |
 | :--- | :--- | :--- |
 | Flow actions | `ai.prompt` (JSON-constrained prompts), `ai.extract` (structured fields from text or images), `ai.decide` | Ollama and OpenThai-SystemOne over HTTP (`kinenix-core/kinenix/actions/ai_*.py`) |
-| Orchestrator | Classifies failures and suggests fixes from execution telemetry | `kinenix-orchestrator/kinenix_orchestrator/services/ai_summarizer.py`, with a rule-based fallback when the LLM is unreachable |
+| Hub | Classifies failures and suggests fixes from execution telemetry | `kinenix-hub/kinenix_hub/services/ai_summarizer.py`, with a rule-based fallback when the LLM is unreachable |
 
 See [actions_reference.md](actions_reference.md) for action parameters and [flows/examples/rpachallenge_ocr/](../flows/examples/rpachallenge_ocr/) for an end-to-end example.
 
@@ -113,13 +113,13 @@ Planned: self-healing selectors, a Studio copilot for natural-language flow auth
 
 ## 5. Agent-to-Agent Hybrid Protocol (Planned)
 
-Communication between the Orchestrator and Workers will use a **Hybrid Protocol**:
+Communication between the Hub and Workers will use a **Hybrid Protocol**:
 
 - **State envelope (JSON over WebSocket):** Deterministic machine fields (`type`, `job_id`, `status`, `metrics`, error codes) with state transitions `PENDING`, `RUNNING`, `SUCCESS`, `FAILED`. Workers never share state through mounted disks.
 - **Cognitive payload (Markdown inside JSON):** An `agent_report_md` field carries a natural-language incident summary for AI agents and humans, used to decide recovery (auto-retry vs. human escalation).
 
 ```text
-[ Worker Agent ] --- persistent WebSocket ---> [ Orchestrator Agent ]
+[ Worker Agent ] --- persistent WebSocket ---> [ Hub Agent ]
 {
    "type": "JOB_REPORT",
    "job_id": "job_20260916_001",
@@ -131,7 +131,7 @@ Communication between the Orchestrator and Workers will use a **Hybrid Protocol*
 }
 ```
 
-Today, workers send telemetry to the Orchestrator over HTTP (`POST /api/v1/telemetry`); see [orchestrator.md](orchestrator.md).
+Today, workers send telemetry to the Hub over HTTP (`POST /api/v1/telemetry`); see [hub.md](hub.md).
 
 ---
 
@@ -140,7 +140,7 @@ Today, workers send telemetry to the Orchestrator over HTTP (`POST /api/v1/telem
 1. **Author:** Build and tune flows locally with the CLI or `kinenix-studio`.
 2. **Version:** Commit `flow.json`, `flow.md`, `config/`, and assets to Git.
 3. **Validate:** CI runs `pytest` and flow schema validation on every pull request.
-4. **Release:** Orchestrator and workers pull approved, versioned bundles via Git tags, release branches, or webhooks.
+4. **Release:** Hub and workers pull approved, versioned bundles via Git tags, release branches, or webhooks.
 
 ---
 
@@ -156,7 +156,7 @@ Kinenix/
 │   └── tests/
 ├── kinenix-worker/          # Unattended runner and triggers (kinenix-worker)
 ├── kinenix-studio/          # FastAPI backend (kinenix-studio) + frontend/ (React/Vite)
-├── kinenix-orchestrator/    # Central telemetry server and dashboard
+├── kinenix-hub/    # Central telemetry server and dashboard
 ├── flows/               # Project bundles; @shared/ holds reusable subflows
 ├── schemas/             # JSON schemas for flows and execution logs
 ├── docs/                # Documentation (index: docs/README.md)

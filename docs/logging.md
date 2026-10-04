@@ -1,6 +1,6 @@
 # Structured Logging & Telemetry Standards
 
-This document describes Kinenix's structured logging architecture, directory partitioning, exception classification, and telemetry data schema. Logging rules for contributors are in `.agents/rules/logging.md`; uploading logs to the Orchestrator is covered in [orchestrator.md](orchestrator.md).
+This document describes Kinenix's structured logging architecture, directory partitioning, exception classification, and telemetry data schema. Logging rules for contributors are in `.agents/rules/logging.md`; uploading logs to the Hub is covered in [hub.md](hub.md).
 
 ---
 
@@ -79,7 +79,7 @@ Each execution log contains comprehensive runtime and business data:
 }
 ```
 
-Timestamps are the worker's local time with its UTC offset (`+07:00` above). The offset lets the Orchestrator convert every execution to UTC, so workers in different time zones line up on the dashboard. The run's end time is not stored separately; it is `start_time` plus `metrics.total_duration_seconds`.
+Timestamps are the worker's local time with its UTC offset (`+07:00` above). The offset lets the Hub convert every execution to UTC, so workers in different time zones line up on the dashboard. The run's end time is not stored separately; it is `start_time` plus `metrics.total_duration_seconds`.
 
 ### Privacy & State Sanitization
 Internal runtime objects (such as Playwright browser handles, page pointers, and database connections prefixed with `__`) are automatically filtered out prior to JSON serialization, ensuring clean, serializable log files without leaking sensitive memory objects.

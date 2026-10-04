@@ -18,7 +18,7 @@ from contextlib import asynccontextmanager
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("kinenix.orchestrator")
+logger = logging.getLogger("kinenix.hub")
 
 
 @asynccontextmanager
@@ -33,7 +33,7 @@ async def lifespan(app: FastAPI):
 init_db()
 
 app = FastAPI(
-    title="Kinenix Central Orchestrator & AI Dashboard",
+    title="Kinenix Hub & AI Dashboard",
     version=__version__,
     description="Central control hub, telemetry receiver, and AI-powered failure summarizer for Kinenix Edge Workers.",
     lifespan=lifespan
@@ -68,7 +68,7 @@ class TelemetryRequest(BaseModel):
 
 @app.get("/api/v1/healthz")
 def health_check():
-    return {"status": "healthy", "service": "Kinenix Central Orchestrator"}
+    return {"status": "healthy", "service": "Kinenix Hub"}
 
 
 @app.post("/api/v1/heartbeat", dependencies=[Depends(require_worker_api_key)])
@@ -173,7 +173,7 @@ def serve_dashboard():
     index_path = STATIC_DIR / "index.html"
     if index_path.exists():
         return FileResponse(str(index_path))
-    return {"message": "Kinenix Orchestrator Running. Dashboard UI file not found in static/."}
+    return {"message": "Kinenix Hub Running. Dashboard UI file not found in static/."}
 
 
 def start_server():

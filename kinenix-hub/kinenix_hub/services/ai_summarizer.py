@@ -4,7 +4,7 @@ import requests
 
 from ..config import CENTRAL_LLM_URL
 
-logger = logging.getLogger("kinenix.orchestrator.ai")
+logger = logging.getLogger("kinenix.hub.ai")
 
 CATEGORIES = {
     "Cookie Consent / Security Modal": {

@@ -1,7 +1,7 @@
 from rich.console import Console
 
 from kinenix_worker import display
-from kinenix_worker.orchestrator_client import OrchestratorClient
+from kinenix_worker.hub_client import HubClient
 
 
 def _console() -> Console:
@@ -10,7 +10,7 @@ def _console() -> Console:
 
 def test_print_ping_shows_connection_fields():
     console = _console()
-    client = OrchestratorClient(url="http://orch:8080", api_key="k", worker_id="rpi4-01")
+    client = HubClient(url="http://orch:8080", api_key="k", worker_id="rpi4-01")
     display.print_ping(console, client, {"reachable": True, "authorized": False, "detail": "HTTP 401: key mismatch"})
     out = console.export_text()
     assert "http://orch:8080" in out
@@ -21,14 +21,14 @@ def test_print_ping_shows_connection_fields():
 
 def test_print_ping_without_url():
     console = _console()
-    client = OrchestratorClient(url="", api_key="", worker_id="w")
+    client = HubClient(url="", api_key="", worker_id="w")
     display.print_ping(console, client, client.ping())
     assert "(not set)" in console.export_text()
 
 
 def test_print_info_hides_api_key():
     console = _console()
-    client = OrchestratorClient(url="http://orch:8080", api_key="super-secret", worker_id="w")
+    client = HubClient(url="http://orch:8080", api_key="super-secret", worker_id="w")
     display.print_info(console, {"os": "Linux", "machine": "aarch64"}, client)
     out = console.export_text()
     assert "aarch64" in out

@@ -42,7 +42,7 @@ jobs:
           -e "kinenix-core[dev]"
           -e "kinenix-worker[dev]"
           -e "kinenix-studio[dev]"
-          -e "kinenix-orchestrator[dev]"
+          -e "kinenix-hub[dev]"
 
       # kinenix-core tests run from their own directory, the others from the repository root
       - name: Test kinenix-core
@@ -55,8 +55,8 @@ jobs:
       - name: Test kinenix-studio
         run: python -m pytest -q kinenix-studio/tests
 
-      - name: Test kinenix-orchestrator
-        run: python -m pytest -q kinenix-orchestrator/tests
+      - name: Test kinenix-hub
+        run: python -m pytest -q kinenix-hub/tests
 
   studio-frontend:
     name: Studio frontend build

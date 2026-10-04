@@ -218,7 +218,7 @@
   q: "ทั้งหมดที่รันเมื่อวาน"
   note: "No outcome asked; status is not scored"
   expect: {tool: search_executions, window: yesterday}
-
+P
 - id: h05
   split: holdout
   q: "1 ชม.ล่าสุดมี flow ไหน error"

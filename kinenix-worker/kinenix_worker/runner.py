@@ -15,7 +15,7 @@ from kinenix.engine.markdown import FlowSync, markdown_to_flow, sync_flow_json
 from kinenix.engine.validation import validate_flow
 from kinenix.models.flow import FlowDefinition
 
-from .orchestrator_client import OrchestratorClient
+from .hub_client import HubClient
 
 logger = logging.getLogger("kinenix_worker")
 
@@ -26,8 +26,8 @@ class WorkerRunner:
     Handles bundle resolution, sandbox workspace isolation, and execution telemetry.
     """
 
-    def __init__(self, client: Optional[OrchestratorClient] = None):
-        self.client = client or OrchestratorClient()
+    def __init__(self, client: Optional[HubClient] = None):
+        self.client = client or HubClient()
 
     @staticmethod
     def get_system_info() -> Dict[str, Any]:
