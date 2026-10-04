@@ -1,7 +1,7 @@
 {
   "$schema": "../../../schemas/flow.schema.json",
   "name": "RPA Challenge Solver",
-  "description": "Self-Contained Project Bundle: Automate filling RPA Challenge form (10 rounds, 70 fields) from local bundle assets",
+  "description": "Self-Contained Project Bundle: Automate filling RPA Challenge form (10 rounds, 70 fields) from local bundle assets.",
   "version": "1.0.0",
   "variables": {
     "non_programmers": []
@@ -9,7 +9,7 @@
   "steps": [
     {
       "id": "step_1",
-      "name": "Open RPA Challenge Webpage #EDIT for check",
+      "name": "Open RPA Challenge Webpage",
       "action": "web.open",
       "parameters": {
         "url": "${config.website}",
@@ -44,7 +44,7 @@
       },
       "sub_steps": [
         {
-          "id": "sub_check_programmer",
+          "id": "sub_step_4_1",
           "name": "Check If Role in Company is Programmer",
           "action": "logic.if",
           "parameters": {
@@ -54,7 +54,7 @@
           },
           "sub_steps": [
             {
-              "id": "sub_4_1",
+              "id": "sub_step_4_1_1",
               "name": "Fill First Name",
               "action": "web.type",
               "parameters": {
@@ -63,7 +63,7 @@
               }
             },
             {
-              "id": "sub_4_2",
+              "id": "sub_step_4_1_2",
               "name": "Fill Last Name",
               "action": "web.type",
               "parameters": {
@@ -72,7 +72,7 @@
               }
             },
             {
-              "id": "sub_4_3",
+              "id": "sub_step_4_1_3",
               "name": "Fill Company Name",
               "action": "web.type",
               "parameters": {
@@ -81,7 +81,7 @@
               }
             },
             {
-              "id": "sub_4_4",
+              "id": "sub_step_4_1_4",
               "name": "Fill Role in Company",
               "action": "web.type",
               "parameters": {
@@ -90,7 +90,7 @@
               }
             },
             {
-              "id": "sub_4_5",
+              "id": "sub_step_4_1_5",
               "name": "Fill Address",
               "action": "web.type",
               "parameters": {
@@ -99,7 +99,7 @@
               }
             },
             {
-              "id": "sub_4_6",
+              "id": "sub_step_4_1_6",
               "name": "Fill Email",
               "action": "web.type",
               "parameters": {
@@ -108,7 +108,7 @@
               }
             },
             {
-              "id": "sub_4_7",
+              "id": "sub_step_4_1_7",
               "name": "Fill Phone Number",
               "action": "web.type",
               "parameters": {
@@ -117,7 +117,7 @@
               }
             },
             {
-              "id": "sub_4_8",
+              "id": "sub_step_4_1_8",
               "name": "Submit Form Round",
               "action": "web.click",
               "parameters": {
@@ -127,7 +127,7 @@
           ],
           "else_steps": [
             {
-              "id": "sub_4_else_collect",
+              "id": "sub_step_4_1_else_1",
               "name": "Collect Non-Programmer into DataTable",
               "action": "logic.append",
               "parameters": {
@@ -160,7 +160,6 @@
       "id": "step_7",
       "name": "Send Email Notification via Gmail",
       "action": "flow.call",
-      "condition": "${config.send_notification} == true",
       "parameters": {
         "flow": "@shared/send_email.json",
         "inputs": {
@@ -173,7 +172,8 @@
           "dry_run": "${config.dry_run}"
         }
       },
-      "output_var": "email_notification_result"
+      "output_var": "email_notification_result",
+      "condition": "${config.send_notification} == true"
     }
   ]
 }

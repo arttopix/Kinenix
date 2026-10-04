@@ -11,6 +11,7 @@ from typing import Any, Dict, Optional
 import psutil
 from kinenix.engine.interpreter import FlowInterpreter
 from kinenix.engine.logger import ExecutionLogger
+from kinenix.engine.markdown import FlowSync, markdown_to_flow, sync_flow_json
 from kinenix.models.flow import FlowDefinition
 
 from .orchestrator_client import OrchestratorClient
@@ -70,14 +71,20 @@ class WorkerRunner:
             work_dir = sandbox_dir
             target_path = sandbox_dir / target_path.name
 
-        if target_path.suffix.lower() == ".md":
-            from kinenix.engine.markdown import compile_markdown_to_json
-            compiled_json = work_dir / "flow.json"
-            compile_markdown_to_json(target_path, compiled_json)
-            target_path = compiled_json
+        # A bundle's flow.md is the source; flow.json is its build output and is what runs
+        flow_sync = FlowSync.NO_MARKDOWN
+        if target_path.name in ("flow.md", "flow.json") and (work_dir / "flow.md").is_file():
+            flow_sync = sync_flow_json(work_dir / "flow.md")
+            if flow_sync == FlowSync.JSON_NEWER:
+                logger.warning(f"{work_dir / 'flow.json'} differs from flow.md and was edited after it; running flow.json. "
+                               f"Run 'kinenix compile' or 'kinenix export-md' on the bundle to bring them back in line.")
+            target_path = work_dir / "flow.json"
 
-        flow_data = json.loads(target_path.read_text(encoding="utf-8"))
-        flow_def = FlowDefinition(**flow_data)
+        if target_path.suffix.lower() == ".md":
+            flow_def = markdown_to_flow(target_path.read_text(encoding="utf-8-sig"))
+        else:
+            flow_data = json.loads(target_path.read_text(encoding="utf-8-sig"))
+            flow_def = FlowDefinition(**flow_data)
 
         # Auto-load config.json if present in the bundle directory
         config_file = work_dir / "config" / "config.json"
@@ -85,7 +92,7 @@ class WorkerRunner:
             config_file = work_dir / "config.json"
         if config_file.is_file():
             try:
-                cfg_data = json.loads(config_file.read_text(encoding="utf-8"))
+                cfg_data = json.loads(config_file.read_text(encoding="utf-8-sig"))
                 flow_def.variables.setdefault("config", {})
                 if isinstance(flow_def.variables["config"], dict) and isinstance(cfg_data, dict):
                     flow_def.variables["config"].update(cfg_data)
@@ -122,9 +129,11 @@ class WorkerRunner:
             "status": "failed" if ctx.has_error else "success",
             "duration_seconds": duration,
             "steps_total": len(flow_def.steps),
-            "steps_executed": len(ctx.step_results),
+            # Top-level steps only, to match steps_total; loop iterations would otherwise give e.g. "40/20"
+            "steps_executed": len({r.step_id for r in ctx.step_results} & {s.id for s in flow_def.steps}),
             "has_error": ctx.has_error,
             "error": self._error_summary(ctx),
+            "flow_sync": flow_sync,
             "worker_system": system_info
         }
 

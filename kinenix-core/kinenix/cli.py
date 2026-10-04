@@ -10,10 +10,30 @@ from .models.flow import FlowDefinition
 from .engine.interpreter import FlowInterpreter
 from .engine.logger import ExecutionLogger
 from .engine.markdown import (
+    FlowSync,
     load_flow,
     compile_markdown_to_json,
     export_json_to_markdown,
+    sync_flow_json,
 )
+
+
+def report_flow_sync(status: str, md_path: Path) -> None:
+    """Tell the user when flow.json was rebuilt from flow.md, or when the two disagree."""
+    bundle = md_path.parent
+    if status == FlowSync.CREATED:
+        print(f"Compiled {md_path.name} -> flow.json (flow.json did not exist).")
+    elif status == FlowSync.COMPILED:
+        print(f"Compiled {md_path.name} -> flow.json (flow.md has changes).")
+    elif status == FlowSync.JSON_NEWER:
+        print(
+            f"Warning: {bundle / 'flow.json'} differs from flow.md and was edited after it (for example in Studio).\n"
+            f"         Running flow.json as it is. flow.md is the source of truth, so either keep the edit with\n"
+            f"           kinenix export-md {bundle}\n"
+            f"         or discard it with\n"
+            f"           kinenix compile {bundle}",
+            file=sys.stderr,
+        )
 
 
 def _get_project_root() -> Optional[Path]:
@@ -294,10 +314,11 @@ def main():
             sys.exit(1)
 
         try:
-            if resolved_path.suffix.lower() == ".md":
-                # Auto-compile to flow.json alongside flow.md
-                json_target = resolved_path.parent / "flow.json"
-                compile_markdown_to_json(resolved_path, json_target)
+            # A bundle's flow.md is the source; flow.json is its build output and is what runs
+            if resolved_path.name in ("flow.md", "flow.json") and (resolved_path.parent / "flow.md").is_file():
+                md_source = resolved_path.parent / "flow.md"
+                report_flow_sync(sync_flow_json(md_source), md_source)
+                resolved_path = md_source.parent / "flow.json"
             flow_def = load_flow(resolved_path)
         except Exception as e:
             print(f"Error loading flow at '{resolved_path}': {str(e)}", file=sys.stderr)
