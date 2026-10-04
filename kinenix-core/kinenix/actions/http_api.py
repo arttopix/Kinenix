@@ -9,6 +9,8 @@ from ..models.context import ExecutionContext
 
 @register_action("http.request")
 class HttpRequestAction(BaseAction):
+    accepted_parameters = ('url', 'method', 'headers', 'payload', 'timeout')
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         url = parameters.get("url")
         method = parameters.get("method", "GET").upper()
@@ -39,6 +41,8 @@ class HttpRequestAction(BaseAction):
 
 @register_action("http.download")
 class HttpDownloadAction(BaseAction):
+    accepted_parameters = ('url', 'target_path', 'timeout')
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         url = parameters.get("url")
         target_path_str = parameters.get("target_path")

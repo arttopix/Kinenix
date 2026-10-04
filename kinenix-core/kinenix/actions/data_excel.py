@@ -9,6 +9,8 @@ from ..models.context import ExecutionContext
 
 @register_action("excel.read")
 class ExcelReadAction(BaseAction):
+    accepted_parameters = ('file_path', 'sheet_name', 'clean_headers')
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         file_path = parameters.get("file_path")
         sheet_name = parameters.get("sheet_name", 0)
@@ -44,6 +46,8 @@ class ExcelReadAction(BaseAction):
 
 @register_action("excel.write")
 class ExcelWriteAction(BaseAction):
+    accepted_parameters = ('file_path', 'data', 'sheet_name', 'columns')
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         file_path = parameters.get("file_path")
         data = parameters.get("data", [])
@@ -80,6 +84,8 @@ class ExcelWriteAction(BaseAction):
 
 @register_action("csv.write")
 class CsvWriteAction(BaseAction):
+    accepted_parameters = ('file_path', 'data', 'columns')
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         file_path = parameters.get("file_path")
         data = parameters.get("data", [])
@@ -115,6 +121,8 @@ class CsvWriteAction(BaseAction):
 
 @register_action("csv.read")
 class CsvReadAction(BaseAction):
+    accepted_parameters = ('file_path', 'delimiter', 'encoding', 'clean_headers')
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         file_path = parameters.get("file_path")
         delimiter = parameters.get("delimiter", ",")

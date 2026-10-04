@@ -14,8 +14,8 @@ Whenever a developer or AI assistant adds a new action or modifies an existing a
    - The module must be imported in `kinenix-core/kinenix/actions/__init__.py`.
 
 2. **Parameter Validation & Typing:**
-   - Define a dedicated Pydantic model (`BaseModel`) representing input parameters.
-   - Enforce explicit type hints for all fields and default values where appropriate.
+   - Declare every parameter name the action reads in `accepted_parameters` (use `LOCATOR_PARAMETERS + (...)` for actions that find an element). The flow validator and the tests depend on it: a test fails when an action has no declaration or when `docs/actions_reference.md` documents a parameter that is not declared.
+   - Target architecture: a dedicated Pydantic model (`BaseModel`) per action with explicit types and defaults (see `AGENTS.md`, Current State vs. Target Architecture).
 
 3. **Mandatory Documentation Update:**
    - `docs/actions_reference.md` **MUST** be updated in the same changeset or pull request.

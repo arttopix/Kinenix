@@ -49,6 +49,8 @@ def main():
     sched_parser = subparsers.add_parser("schedule", help="Execute a flow on a scheduled time interval")
     sched_parser.add_argument("--flow", required=True, help="Path to flow.json or bundle to execute")
     sched_parser.add_argument("--interval", type=float, default=60.0, help="Interval in seconds between runs")
+    sched_parser.add_argument("--cron", type=str, default=None,
+                              help="Five-field cron expression in local time, e.g. '0 8 1 * *' (overrides --interval)")
     sched_parser.add_argument("--sandbox", action="store_true", help="Execute in isolated sandbox workspace")
     sched_parser.add_argument("--vars", type=str, help="JSON string of variables to inject")
 
@@ -145,14 +147,19 @@ def main():
                 print(f"Error parsing --vars JSON: {e}", file=sys.stderr)
                 sys.exit(1)
 
-        scheduler = CronSchedulerTrigger(
-            flow_path=args.flow,
-            interval_seconds=args.interval,
-            use_sandbox=args.sandbox,
-            extra_vars=extra_vars,
-            runner=runner
-        )
-        print(f"Scheduled flow '{args.flow}' to run every {args.interval}s...")
+        try:
+            scheduler = CronSchedulerTrigger(
+                flow_path=args.flow,
+                interval_seconds=args.interval,
+                use_sandbox=args.sandbox,
+                extra_vars=extra_vars,
+                runner=runner,
+                cron=args.cron
+            )
+        except ValueError as e:
+            print(f"Invalid --cron: {e}", file=sys.stderr)
+            sys.exit(1)
+        print(f"Scheduled flow '{args.flow}' to run {scheduler.describe()}...")
         print("Press Ctrl+C to stop.")
         start_heartbeats()
         scheduler.run_loop()

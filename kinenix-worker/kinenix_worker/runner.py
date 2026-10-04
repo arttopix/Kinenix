@@ -12,6 +12,7 @@ import psutil
 from kinenix.engine.interpreter import FlowInterpreter
 from kinenix.engine.logger import ExecutionLogger
 from kinenix.engine.markdown import FlowSync, markdown_to_flow, sync_flow_json
+from kinenix.engine.validation import validate_flow
 from kinenix.models.flow import FlowDefinition
 
 from .orchestrator_client import OrchestratorClient
@@ -85,6 +86,8 @@ class WorkerRunner:
         else:
             flow_data = json.loads(target_path.read_text(encoding="utf-8-sig"))
             flow_def = FlowDefinition(**flow_data)
+        for issue in validate_flow(flow_def):
+            logger.warning(issue)
 
         # Auto-load config.json if present in the bundle directory
         config_file = work_dir / "config" / "config.json"
