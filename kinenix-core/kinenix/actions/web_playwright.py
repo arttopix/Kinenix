@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 from playwright.sync_api import sync_playwright, Browser, Page, Playwright
 
-from .base import BaseAction
+from .base import LOCATOR_PARAMETERS, BaseAction
 from .registry import register_action
 from ..models.context import ExecutionContext
 
@@ -77,6 +77,8 @@ def _resolve_locator(page: Page, parameters: Dict[str, Any]):
 
 @register_action("web.open")
 class WebOpenAction(BaseAction):
+    accepted_parameters = ('url', 'headless', 'timeout')
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         url = parameters.get("url")
         headless = bool(parameters.get("headless", False))
@@ -110,14 +112,27 @@ class WebOpenAction(BaseAction):
 
 @register_action("web.click")
 class WebClickAction(BaseAction):
+    accepted_parameters = LOCATOR_PARAMETERS + ('optional', 'timeout', 'wait_for_response', 'response_timeout')
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         page = _get_page(context)
         locator = _resolve_locator(page, parameters)
         timeout = float(parameters.get("timeout", 30000))
         optional = bool(parameters.get("optional", False))
+        # wait_for_response: part of a URL the click is expected to request; the step ends when that
+        # response arrives, so the next step sees the new data instead of relying on a fixed delay
+        wait_url = parameters.get("wait_for_response")
         try:
-            locator.first.click(timeout=timeout)
-            return {"action": "web.click", "status": "clicked"}
+            if not wait_url:
+                locator.first.click(timeout=timeout)
+                return {"action": "web.click", "status": "clicked"}
+
+            response_timeout = float(parameters.get("response_timeout", timeout))
+            with page.expect_response(lambda r: str(wait_url) in r.url, timeout=response_timeout) as response_info:
+                locator.first.click(timeout=timeout)
+            response = response_info.value
+            return {"action": "web.click", "status": "clicked",
+                    "response_url": response.url, "response_status": response.status}
         except Exception as e:
             if optional:
                 logger.info(f"Optional click on '{parameters.get('selector') or parameters.get('label')}' skipped: {e}")
@@ -127,6 +142,8 @@ class WebClickAction(BaseAction):
 
 @register_action("web.type")
 class WebTypeAction(BaseAction):
+    accepted_parameters = LOCATOR_PARAMETERS + ('text',)
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         page = _get_page(context)
         locator = _resolve_locator(page, parameters)
@@ -137,6 +154,8 @@ class WebTypeAction(BaseAction):
 
 @register_action("web.get_text")
 class WebGetTextAction(BaseAction):
+    accepted_parameters = LOCATOR_PARAMETERS
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         page = _get_page(context)
         locator = _resolve_locator(page, parameters)
@@ -168,6 +187,7 @@ table => {
 @register_action("web.get_table")
 class WebGetTableAction(BaseAction):
     """Reads an HTML <table> into a list of row dicts keyed by the header cells."""
+    accepted_parameters = LOCATOR_PARAMETERS + ('columns', 'numeric_columns', 'add_columns', 'min_rows', 'timeout')
 
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         page = _get_page(context)
@@ -218,6 +238,8 @@ class WebGetTableAction(BaseAction):
 
 @register_action("web.screenshot")
 class WebScreenshotAction(BaseAction):
+    accepted_parameters = ('path', 'full_page')
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         page = _get_page(context)
         path_str = parameters.get("path", "screenshot.png")
@@ -236,6 +258,8 @@ class WebScreenshotAction(BaseAction):
 
 @register_action("web.download")
 class WebDownloadAction(BaseAction):
+    accepted_parameters = LOCATOR_PARAMETERS + ('target_path', 'timeout')
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         page = _get_page(context)
         selector = parameters.get("selector")
@@ -282,6 +306,8 @@ class WebDownloadAction(BaseAction):
 
 @register_action("web.close")
 class WebCloseAction(BaseAction):
+    accepted_parameters = ()
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         if context.get_variable("__shared_browser__"):
             logger.warning(
@@ -307,6 +333,8 @@ class WebCloseAction(BaseAction):
 
 @register_action("web.wait_for")
 class WebWaitForAction(BaseAction):
+    accepted_parameters = LOCATOR_PARAMETERS + ('state', 'timeout')
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         page = _get_page(context)
         selector = parameters.get("selector")
@@ -325,6 +353,8 @@ class WebWaitForAction(BaseAction):
 
 @register_action("web.is_visible")
 class WebIsVisibleAction(BaseAction):
+    accepted_parameters = LOCATOR_PARAMETERS + ('timeout',)
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         page = _get_page(context)
         locator = _resolve_locator(page, parameters)
@@ -340,6 +370,8 @@ class WebIsVisibleAction(BaseAction):
 
 @register_action("web.get_attribute")
 class WebGetAttributeAction(BaseAction):
+    accepted_parameters = LOCATOR_PARAMETERS + ('attribute', 'name')
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         page = _get_page(context)
         attr_name = parameters.get("attribute") or parameters.get("name")
@@ -353,6 +385,8 @@ class WebGetAttributeAction(BaseAction):
 
 @register_action("web.press")
 class WebPressAction(BaseAction):
+    accepted_parameters = LOCATOR_PARAMETERS + ('key',)
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         page = _get_page(context)
         key = parameters.get("key")
@@ -373,6 +407,8 @@ class WebPressAction(BaseAction):
 
 @register_action("web.scroll")
 class WebScrollAction(BaseAction):
+    accepted_parameters = LOCATOR_PARAMETERS + ('direction', 'amount')
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         page = _get_page(context)
         selector = parameters.get("selector")
@@ -400,6 +436,8 @@ class WebScrollAction(BaseAction):
 
 @register_action("web.hover")
 class WebHoverAction(BaseAction):
+    accepted_parameters = LOCATOR_PARAMETERS + ('timeout',)
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         page = _get_page(context)
         timeout = float(parameters.get("timeout", 30000))
@@ -410,6 +448,8 @@ class WebHoverAction(BaseAction):
 
 @register_action("web.switch_tab")
 class WebSwitchTabAction(BaseAction):
+    accepted_parameters = ('index', 'title', 'url_pattern')
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         browser: Optional[Browser] = context.get_variable("__playwright_browser__")
         if not browser or not browser.contexts:
@@ -460,6 +500,8 @@ class WebSwitchTabAction(BaseAction):
 
 @register_action("web.select_option")
 class WebSelectOptionAction(BaseAction):
+    accepted_parameters = LOCATOR_PARAMETERS + ('value', 'text', 'label_text', 'index', 'ai_match', 'base_url', 'systemone_url', 'fallback_to_ollama', 'timeout')
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         page = _get_page(context)
         locator = _resolve_locator(page, parameters)
@@ -568,6 +610,8 @@ class WebSelectOptionAction(BaseAction):
 
 @register_action("web.upload_file")
 class WebUploadFileAction(BaseAction):
+    accepted_parameters = LOCATOR_PARAMETERS + ('file_path', 'path')
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         page = _get_page(context)
         file_path_str = parameters.get("file_path") or parameters.get("path")
@@ -595,6 +639,8 @@ class WebUploadFileAction(BaseAction):
 
 @register_action("web.check")
 class WebCheckAction(BaseAction):
+    accepted_parameters = LOCATOR_PARAMETERS + ('timeout',)
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         page = _get_page(context)
         timeout = float(parameters.get("timeout", 30000))
@@ -605,6 +651,8 @@ class WebCheckAction(BaseAction):
 
 @register_action("web.uncheck")
 class WebUncheckAction(BaseAction):
+    accepted_parameters = LOCATOR_PARAMETERS + ('timeout',)
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         page = _get_page(context)
         timeout = float(parameters.get("timeout", 30000))

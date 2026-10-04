@@ -254,7 +254,13 @@ Below is the complete `flow.md` specification for the **RPA Challenge Solver** b
    ```bash
    kinenix export-md flows/examples/rpachallenge/flow.json
    ```
-3. **Pydantic Validation Guarantee:**
+3. **Validation of Actions and Parameters:**
+   ```bash
+   kinenix validate flows/examples/rpachallenge          # exit code 1 when problems are found
+   kinenix compile flows/examples/rpachallenge --strict  # compile, then fail on problems (for CI)
+   ```
+   Each action declares the parameters it reads. `kinenix validate`, `kinenix compile`, `kinenix run`, and `kinenix-worker run` report unknown actions and parameters that no action reads, which would otherwise be ignored silently, and suggest the closest name (for example `timout` -> `timeout`). `compile` and `run` only warn. The `kinenix-core` test suite validates every flow under `flows/`.
+4. **Pydantic Validation Guarantee:**
    During compilation, the resulting dictionary is validated against `kinenix.models.flow.FlowDefinition`.
    - If validation succeeds, `flow.json` is generated or overwritten atomically.
    - If validation fails, exact error line numbers and missing fields are reported, and existing `flow.json` is left untouched.

@@ -16,6 +16,15 @@ from .engine.markdown import (
     export_json_to_markdown,
     sync_flow_json,
 )
+from .engine.validation import validate_flow
+
+
+def report_validation(flow: FlowDefinition) -> List[str]:
+    """Print validation problems as warnings and return them."""
+    issues = validate_flow(flow)
+    for issue in issues:
+        print(f"Warning: {issue}", file=sys.stderr)
+    return issues
 
 
 def report_flow_sync(status: str, md_path: Path) -> None:
@@ -192,6 +201,11 @@ def main():
     compile_parser = subparsers.add_parser("compile", help="Compile a flow.md specification file into flow.json")
     compile_parser.add_argument("markdown_file", help="Path to flow.md file or project directory containing flow.md")
     compile_parser.add_argument("-o", "--output", help="Optional output flow.json path", default=None)
+    compile_parser.add_argument("--strict", action="store_true", help="Exit with code 1 when validation finds problems (for CI)")
+
+    # Command: validate
+    validate_parser = subparsers.add_parser("validate", help="Check a flow for unknown actions and parameters that would be ignored")
+    validate_parser.add_argument("flow_file", help="Flow name, bundle directory, flow.md, or flow.json")
 
     # Command: export-md
     export_parser = subparsers.add_parser("export-md", help="Export a flow.json file into human-readable flow.md")
@@ -240,6 +254,25 @@ def main():
             print("Installation failed. On Linux/Raspberry Pi, you may also need: sudo playwright install-deps chromium", file=sys.stderr)
         sys.exit(res.returncode)
 
+    elif args.command == "validate":
+        resolved_path = resolve_flow_path(args.flow_file)
+        if not resolved_path:
+            print(f"Error: Could not find flow '{args.flow_file}'.", file=sys.stderr)
+            sys.exit(1)
+        # Check the source: flow.md when the bundle has one, otherwise the given file
+        source = resolved_path.parent / "flow.md" if (resolved_path.parent / "flow.md").is_file() else resolved_path
+        try:
+            flow_def = load_flow(source)
+        except Exception as e:
+            print(f"Error loading flow at '{source}': {e}", file=sys.stderr)
+            sys.exit(1)
+        issues = report_validation(flow_def)
+        if issues:
+            print(f"{len(issues)} problem(s) in {source}", file=sys.stderr)
+            sys.exit(1)
+        print(f"OK: {source} ({flow_def.name})")
+        sys.exit(0)
+
     elif args.command == "compile":
         src = Path(args.markdown_file).resolve()
         if src.is_dir() and (src / "flow.md").is_file():
@@ -252,7 +285,8 @@ def main():
             target = compile_markdown_to_json(src, output_json_path=out)
             print(f"Successfully compiled: {src}")
             print(f"Output saved to:       {target}")
-            sys.exit(0)
+            issues = report_validation(load_flow(target))
+            sys.exit(1 if issues and args.strict else 0)
         except Exception as e:
             print(f"Compilation error: {e}", file=sys.stderr)
             sys.exit(1)
@@ -323,6 +357,7 @@ def main():
         except Exception as e:
             print(f"Error loading flow at '{resolved_path}': {str(e)}", file=sys.stderr)
             sys.exit(1)
+        report_validation(flow_def)
 
         extra_vars = {}
         if args.vars:

@@ -13,12 +13,47 @@ class SubflowExecutionError(RuntimeError):
         self.child_context = child_context
 
 
+class BusinessRuleError(RuntimeError):
+    """A business exception: the data or situation breaks a rule. Recorded as error type Business and never retried."""
+
+
+class FlowFailedError(RuntimeError):
+    """A technical failure raised on purpose by flow.fail with category 'technical'."""
+
+
+def is_business_error(exc: BaseException) -> bool:
+    """Business exceptions are recognized by class name, so actions can define their own *Business* errors."""
+    return "Business" in type(exc).__name__
+
+
+@register_action("flow.fail")
+class FlowFailAction(BaseAction):
+    """
+    Stops the flow with a clear message, typically under a condition, for example when expected data is missing.
+    Parameters:
+      - message: Text recorded as the error message and shown to whoever handles the failure.
+      - category: 'business' (default, not retried) or 'technical'.
+    """
+    accepted_parameters = ('message', 'category')
+
+    def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
+        message = str(parameters.get("message") or "Flow stopped by flow.fail")
+        category = str(parameters.get("category", "business")).lower()
+        if category == "business":
+            raise BusinessRuleError(message)
+        if category == "technical":
+            raise FlowFailedError(message)
+        raise ValueError(f"flow.fail: category must be 'business' or 'technical', got '{category}'")
+
+
 @register_action("flow.call")
 class FlowCallAction(BaseAction):
     """
     Executes an external child flow (subflow) within an isolated context.
     Main execution logic is handled by FlowInterpreter._handle_flow_call_step.
     """
+    accepted_parameters = ('flow', 'inputs', 'outputs', 'propagate_sessions')
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         return {"action": "flow.call"}
 
@@ -30,6 +65,8 @@ class FlowReturnAction(BaseAction):
     Parameters:
       - value: Payload (dict, list, string, number, or primitive) to return to caller.
     """
+    accepted_parameters = ('value',)
+
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         value = parameters.get("value")
         context.set_variable("__return_value__", value)

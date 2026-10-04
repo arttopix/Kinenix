@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 from .evaluator import VariableEvaluator
 from .logger import ExecutionLogger
 from ..actions.registry import ActionRegistry
-from ..actions.flow_control import SubflowExecutionError
+from ..actions.flow_control import SubflowExecutionError, is_business_error
 from ..models.context import ExecutionContext, StepResult, FailureDetails, local_now
 from ..models.flow import FlowDefinition, Step
 
@@ -116,7 +116,7 @@ class FlowInterpreter:
     def _diagnose_failure(self, step: Step, exc: Exception, context: Optional[ExecutionContext] = None) -> FailureDetails:
         exc_class = type(exc).__name__
         err_msg = str(exc)
-        error_type = "Business" if "Business" in exc_class else "Technical"
+        error_type = "Business" if is_business_error(exc) else "Technical"
 
         error_screenshot_path = None
         if context:
@@ -302,7 +302,8 @@ class FlowInterpreter:
                 return
             except Exception as e:
                 last_error = e
-                if attempt < max_retries:
+                # Business errors (bad data, a rule not met) fail the same way on every attempt
+                if attempt < max_retries and not is_business_error(e):
                     attempt += 1
                     self.logger.logger.warning(
                         f"Step '{step.id}' ({step.name}) failed attempt {attempt}/{max_retries + 1}: {e}. "

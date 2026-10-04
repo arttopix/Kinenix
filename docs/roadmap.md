@@ -77,6 +77,9 @@ Orchestrator -> versioned job bundle -> Worker (WebSocket) -> kinenix-core execu
 - [x] Project bundles (`flow.call`, `@shared/`, `config.json`, `.env`)
 - [x] `flow.md` authoring format with compiler to `flow.json`
 - [x] Local AI actions: `ai.prompt`, `ai.extract` (Ollama), `ai.decide` (OpenThai-SystemOne)
+- [x] `flow.md` as the single source with automatic `flow.json` sync and a CI consistency check
+- [x] Flow validation (`kinenix validate`): unknown actions and ignored parameters, with suggestions
+- [x] Business exceptions with `flow.fail` (recorded as Business, never retried); `web.click` waits for a response; `web.get_table`
 
 ### Phase 2: Studio (`kinenix-studio`) - In progress
 - [x] FastAPI backend: flow discovery, read/save with schema validation, step update, action metadata, run
@@ -108,6 +111,7 @@ Orchestrator -> versioned job bundle -> Worker (WebSocket) -> kinenix-core execu
 - [x] Verified on Raspberry Pi 4 (ARM64) with setup script
 - [x] Heartbeat sender to the Orchestrator (`kinenix-worker ping`, busy/online/offline status)
 - [x] systemd service installed by the setup script (`install_service.sh`), starts the daemon at boot
+- [x] Cron schedules (`"cron": "0 8 1 * *"` in `triggers.json`, `kinenix-worker schedule --cron`)
 - [ ] WebSocket job client (see 1.7)
 - [ ] Bundle packaging (`.kinpkg`), download, and local cache
 - [ ] Real-time log and screenshot streaming
