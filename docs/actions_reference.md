@@ -12,6 +12,7 @@ This document provides a comprehensive specification of standard actions availab
    - [web.type](#webtype)
    - [web.get_text](#webget_text)
    - [web.get_attribute](#webget_attribute)
+   - [web.get_table](#webget_table)
    - [web.wait_for](#webwait_for)
    - [web.is_visible](#webis_visible)
    - [web.press](#webpress)
@@ -66,7 +67,7 @@ Launches a browser instance and navigates to a target URL.
 **Parameters:**
 | Parameter | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `url` | string | Yes | - | URL of the website to open |
+| `url` | string | Yes | - | URL of the website to open. If the parameter is given but resolves to an empty value (for example `${config.url}` with no config loaded), the step fails instead of opening a blank page |
 | `headless` | boolean | No | `false` | Run browser in headless mode |
 | `timeout` | number | No | `30000` | Navigation timeout in milliseconds |
 
@@ -217,6 +218,52 @@ Extracts an HTML attribute value (such as `href`, `src`, `value`, `class`, or `d
   "output_var": "file_url"
 }
 ```
+
+---
+
+### `web.get_table`
+Reads an HTML `<table>` into a list of rows, one dictionary per row keyed by the header cells (`<thead> <th>`, or the first row when there is no header). Empty rows are skipped and cell text is trimmed. When the selector matches several tables, the first is used; add `:visible` to read the table currently shown (for example in tabs).
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `selector` | string | Either | - | CSS selector or XPath of the table |
+| `label` | string | Either | - | Label identifier |
+| `columns` | list / dict | No | all columns | A list keeps only those columns, in that order. A dict keeps and renames them (`{"Source Header": "New Name"}`). A missing column fails the step and lists the actual headers |
+| `numeric_columns` | list | No | `[]` | Columns (after renaming) converted to numbers; thousands separators are removed, and blank or `-` cells become empty. Text that is not a number fails the step |
+| `add_columns` | dict | No | `{}` | Fixed values added as the first columns of every row, for example the currency a table belongs to |
+| `min_rows` | number | No | `0` | Fail the step when fewer rows are found, so an empty result stops the flow instead of producing an empty report |
+| `timeout` | number | No | `30000` | Milliseconds to wait for the table to exist |
+
+**Example in `flow.md` (Markdown):**
+```markdown
+### step_read_rates. Read Currency Table (`web.get_table`)
+- **output_var:** `currency_rows`
+- **selector:** `.results table:visible`
+- **columns:** {"Period": "Date", "Buying Rates Transfer": "Buying Transfer Rate"}
+- **numeric_columns:** ["Buying Transfer Rate"]
+- **add_columns:** {"Currency": "${currency}"}
+- **min_rows:** 1
+```
+
+**Compiled `flow.json`:**
+```json
+{
+  "id": "step_read_rates",
+  "name": "Read Currency Table",
+  "action": "web.get_table",
+  "parameters": {
+    "selector": ".results table:visible",
+    "columns": {"Period": "Date", "Buying Rates Transfer": "Buying Transfer Rate"},
+    "numeric_columns": ["Buying Transfer Rate"],
+    "add_columns": {"Currency": "${currency}"},
+    "min_rows": 1
+  },
+  "output_var": "currency_rows"
+}
+```
+
+Returns, for example: `[{"Currency": "USD", "Date": "30 Dec 2024", "Buying Transfer Rate": 33.8296}, ...]`.
 
 ---
 
@@ -695,7 +742,7 @@ Reads an Excel sheet into an in-memory list of dictionaries (records).
 ---
 
 ### `excel.write`
-Writes a list of dictionaries or single dictionary to an Excel spreadsheet.
+Writes a list of dictionaries or single dictionary to an Excel spreadsheet. A relative `file_path` is resolved against the flow bundle directory, like `csv.write`, and missing folders are created. Rows are written in the order given, so group them before writing (for example by appending one currency at a time).
 
 **Parameters:**
 | Parameter | Type | Required | Default | Description |
@@ -703,13 +750,15 @@ Writes a list of dictionaries or single dictionary to an Excel spreadsheet.
 | `file_path` | string | Yes | - | Output path for generated Excel workbook |
 | `data` | list / dict | Yes | `[]` | List of dictionaries or data records to export |
 | `sheet_name` | string | No | `"Sheet1"` | Destination sheet name |
+| `columns` | list | No | data order | Column order; columns missing from the data are added empty |
 
 **Example in `flow.md` (Markdown):**
 ```markdown
 ### step_save_audit. Save Non-Programmers Audit Report (`excel.write`)
-- **file_path:** ./assets/non_programmers_audit.xlsx
+- **file_path:** ./output/non_programmers_audit.xlsx
 - **data:** ${non_programmers}
 - **sheet_name:** AuditReport
+- **columns:** ["First Name", "Role in Company"]
 ```
 
 **Compiled `flow.json`:**
@@ -719,9 +768,10 @@ Writes a list of dictionaries or single dictionary to an Excel spreadsheet.
   "name": "Save Non-Programmers Audit Report",
   "action": "excel.write",
   "parameters": {
-    "file_path": "./assets/non_programmers_audit.xlsx",
+    "file_path": "./output/non_programmers_audit.xlsx",
     "data": "${non_programmers}",
-    "sheet_name": "AuditReport"
+    "sheet_name": "AuditReport",
+    "columns": ["First Name", "Role in Company"]
   }
 }
 ```
@@ -948,12 +998,17 @@ Every step in Kinenix can define an optional `error_handler` strategy to make ex
 | `retry_interval` | number | No | `1.0` | Delay in seconds between retry attempts |
 | `fallback_step_id` | string | No | `null` | Target step ID to execute as a recovery handler upon step failure |
 
+In `flow.md`, write the fields as ordinary step keys. The compiler moves them into `error_handler`; they are not passed to the action. The JSON form `- **error_handler:** {"on_error": "retry", ...}` is also accepted.
+
 **Example with Retry and Fallback Recovery in `flow.md` (Markdown):**
 ```markdown
 ### step_fetch_orders. Fetch Orders API (`http.request`)
 - **output_var:** `orders_data`
 - **url:** https://api.example.com/orders
-- **error_handler:** {"on_error": "retry", "max_retries": 3, "retry_interval": 2.0, "fallback_step_id": "step_use_offline_cache"}
+- **on_error:** retry
+- **max_retries:** 3
+- **retry_interval:** 2.0
+- **fallback_step_id:** step_use_offline_cache
 ```
 
 **Compiled `flow.json`:**
@@ -1168,28 +1223,46 @@ Appends an item, dictionary, or primitive value to a list in context variables. 
 |---|---|---|---|
 | `target` | string | Yes | Name of the list variable in context |
 | `item` | any | Yes | Item or object to append |
+| `extend` | boolean | No | When `true`, `item` must be a list and each of its elements is appended (for example the rows returned by `web.get_table`), instead of the list as one item. Default `false` |
 
 **Example in `flow.md` (Markdown):**
 ```markdown
 ### append_record. Add Non-Programmer to List (`logic.append`)
 - **target:** non_programmers
 - **item:** {"First Name": "${row.First Name}", "Role in Company": "${row.Role in Company}"}
+
+### append_rows. Collect Currency Rows (`logic.append`)
+- **target:** fx_rows
+- **item:** `${currency_rows}`
+- **extend:** true
 ```
 
 **Compiled `flow.json`:**
 ```json
-{
-  "id": "append_record",
-  "name": "Add Non-Programmer to List",
-  "action": "logic.append",
-  "parameters": {
-    "target": "non_programmers",
-    "item": {
-      "First Name": "${row.First Name}",
-      "Role in Company": "${row.Role in Company}"
+[
+  {
+    "id": "append_record",
+    "name": "Add Non-Programmer to List",
+    "action": "logic.append",
+    "parameters": {
+      "target": "non_programmers",
+      "item": {
+        "First Name": "${row.First Name}",
+        "Role in Company": "${row.Role in Company}"
+      }
+    }
+  },
+  {
+    "id": "append_rows",
+    "name": "Collect Currency Rows",
+    "action": "logic.append",
+    "parameters": {
+      "target": "fx_rows",
+      "item": "${currency_rows}",
+      "extend": true
     }
   }
-}
+]
 ```
 
 ---

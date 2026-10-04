@@ -82,6 +82,11 @@ class WebOpenAction(BaseAction):
         headless = bool(parameters.get("headless", False))
         timeout = float(parameters.get("timeout", 30000))
 
+        # A 'url' that resolves to nothing (e.g. ${config.url} with a missing config) must fail here,
+        # not later on a blank page; omit 'url' entirely to open a blank page on purpose
+        if "url" in parameters and not url:
+            raise ValueError("web.open: 'url' is empty. Check that the variable it refers to (for example config.url) is set.")
+
         pw: Optional[Playwright] = context.get_variable("__playwright_pw__")
         browser: Optional[Browser] = context.get_variable("__playwright_browser__")
 
@@ -137,6 +142,78 @@ class WebGetTextAction(BaseAction):
         locator = _resolve_locator(page, parameters)
         text = locator.first.inner_text()
         return text
+
+
+_TABLE_TO_ROWS_JS = """
+table => {
+    const clean = el => (el.innerText || '').replace(/\\s+/g, ' ').trim();
+    const rows = Array.from(table.querySelectorAll('tr'));
+    let headerCells = table.querySelectorAll('thead tr th');
+    let bodyRows = Array.from(table.querySelectorAll('tbody tr'));
+    if (headerCells.length === 0 && rows.length > 0) {
+        headerCells = rows[0].querySelectorAll('th, td');
+        bodyRows = rows.slice(1);
+    } else if (bodyRows.length === 0) {
+        bodyRows = rows.filter(r => r.querySelector('td'));
+    }
+    const headers = Array.from(headerCells).map((c, i) => clean(c) || `Column ${i + 1}`);
+    const data = bodyRows
+        .map(r => Array.from(r.querySelectorAll('th, td')).map(clean))
+        .filter(cells => cells.some(v => v !== ''));
+    return {headers, data};
+}
+"""
+
+
+@register_action("web.get_table")
+class WebGetTableAction(BaseAction):
+    """Reads an HTML <table> into a list of row dicts keyed by the header cells."""
+
+    def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
+        page = _get_page(context)
+        locator = _resolve_locator(page, parameters).first
+        timeout = float(parameters.get("timeout", 30000))
+        columns = parameters.get("columns")
+        add_columns = parameters.get("add_columns") or {}
+        min_rows = int(parameters.get("min_rows", 0))
+
+        locator.wait_for(state="attached", timeout=timeout)
+        table = locator.evaluate(_TABLE_TO_ROWS_JS)
+        headers = table["headers"]
+        rows = [dict(zip(headers, cells)) for cells in table["data"]]
+
+        # columns: a list keeps those columns in that order; a dict also renames {source: target}
+        if columns:
+            mapping = columns if isinstance(columns, dict) else {name: name for name in columns}
+            missing = [name for name in mapping if name not in headers]
+            if missing:
+                raise ValueError(f"web.get_table: column(s) {missing} not found; table headers are {headers}")
+            rows = [{target: row.get(source, "") for source, target in mapping.items()} for row in rows]
+
+        # numeric_columns: convert cell text such as "1,234.50" to numbers; blank cells become None
+        for name in parameters.get("numeric_columns") or []:
+            for row in rows:
+                if name not in row:
+                    raise ValueError(f"web.get_table: numeric column '{name}' not found; columns are {list(row)}")
+                text = str(row[name]).replace(",", "").strip()
+                if text in ("", "-"):
+                    row[name] = None
+                    continue
+                try:
+                    row[name] = float(text)
+                except ValueError:
+                    raise ValueError(f"web.get_table: value '{row[name]}' in column '{name}' is not a number") from None
+
+        if add_columns:
+            if not isinstance(add_columns, dict):
+                raise ValueError("web.get_table: 'add_columns' must be a mapping of column name to value.")
+            rows = [{**add_columns, **row} for row in rows]
+
+        if len(rows) < min_rows:
+            raise ValueError(
+                f"web.get_table: expected at least {min_rows} row(s) in '{parameters.get('selector')}', found {len(rows)}."
+            )
+        return rows
 
 
 @register_action("web.screenshot")

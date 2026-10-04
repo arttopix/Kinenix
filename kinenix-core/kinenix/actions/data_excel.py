@@ -48,6 +48,18 @@ class ExcelWriteAction(BaseAction):
         file_path = parameters.get("file_path")
         data = parameters.get("data", [])
         sheet_name = parameters.get("sheet_name", "Sheet1")
+        columns = parameters.get("columns")
+
+        if not file_path:
+            raise ValueError("Parameter 'file_path' is required for action 'excel.write'.")
+
+        # Relative paths belong to the flow bundle, like csv.write, not to the current directory
+        target_path = Path(file_path)
+        if not target_path.is_absolute():
+            flow_dir_str = context.get_variable("__flow_dir__")
+            if flow_dir_str:
+                target_path = Path(flow_dir_str) / file_path
+        target_path.parent.mkdir(parents=True, exist_ok=True)
 
         if isinstance(data, list):
             df = pd.DataFrame(data)
@@ -56,8 +68,14 @@ class ExcelWriteAction(BaseAction):
         else:
             raise ValueError("Data for excel.write must be a list of dicts or a dict.")
 
-        df.to_excel(file_path, sheet_name=sheet_name, index=False)
-        return {"rows_written": len(df), "file_path": file_path}
+        if columns and isinstance(columns, list):
+            for col in columns:
+                if col not in df.columns:
+                    df[col] = ""
+            df = df[columns]
+
+        df.to_excel(target_path, sheet_name=sheet_name, index=False)
+        return {"rows_written": len(df), "file_path": str(target_path)}
 
 
 @register_action("csv.write")

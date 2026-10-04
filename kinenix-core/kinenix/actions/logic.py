@@ -54,6 +54,13 @@ class AppendAction(BaseAction):
         elif not isinstance(current, list):
             raise TypeError(f"Target variable '{target}' must be a list, got {type(current).__name__}")
 
+        # extend: true adds each element of a list item (e.g. the rows from web.get_table) instead of the list itself
+        if parameters.get("extend"):
+            if not isinstance(item, list):
+                raise TypeError(f"logic.append with 'extend' requires a list item, got {type(item).__name__}")
+            current.extend(item)
+            return {"target": target, "total_items": len(current), "appended_count": len(item)}
+
         current.append(item)
         return {"target": target, "total_items": len(current), "appended": item}
 
