@@ -32,6 +32,17 @@ _ALT_ELSE_STEPS_REGEX = re.compile(
     r"^-\s+(?:Else-steps|else_steps):\s*$", re.IGNORECASE
 )
 
+# Step keys that configure retry and failure behavior; they belong to Step.error_handler, not to the
+# action parameters, because the interpreter reads them from error_handler only
+ERROR_HANDLER_KEYS = ("on_error", "max_retries", "retry_interval", "fallback_step_id")
+
+
+def _error_handler_lines(step: Step, pad: str) -> List[str]:
+    if not step.error_handler:
+        return []
+    values = step.error_handler.model_dump(exclude_defaults=True)
+    return [f"{pad}- **{key}:** {format_value(values[key])}" for key in ERROR_HANDLER_KEYS if key in values]
+
 
 def parse_value(val_str: str) -> Any:
     """Parse a string into a typed Python value (bool, int, float, json, or str)."""
@@ -180,6 +191,10 @@ def _parse_sub_steps_block(lines: List[Tuple[int, str, int]], parent_id: str) ->
                     step_dict["description"] = str(val)
                 elif key == "id":
                     step_dict["id"] = str(val)
+                elif key in ERROR_HANDLER_KEYS:
+                    step_dict.setdefault("error_handler", {})[key] = val
+                elif key == "error_handler" and isinstance(val, dict):
+                    step_dict.setdefault("error_handler", {}).update(val)
                 else:
                     step_dict["parameters"][key] = val
             i += 1
@@ -358,6 +373,10 @@ def markdown_to_flow(md_content: str) -> FlowDefinition:
                     step_dict["description"] = str(val)
                 elif key == "id":
                     step_dict["id"] = str(val)
+                elif key in ERROR_HANDLER_KEYS:
+                    step_dict.setdefault("error_handler", {})[key] = val
+                elif key == "error_handler" and isinstance(val, dict):
+                    step_dict.setdefault("error_handler", {}).update(val)
                 else:
                     step_dict["parameters"][key] = val
             i += 1
@@ -391,7 +410,8 @@ def _serialize_sub_steps(steps: List[Step], indent_spaces: int = 2) -> List[str]
             lines.append(f"{param_pad}- **output_var:** `{s.output_var}`")
         for k, v in s.parameters.items():
             lines.append(f"{param_pad}- **{k}:** {format_value(v)}")
-        
+        lines.extend(_error_handler_lines(s, param_pad))
+
         if s.sub_steps:
             lines.append(f"{param_pad}- **Sub-steps:**")
             lines.extend(_serialize_sub_steps(s.sub_steps, indent_spaces=indent_spaces + 4))
@@ -444,6 +464,7 @@ def flow_to_markdown(flow: FlowDefinition) -> str:
             doc.append(f"- **output_var:** `{step.output_var}`")
         for k, v in step.parameters.items():
             doc.append(f"- **{k}:** {format_value(v)}")
+        doc.extend(_error_handler_lines(step, ""))
 
         if step.sub_steps:
             doc.append("- **Sub-steps:**")
@@ -468,17 +489,17 @@ def load_flow(path_or_content: Union[str, Path]) -> FlowDefinition:
         p = Path(path_or_content).resolve()
         if p.is_dir():
             if (p / "flow.md").is_file():
-                return markdown_to_flow((p / "flow.md").read_text(encoding="utf-8"))
+                return markdown_to_flow((p / "flow.md").read_text(encoding="utf-8-sig"))
             elif (p / "flow.json").is_file():
-                raw = json.loads((p / "flow.json").read_text(encoding="utf-8"))
+                raw = json.loads((p / "flow.json").read_text(encoding="utf-8-sig"))
                 return FlowDefinition.model_validate(raw)
             else:
                 raise FileNotFoundError(f"Neither flow.md nor flow.json found in bundle directory: {p}")
         
         if p.suffix.lower() == ".md":
-            return markdown_to_flow(p.read_text(encoding="utf-8"))
+            return markdown_to_flow(p.read_text(encoding="utf-8-sig"))
         elif p.suffix.lower() == ".json":
-            raw = json.loads(p.read_text(encoding="utf-8"))
+            raw = json.loads(p.read_text(encoding="utf-8-sig"))
             return FlowDefinition.model_validate(raw)
         else:
             raise ValueError(f"Unsupported flow file extension: {p.suffix} (expected .md or .json)")
@@ -500,7 +521,7 @@ def compile_markdown_to_json(md_path: Path, output_json_path: Optional[Path] = N
     if not md_path.is_file():
         raise FileNotFoundError(f"Markdown flow file not found: {md_path}")
 
-    flow = markdown_to_flow(md_path.read_text(encoding="utf-8"))
+    flow = markdown_to_flow(md_path.read_text(encoding="utf-8-sig"))
     
     if output_json_path is None:
         output_json_path = md_path.parent / "flow.json"
@@ -522,6 +543,51 @@ def compile_markdown_to_json(md_path: Path, output_json_path: Optional[Path] = N
     return output_json_path
 
 
+class FlowSync:
+    """Results of sync_flow_json."""
+    NO_MARKDOWN = "no_markdown"    # flow.json has no flow.md next to it; nothing to do
+    UP_TO_DATE = "up_to_date"      # flow.json already matches flow.md
+    CREATED = "created"            # flow.json did not exist and was compiled
+    COMPILED = "compiled"          # flow.md changed after flow.json; flow.json was recompiled
+    JSON_NEWER = "json_newer"      # flow.json was edited after flow.md (e.g. in Studio); left untouched
+
+
+def _same_flow(a: FlowDefinition, b: FlowDefinition) -> bool:
+    return a.model_dump(exclude_none=True) == b.model_dump(exclude_none=True)
+
+
+def sync_flow_json(md_path: Path) -> str:
+    """Keep the build artifact flow.json in line with its source flow.md before a run.
+
+    flow.md is the source of truth. The files are compared by content, not timestamps, because
+    git checkouts reset modification times. When they differ, timestamps only decide the direction:
+    a newer flow.md is recompiled; a newer flow.json was edited directly and is left untouched so
+    the edit is not lost (the caller should warn). Returns a FlowSync value.
+    """
+    md_path = Path(md_path).resolve()
+    json_path = md_path.parent / "flow.json"
+    if not md_path.is_file():
+        return FlowSync.NO_MARKDOWN
+
+    if not json_path.is_file():
+        compile_markdown_to_json(md_path, json_path)
+        return FlowSync.CREATED
+
+    md_flow = markdown_to_flow(md_path.read_text(encoding="utf-8-sig"))
+    try:
+        json_flow = FlowDefinition.model_validate(json.loads(json_path.read_text(encoding="utf-8-sig")))
+    except (ValueError, OSError):
+        json_flow = None  # unreadable or invalid flow.json is rebuilt from the source
+    if json_flow is not None and _same_flow(md_flow, json_flow):
+        return FlowSync.UP_TO_DATE
+
+    if json_flow is not None and json_path.stat().st_mtime > md_path.stat().st_mtime:
+        return FlowSync.JSON_NEWER
+
+    compile_markdown_to_json(md_path, json_path)
+    return FlowSync.COMPILED
+
+
 def export_json_to_markdown(json_path: Path, output_md_path: Optional[Path] = None) -> Path:
     """
     Exports a flow.json file into a human-readable flow.md.
@@ -530,7 +596,7 @@ def export_json_to_markdown(json_path: Path, output_md_path: Optional[Path] = No
     if not json_path.is_file():
         raise FileNotFoundError(f"JSON flow file not found: {json_path}")
 
-    raw = json.loads(json_path.read_text(encoding="utf-8"))
+    raw = json.loads(json_path.read_text(encoding="utf-8-sig"))
     flow = FlowDefinition.model_validate(raw)
     md_text = flow_to_markdown(flow)
 

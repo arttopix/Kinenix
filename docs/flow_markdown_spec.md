@@ -18,6 +18,23 @@ In kinenix, automation workflows maintain a **Dual-Representation Lifecycle**:
 
 > **Compilation Principle:** `flow.md` is compiled ahead-of-time (AOT) into `flow.json`. The execution runtime (`kinenix-core` and `kinenix-worker`) strictly executes `flow.json` to guarantee sub-millisecond execution speeds, zero hallucination, and pre-flight validation.
 
+### Source of Truth
+
+In a bundle that has a `flow.md`, **`flow.md` is the only file you edit**. `flow.json` is its build output: it stays in git so Studio, workers, and schema tools can read it, but it is never edited by hand.
+
+Before every run, `kinenix run` and `kinenix-worker run` compare the two files by content (not by timestamp, because `git checkout` resets timestamps):
+
+| Situation | What happens |
+| :--- | :--- |
+| `flow.json` missing | Compiled from `flow.md`, then run |
+| Same content | Runs `flow.json` |
+| `flow.md` changed after `flow.json` | `flow.json` is recompiled, then run |
+| `flow.json` changed after `flow.md` (e.g. edited in Studio) | A warning is shown and `flow.json` runs unchanged, so the edit is not lost. Keep it with `kinenix export-md <bundle>` (regenerates `flow.md`, losing hand formatting) or discard it with `kinenix compile <bundle>` |
+
+The `kinenix-core` test suite also checks that every committed `flow.json` under `flows/` matches its `flow.md`, so CI fails when a compile was forgotten. Files with a UTF-8 BOM (written by Windows PowerShell 5 and some editors) are read correctly.
+
+Studio currently saves to `flow.json` only, which triggers the warning above until the bundle is exported or recompiled.
+
 ---
 
 ## 2. The 5 Golden Rules of `flow.md`
@@ -100,6 +117,7 @@ All parameters passed to the action must be written as Markdown bullet items dir
 - **Number:** `- **timeout:** 5000` or `- **delay:** 1.5`
 - **Dynamic Variable Expression:** `- **url:** ${config.website}`
 - **Output Variable:** `- **output_var:** my_result` (stores action result in context)
+- **Error Handling:** `- **on_error:** retry`, `- **max_retries:** 2`, `- **retry_interval:** 3.0`, `- **fallback_step_id:** step_9`. These four keys are compiled into the step's `error_handler`, not into the action parameters (see [Step Resilience & Error Handling](actions_reference.md#step-resilience--error-handling-error_handler)).
 
 #### Example
 ```markdown

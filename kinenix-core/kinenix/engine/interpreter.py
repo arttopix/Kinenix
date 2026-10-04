@@ -489,7 +489,7 @@ class FlowInterpreter:
 
         if config_file:
             try:
-                config_data = json.loads(config_file.read_text(encoding="utf-8"))
+                config_data = json.loads(config_file.read_text(encoding="utf-8-sig"))
                 if isinstance(config_data, dict):
                     applied = self._apply_config_data(config_data, context)
                     self.logger.logger.info(f"Loaded project configuration from {config_file.name} ({len(applied)} keys)")
@@ -502,7 +502,7 @@ class FlowInterpreter:
                 f"(Tip: Copy '{template_file.name}' to 'config.json' to customize your project settings)."
             )
             try:
-                config_data = json.loads(template_file.read_text(encoding="utf-8"))
+                config_data = json.loads(template_file.read_text(encoding="utf-8-sig"))
                 if isinstance(config_data, dict):
                     applied = self._apply_config_data(config_data, context)
             except Exception as e:
@@ -520,7 +520,7 @@ class FlowInterpreter:
                 self.logger.logger.warning(f"Failed to load .env from {env_file}: {str(e)}")
 
     def _load_env_file(self, env_path: Path) -> None:
-        lines = env_path.read_text(encoding="utf-8").splitlines()
+        lines = env_path.read_text(encoding="utf-8-sig").splitlines()
         for line in lines:
             line = line.strip()
             if not line or line.startswith("#") or "=" not in line:
@@ -608,7 +608,7 @@ class FlowInterpreter:
 
         # 3. Load child FlowDefinition
         try:
-            data = json.loads(resolved_path.read_text(encoding="utf-8"))
+            data = json.loads(resolved_path.read_text(encoding="utf-8-sig"))
             subflow_def = FlowDefinition.model_validate(data)
         except Exception as e:
             raise RuntimeError(f"Failed to load subflow definition from '{resolved_path}': {str(e)}") from e
