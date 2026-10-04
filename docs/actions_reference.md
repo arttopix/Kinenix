@@ -1506,12 +1506,22 @@ Constructs and dispatches an email message with support for plain text, HTML bod
 | `cc` | string / list | No | `null` | Carbon copy recipient address(es) |
 | `bcc` | string / list | No | `null` | Blind carbon copy recipient address(es) |
 | `attachments` | list | No | `[]` | List of file paths to attach (relative to flow or absolute) |
-| `smtp_host` | string | No | `"smtp.gmail.com"` | SMTP server hostname (or `${env.SMTP_HOST}`) |
-| `smtp_port` | number | No | `587` | SMTP port (typically 587 for TLS, 465 for SSL) |
-| `smtp_user` | string | No | `${env.GMAIL_USER}` | Sender username / email address |
-| `smtp_password` | string | No | `${env.GMAIL_APP_PASSWORD}` | Sender password / Google App Password |
+| `smtp_host` | string | No | `$SMTP_HOST` or `"smtp.gmail.com"` | SMTP server hostname |
+| `smtp_port` | number | No | `$SMTP_PORT` or `587` | SMTP port (587 with STARTTLS) |
+| `smtp_user` | string | No | see below | Sender username / email address |
+| `smtp_password` | string | No | see below | Sender password or app password |
 | `use_tls` | boolean | No | `true` | Establish STARTTLS secure connection |
-| `dry_run` | boolean | No | `false` | When true, formats message without sending to SMTP |
+| `dry_run` | boolean | No | `false` | When true, checks recipients and that every attachment exists, without sending |
+
+Any SMTP provider works; the result's `channel` names the server used, for example `SMTP smtp.office365.com:587`. Keep credentials in environment variables, never in `flow.md` or `config.json`. Without `smtp_user` and `smtp_password` parameters, the action uses `SMTP_USER` and `SMTP_PASSWORD` when `SMTP_USER` is set, otherwise `GMAIL_USER` and `GMAIL_APP_PASSWORD`; the two pairs are never mixed.
+
+| Provider | `SMTP_HOST` | `SMTP_PORT` | Notes |
+|---|---|---|---|
+| Gmail | `smtp.gmail.com` (default) | `587` | Needs 2-Step Verification and an app password |
+| Outlook / Microsoft 365 | `smtp.office365.com` | `587` | Many organizations disable password-based SMTP; ask IT to enable SMTP AUTH for the sending mailbox |
+| Company mail server | from IT | from IT | Set `use_tls` to match the server |
+
+The message is `multipart/mixed`: the body (plain text, HTML, or both as alternatives) followed by the attachments. Tests send through a local fake SMTP server and check the recipients, headers, body parts, and attachment bytes.
 
 **Example in `flow.md` (Markdown):**
 ```markdown
