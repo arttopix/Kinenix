@@ -124,7 +124,7 @@ When the key is unset, the Orchestrator still binds to the network but refuses r
 
    ```powershell
    $env:KINENIX_ORCHESTRATOR_API_KEY = "<generated-key>"
-   kinenix run flows/examples/BOT --orchestrator http://<orchestrator-ip>:8080
+   kinenix run flows/examples/rpachallenge --orchestrator http://<orchestrator-ip>:8080
    ```
 
    The Orchestrator URL can also be set with `KINENIX_ORCHESTRATOR_URL` instead of `--orchestrator`.
