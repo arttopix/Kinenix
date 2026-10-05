@@ -81,17 +81,20 @@ kinenix install-browsers
 
 ### Installation
 
-#### From PyPI (core engine and CLI)
+#### From PyPI
 
-The core engine is published on PyPI as [`kinenix`](https://pypi.org/project/kinenix/):
+Kinenix is published on PyPI as [`kinenix`](https://pypi.org/project/kinenix/), with the worker and the Hub as extras (from version 0.2.0b1; all packages share one version):
 
 ```bash
-pip install kinenix
-kinenix install-browsers   # Playwright Chromium, needed for web actions
+pip install kinenix              # core engine and the kinenix CLI
+pip install "kinenix[worker]"    # plus kinenix-worker: unattended runs, schedules, cron
+pip install "kinenix[hub]"       # plus kinenix-hub: central server and dashboard (`kinenix hub`)
+
+kinenix install-browsers         # Playwright Chromium, needed for web actions
 kinenix --version
 ```
 
-The worker, Studio, and Hub are not on PyPI yet. Install them from source as shown below.
+Kinenix Studio is not on PyPI yet; install it from source as shown below. Maintainers: see [docs/releasing.md](docs/releasing.md).
 
 #### From source (all modules, for development)
 

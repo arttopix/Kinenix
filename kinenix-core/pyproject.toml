@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kinenix"
-version = "0.1.0b1"
+dynamic = ["version"]
 description = "Core execution engine and standard action libraries for Kinenix RPA platform"
 readme = "README.md"
 license = "MIT"
@@ -30,6 +30,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# One-command installs; all Kinenix packages are released together with the same version
+hub = ["kinenix-hub>=0.2.0b1"]
+worker = ["kinenix-worker>=0.2.0b1"]
 dev = [
     "pytest>=7.0.0"
 ]
@@ -41,6 +44,9 @@ Issues = "https://github.com/arttopix/Kinenix/issues"
 
 [project.scripts]
 kinenix = "kinenix.cli:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "kinenix.__version__" }
 
 [tool.setuptools.packages.find]
 include = ["kinenix*"]

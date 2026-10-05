@@ -1,0 +1,83 @@
+name: Release
+
+# Publishes kinenix, kinenix-hub, and kinenix-worker together.
+#   Push a tag such as v0.2.0b1      -> publish to PyPI
+#   Run this workflow by hand        -> publish to TestPyPI, to try a release first
+# Uses PyPI Trusted Publishing: no API token is stored in GitHub. See docs/releasing.md.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install build tools
+        run: python -m pip install build twine
+
+      - name: Build distributions
+        run: |
+          for package in kinenix-core kinenix-hub kinenix-worker; do
+            python -m build --outdir dist "$package"
+          done
+
+      - name: Check metadata
+        run: python -m twine check --strict dist/*
+
+      - name: Check versions and tag
+        run: python .github/scripts/check_release.py dist "${{ github.ref_type == 'tag' && github.ref_name || '' }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  testpypi:
+    name: Publish to TestPyPI
+    if: github.event_name == 'workflow_dispatch'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/project/kinenix/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  pypi:
+    name: Publish to PyPI
+    if: github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/kinenix/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - uses: pypa/gh-action-pypi-publish@release/v1

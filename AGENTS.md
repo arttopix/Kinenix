@@ -51,6 +51,8 @@ CLI output in `kinenix-worker` and `kinenix hub` is rendered with `rich` (`kinen
 
 Run the test suites for every module you touch before reporting work as done. GitHub Actions (`.github/workflows/ci.yml`) runs the same commands on every push and pull request to `main` and `dev`; keep the workflow in sync when these commands change.
 
+`kinenix`, `kinenix-hub`, and `kinenix-worker` are published to PyPI together with one version (`pip install "kinenix[hub]"`, `"kinenix[worker]"`); the version lives in each package's `__version__`. Releases are tag-driven through `.github/workflows/release.yml`; follow [docs/releasing.md](docs/releasing.md) and never reuse a released version number. `kinenix-studio` is not published.
+
 ## Rules Index
 
 Read the matching file before working in that area:

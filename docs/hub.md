@@ -6,11 +6,13 @@ The Kinenix Hub (`kinenix-hub`) receives worker heartbeats and execution telemet
 
 ## 1. Starting the Hub
 
-Install it once (it is a separate package from `kinenix-core`):
+Install it once. From PyPI (version 0.2.0b1 and later):
 
 ```powershell
-pip install -e kinenix-hub
+pip install "kinenix[hub]"
 ```
+
+From a clone of the repository, for development: `pip install -e kinenix-core -e kinenix-hub`.
 
 ```powershell
 # Local only (default): dashboard at http://127.0.0.1:8080
