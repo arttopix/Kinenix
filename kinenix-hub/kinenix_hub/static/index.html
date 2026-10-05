@@ -18,8 +18,8 @@
   <nav class="border-b border-slate-800 bg-slate-900/60 backdrop-blur sticky top-0 z-40">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center text-xl shadow-lg shadow-sky-500/20">
-          🦇
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center text-xl font-bold text-white shadow-lg shadow-sky-500/20">
+          K
         </div>
         <div>
           <span class="font-bold text-lg bg-clip-text text-transparent bg-gradient-to-r from-sky-400 via-indigo-300 to-white">
@@ -93,7 +93,7 @@
     <div>
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-base font-semibold text-slate-200 flex items-center gap-2">
-          <span>🖥️</span> สถานะเครื่องลูกข่าย (Edge Worker Fleet)
+          สถานะเครื่องลูกข่าย (Edge Worker Fleet)
         </h2>
         <span class="text-xs text-slate-400">อัปเดตอัตโนมัติผ่าน Heartbeat</span>
       </div>
@@ -111,7 +111,7 @@
       <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-800 gap-3">
         <div>
           <h2 class="text-base font-semibold text-slate-100 flex items-center gap-2">
-            <span>📋</span> ประวัติการรัน Flow และการวิเคราะห์ข้อผิดพลาด (Telemetry Log)
+            ประวัติการรัน Flow และการวิเคราะห์ข้อผิดพลาด (Telemetry Log)
           </h2>
           <p class="text-xs text-slate-400 mt-0.5">คลิกที่รายการข้อผิดพลาดเพื่อดูบทวิเคราะห์ภาษาไทยจาก OpenThai-SystemOne</p>
         </div>
@@ -156,7 +156,7 @@
       <div class="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-950/60">
         <div class="flex items-center gap-3">
           <div class="w-8 h-8 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center text-base border border-rose-500/30">
-            ⚠️
+            !
           </div>
           <div>
             <h3 id="modal-flow-name" class="font-bold text-slate-100 text-sm">การวิเคราะห์ข้อผิดพลาดโดย Central AI</h3>
@@ -175,7 +175,7 @@
         <div class="p-4 rounded-xl bg-gradient-to-br from-indigo-950/60 to-sky-950/40 border border-indigo-500/40 space-y-2">
           <div class="flex items-center justify-between">
             <span class="font-bold text-sky-400 flex items-center gap-1.5 text-xs">
-              <span>🧠</span> บทสรุปภาษาไทยจาก OpenThai-SystemOne:
+              บทสรุปภาษาไทยจาก OpenThai-SystemOne:
             </span>
             <span id="modal-confidence" class="text-[10px] bg-sky-500/20 text-sky-300 px-2 py-0.5 rounded border border-sky-500/30">Confidence: 94%</span>
           </div>
@@ -188,14 +188,14 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div class="p-3.5 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
             <span class="text-[11px] font-semibold text-amber-400 flex items-center gap-1">
-              <span>🔍</span> สาเหตุหลัก (Root Cause)
+              สาเหตุหลัก (Root Cause)
             </span>
             <p id="modal-root-cause" class="text-slate-300 text-[11px] leading-normal">-</p>
           </div>
 
           <div class="p-3.5 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
             <span class="text-[11px] font-semibold text-emerald-400 flex items-center gap-1">
-              <span>💡</span> ข้อแนะนำการแก้ไข (Actionable Fix)
+              ข้อแนะนำการแก้ไข (Actionable Fix)
             </span>
             <p id="modal-suggestion" class="text-slate-300 text-[11px] leading-normal">-</p>
           </div>
