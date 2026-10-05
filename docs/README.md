@@ -26,6 +26,7 @@ Each topic has one owning document. Other files link here instead of repeating t
 | [logging.md](logging.md) | Execution log layout and JSON format |
 | [ask_router.md](ask_router.md) | Natural-language questions to the Hub (work in progress) |
 | [../kinenix-worker/README.md](../kinenix-worker/README.md) | Worker CLI and Raspberry Pi setup |
+| [releasing.md](releasing.md) | Publishing `kinenix`, `kinenix-hub`, and `kinenix-worker` to PyPI with Trusted Publishing |
 | [../kinenix-studio/README.md](../kinenix-studio/README.md) | Studio design and layout |
 
 ## Contribute

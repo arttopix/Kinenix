@@ -31,7 +31,7 @@ GitHub Actions workflow `.github/workflows/ci.yml` runs on pushes and pull reque
 - [x] CI status badge in the README.
 - [x] Repository rules checked by tests: every `flow.json` matches its `flow.md`, every flow validates, documented action parameters match the code, and no emojis anywhere.
 - [ ] Formatting, linting, type checking, dependency vulnerability checks, and JSON schema validation of the flows in `flows/`.
-- [ ] Publish `kinenix` to PyPI from a tagged release (Trusted Publishing).
+- [~] Publish `kinenix`, `kinenix-hub`, and `kinenix-worker` from a tagged release with Trusted Publishing (`release.yml`, `docs/releasing.md`); CI builds, checks, and installs the packages on every pull request. Waiting for the first release.
 
 ### 1.5 Hub Hardening
 

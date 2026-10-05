@@ -1,6 +1,16 @@
 # kinenix-worker
 
-The unattended robot worker daemon and edge execution engine for **kinenix**.
+The unattended robot worker daemon and edge execution engine for **[Kinenix](https://github.com/arttopix/Kinenix)**, an open-source, local AI-native RPA framework in Python.
+
+## Install from PyPI
+
+```bash
+pip install "kinenix[worker]"
+kinenix install-browsers          # Playwright Chromium, needed for web actions
+kinenix-worker info
+```
+
+Requires Python 3.10 or newer. To report to a Kinenix Hub, set `KINENIX_HUB_URL` and `KINENIX_HUB_API_KEY` (section 3D). The Raspberry Pi quickstart below installs from the repository instead and also sets up a systemd service.
 
 ---
 
@@ -31,8 +41,7 @@ Clone the repository and run the setup script:
 git clone -b dev https://github.com/arttopix/Kinenix.git kinenix
 cd kinenix
 
-# 2. Grant execute permissions and run the setup script
-chmod +x kinenix-worker/scripts/setup_rpi.sh
+# 2. Run the setup script (it is already executable; do not chmod it, or git pull will see a local change)
 ./kinenix-worker/scripts/setup_rpi.sh
 ```
 
@@ -88,7 +97,7 @@ kinenix-worker run flows/examples/rpachallenge/flow.json --sandbox
 
 ### D. Connect to the Hub
 
-The worker reports to a Kinenix Hub when these environment variables are set (see [Hub Guide](../docs/hub.md) for the server side):
+The worker reports to a Kinenix Hub when these environment variables are set (see the [Hub guide](https://github.com/arttopix/Kinenix/blob/main/docs/hub.md) for the server side):
 
 | Variable | Default | Purpose |
 | :--- | :--- | :--- |
