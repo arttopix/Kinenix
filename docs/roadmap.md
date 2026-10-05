@@ -116,7 +116,7 @@ Hub -> versioned job bundle -> Worker (WebSocket) -> kinenix-core executes flow
 ### Phase 4: Worker (`kinenix-worker`) - In progress
 - [x] `kinenix-worker run`, `watch` (file trigger), `schedule` (interval), `daemon` (multi-trigger config)
 - [x] Optional per-job sandbox workspace (`~/.kinenix/workspaces/<job_id>`)
-- [x] Verified on Raspberry Pi 4 (ARM64) with setup script
+- [x] Verified on Raspberry Pi 4 (ARM64) with setup script; re-verified on 2026-10-05 after the rename to Hub: heartbeats as a systemd service and the `bot_fx_rate` flow run by a cron trigger, reported to the Hub
 - [x] Heartbeat sender to the Hub (`kinenix-worker ping`, busy/online/offline status), with `rich` output
 - [x] systemd service installed by the setup script (`install_service.sh`), starts the daemon at boot
 - [x] Cron schedules (`"cron": "0 8 1 * *"` in `triggers.json`, `kinenix-worker schedule --cron`)
