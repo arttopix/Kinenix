@@ -168,6 +168,13 @@ def test_init_command(tmp_path):
     again = kinenix("init", "fx", "--example", "hello")
     assert again.returncode == 1 and "not empty" in again.stderr
 
+    # With --example the folder name is used as typed, so the documented `init my-bot` then `run my-bot` works
+    assert kinenix("init", "my-bot", "--example", "hello").returncode == 0
+    assert (tmp_path / "my-bot" / "flow.md").is_file()
+    run = kinenix("run", "my-bot")
+    assert run.returncode == 0, run.stderr
+    assert "Hello, Somchai!" in (tmp_path / "my-bot" / "output" / "greetings.csv").read_text(encoding="utf-8")
+
     new = kinenix("init", "Get stock data")
     assert new.returncode == 0 and "requirements.md" in new.stdout and "kinenix validate get_stock_data" in new.stdout
     assert (tmp_path / "get_stock_data" / "requirements.md").is_file()

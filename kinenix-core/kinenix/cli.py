@@ -24,7 +24,6 @@ from .scaffold import (
     available_examples,
     create_new_project,
     create_project,
-    project_folder_name,
 )
 
 
@@ -287,12 +286,13 @@ def main():
             print("Examples (kinenix init <folder> --example <name>):\n")
             for name, description, needs_browser in examples:
                 note = "  [needs a browser and internet]" if needs_browser else ""
-                default = "  (default)" if name == DEFAULT_EXAMPLE else ""
-                print(f"  {name:<14}{description}{default}{note}")
+                print(f"  {name:<14}{description}{note}")
+            print('\nFor a new task of your own: kinenix init "Task name"')
             sys.exit(0)
 
         if args.example:
-            shown = args.dir or (project_folder_name(args.name) if args.name else args.example)
+            # With an example, the positional argument is the folder itself, used as typed (my-bot stays my-bot)
+            shown = args.dir or args.name or args.example
             try:
                 created = create_project(Path(shown), args.example)
             except (ValueError, FileExistsError) as e:
