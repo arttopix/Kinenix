@@ -17,6 +17,7 @@ from .engine.markdown import (
     sync_flow_json,
 )
 from .engine.validation import validate_flow
+from .scaffold import DEFAULT_EXAMPLE, EXAMPLES_DIR, available_examples, create_project
 
 
 def report_validation(flow: FlowDefinition) -> List[str]:
@@ -88,6 +89,9 @@ def discover_flows() -> Dict[str, Tuple[Path, str]]:
         for flow_file in flow_candidates:
             parts = flow_file.parts
             if any(p.startswith(".") or p in ["__pycache__", "subflows", "node_modules", ".venv", "venv"] for p in parts):
+                continue
+            # The templates for `kinenix init` are not runnable projects; running one would write into the package
+            if EXAMPLES_DIR in flow_file.resolve().parents:
                 continue
             alias = flow_file.parent.name
             if alias in discovered and flow_file.suffix == ".md":
@@ -197,6 +201,14 @@ def main():
     run_parser.add_argument("--hub", "--orchestrator", dest="hub", help="Optional Hub URL to transmit telemetry (e.g. http://localhost:8080); --orchestrator is the name from before the rename to Hub", default=None)
     run_parser.add_argument("--worker-id", help="Identifier for this worker node (default: local-worker)", default=None)
 
+    # Command: init
+    init_parser = subparsers.add_parser("init", help="Create a new flow project from an example (default: hello)")
+    init_parser.add_argument("directory", nargs="?", default=None,
+                             help="Folder to create (default: the example's name); must not exist or be empty")
+    init_parser.add_argument("--example", "-e", default=DEFAULT_EXAMPLE,
+                             help=f"Example to start from (default: {DEFAULT_EXAMPLE}); see --list")
+    init_parser.add_argument("--list", action="store_true", help="List the available examples")
+
     # Command: compile
     compile_parser = subparsers.add_parser("compile", help="Compile a flow.md specification file into flow.json")
     compile_parser.add_argument("markdown_file", help="Path to flow.md file or project directory containing flow.md")
@@ -254,6 +266,33 @@ def main():
         else:
             print("Installation failed. On Linux/Raspberry Pi, you may also need: sudo playwright install-deps chromium", file=sys.stderr)
         sys.exit(res.returncode)
+
+    elif args.command == "init":
+        examples = available_examples()
+        if args.list:
+            print("Examples (kinenix init <folder> --example <name>):\n")
+            for name, description, needs_browser in examples:
+                note = "  [needs a browser and internet]" if needs_browser else ""
+                default = "  (default)" if name == DEFAULT_EXAMPLE else ""
+                print(f"  {name:<14}{description}{default}{note}")
+            sys.exit(0)
+
+        target = Path(args.directory or args.example)
+        try:
+            created = create_project(target, args.example)
+        except (ValueError, FileExistsError) as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+
+        needs_browser = next((nb for name, _, nb in examples if name == args.example), False)
+        shown = args.directory or args.example
+        print(f"Created {created} from the '{args.example}' example.\n")
+        print("Next steps:")
+        if needs_browser:
+            print("  kinenix install-browsers        # once per machine; this example drives a web browser")
+        print(f"  kinenix run {shown}")
+        print(f"  Edit {shown}/flow.md (the flow) and {shown}/config/config.json (its values); see {shown}/README.md")
+        sys.exit(0)
 
     elif args.command == "validate":
         resolved_path = resolve_flow_path(args.flow_file)

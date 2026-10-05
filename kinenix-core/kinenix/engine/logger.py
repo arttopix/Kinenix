@@ -77,7 +77,9 @@ class ExecutionLogger:
                 f"Failed Step [{result.step_id}] '{result.step_name}' - [{result.error_type} Error]: {result.error_message}"
             )
         else:
-            self.logger.warning(f"Skipped Step [{result.step_id}] '{result.step_name}'")
+            # A skip is expected behavior (its condition was not met), not a problem to warn about
+            reason = (result.output or {}).get("skipped_reason") if isinstance(result.output, dict) else None
+            self.logger.info(f"Skipped Step [{result.step_id}] '{result.step_name}'" + (f": {reason}" if reason else ""))
 
     def log_execution_summary(self, context: ExecutionContext) -> None:
         m = context.metrics

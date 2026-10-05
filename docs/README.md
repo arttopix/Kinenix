@@ -21,6 +21,7 @@ Each topic has one owning document. Other files link here instead of repeating t
 
 | Document | Covers |
 | :--- | :--- |
+| [quickstart.md](quickstart.md) | Install, create a project with `kinenix init`, run it, and connect a worker to the Hub in about ten minutes |
 | [cli_guide.md](cli_guide.md) | `kinenix` commands and options |
 | [hub.md](hub.md) | Running the Hub, environment variables, worker authentication |
 | [logging.md](logging.md) | Execution log layout and JSON format |

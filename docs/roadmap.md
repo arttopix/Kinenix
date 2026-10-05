@@ -128,7 +128,7 @@ Hub -> versioned job bundle -> Worker (WebSocket) -> kinenix-core executes flow
 - [ ] Windows desktop automation (`uiautomation` / UIA)
 - [ ] Credential vault for flow secrets
 - [ ] Docker Compose one-command deployment
-- [ ] Community quickstart documentation
+- [x] Community quickstart documentation ([quickstart.md](quickstart.md)) and `kinenix init` with packaged examples (`hello`, `bot_fx_rate`, `rpachallenge`)
 
 ### Phase 6: Advanced Local Agentic Capabilities - Not started
 - [ ] Self-healing UI selectors with DOM fallback matching

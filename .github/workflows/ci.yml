@@ -92,6 +92,15 @@ jobs:
           /tmp/clean/bin/kinenix-worker --version
           /tmp/clean/bin/python -c "import importlib.resources as r; assert r.files('kinenix_hub').joinpath('static/index.html').is_file(); print('dashboard files packaged')"
 
+      # The quickstart path: create the hello example from the installed package and run it
+      - name: Smoke test kinenix init
+        working-directory: /tmp
+        run: |
+          /tmp/clean/bin/kinenix init --list
+          /tmp/clean/bin/kinenix init smoke-bot
+          /tmp/clean/bin/kinenix run smoke-bot
+          grep -q "Hello, Somchai!" smoke-bot/output/greetings.csv
+
   studio-frontend:
     name: Studio frontend build
     runs-on: ubuntu-latest

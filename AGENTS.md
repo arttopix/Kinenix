@@ -39,7 +39,8 @@ cd kinenix-core; ../.venv/Scripts/python.exe -m pytest -q; cd ..
 # Studio frontend
 cd kinenix-studio/frontend; npm ci; npm run build
 
-# Run or check a flow / start the hub
+# Create, run, or check a flow / start the hub
+kinenix init my-bot [--example hello|bot_fx_rate|rpachallenge]   # copy of flows/examples shipped in the package
 kinenix run flows/examples/rpachallenge
 kinenix validate flows/examples/rpachallenge   # unknown actions and ignored parameters
 kinenix hub            # first run asks setup questions and saves them
@@ -50,6 +51,8 @@ kinenix hub logs [ID]  # steps of one execution (latest when ID is omitted)
 CLI output in `kinenix-worker` and `kinenix hub` is rendered with `rich` (`kinenix_worker/display.py`, `kinenix_hub/console.py`); `kinenix-core` itself does not depend on it.
 
 Run the test suites for every module you touch before reporting work as done. GitHub Actions (`.github/workflows/ci.yml`) runs the same commands on every push and pull request to `main` and `dev`; keep the workflow in sync when these commands change.
+
+After editing `flows/examples/hello`, `bot_fx_rate`, or `rpachallenge`, run `python .github/scripts/sync_examples.py`: the package ships copies of them for `kinenix init`, and a test fails when the copies differ.
 
 `kinenix`, `kinenix-hub`, and `kinenix-worker` are published to PyPI together with one version (`pip install "kinenix[hub]"`, `"kinenix[worker]"`); the version lives in each package's `__version__`. Releases are tag-driven through `.github/workflows/release.yml`; follow [docs/releasing.md](docs/releasing.md) and never reuse a released version number. `kinenix-studio` is not published.
 

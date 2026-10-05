@@ -6,7 +6,13 @@ This guide documents the Command Line Interface (CLI) for kinenix, powered by th
 
 ## 1. Installation
 
-Install `kinenix` in editable mode within your Python virtual environment:
+From PyPI (see the [Quickstart](quickstart.md)):
+
+```powershell
+pip install kinenix
+```
+
+From a clone of the repository, for development, in editable mode:
 
 ```powershell
 cd kinenix-core
@@ -40,14 +46,32 @@ kinenix install-browsers
 ```
 *(Note: kinenix also detects missing browser binaries and automatically downloads Chromium on the first web flow execution).*
 
-### 2.3 List Available Flows (`list`)
+### 2.3 Create a Project from an Example (`init`)
+Copies an example bundle that ships with `kinenix` into a new folder, so you can run it and then edit it. The folder must not exist or must be empty; nothing is overwritten.
+
+```powershell
+kinenix init --list                          # examples, and which need a browser
+kinenix init my-bot                          # the default `hello` example: no browser, no internet
+kinenix init fx --example bot_fx_rate        # folder name, then the example
+kinenix run my-bot
+```
+
+| Example | What it does |
+| :--- | :--- |
+| `hello` | Builds a greeting table from `config.json` and writes a CSV; the quickest installation check |
+| `bot_fx_rate` | Bank of Thailand transfer rates for chosen currencies and dates to CSV, with email (needs a browser) |
+| `rpachallenge` | Fills the RPA Challenge form from an Excel file (needs a browser) |
+
+The examples are copies of `flows/examples/` in the repository, kept identical by `.github/scripts/sync_examples.py` and a test.
+
+### 2.4 List Available Flows (`list`)
 Scans the current workspace, `flows/`, `examples/`, and user cache directories to list all runnable workflows and project bundles:
 
 ```powershell
 kinenix list
 ```
 
-### 2.4 Run a Flow (`run`)
+### 2.5 Run a Flow (`run`)
 Executes an automation flow using the Smart Flow Resolver. You can specify a flow by alias, project folder, relative path, or absolute path:
 
 ```powershell
