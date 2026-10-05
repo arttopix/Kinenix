@@ -29,6 +29,7 @@ GitHub Actions workflow `.github/workflows/ci.yml` runs on pushes and pull reque
 - [x] Runs every pytest suite, including `kinenix-hub/tests`.
 - [x] Builds the Studio frontend with `npm ci` and `npm run build`.
 - [x] CI status badge in the README.
+- [x] Repository rules checked by tests: every `flow.json` matches its `flow.md`, every flow validates, documented action parameters match the code, and no emojis anywhere.
 - [ ] Formatting, linting, type checking, dependency vulnerability checks, and JSON schema validation of the flows in `flows/`.
 - [ ] Publish `kinenix` to PyPI from a tagged release (Trusted Publishing).
 
@@ -37,6 +38,8 @@ GitHub Actions workflow `.github/workflows/ci.yml` runs on pushes and pull reque
 - [x] Protect the dashboard page and read endpoints (HTTP Basic Auth, localhost-only when unset).
 - [x] Remove the permissive CORS policy; the dashboard is served same-origin.
 - [x] Default the bind host to `127.0.0.1`, requiring an explicit opt-in to listen on the network.
+- [x] Escape all worker-provided text in the dashboard (XSS), with a static check and a real-browser test.
+- [ ] Content-Security-Policy header for the dashboard (needs the inline `onclick` handlers moved to script).
 - [ ] Run AI failure analysis in the background so telemetry ingestion does not wait on the LLM.
 - [ ] Document an HTTPS reverse proxy setup (e.g. Caddy or nginx).
 
@@ -80,6 +83,8 @@ Hub -> versioned job bundle -> Worker (WebSocket) -> kinenix-core executes flow
 - [x] `flow.md` as the single source with automatic `flow.json` sync and a CI consistency check
 - [x] Flow validation (`kinenix validate`): unknown actions and ignored parameters, with suggestions
 - [x] Business exceptions with `flow.fail` (recorded as Business, never retried); `web.click` waits for a response; `web.get_table`
+- [x] `email.send` through any SMTP provider (Gmail, Microsoft 365, company servers), tested with a local fake SMTP server
+- [x] Example flow `bot_fx_rate`: Bank of Thailand transfer rates to CSV and email, verified against the BOT data
 
 ### Phase 2: Studio (`kinenix-studio`) - In progress
 - [x] FastAPI backend: flow discovery, read/save with schema validation, step update, action metadata, run
@@ -95,7 +100,9 @@ Hub -> versioned job bundle -> Worker (WebSocket) -> kinenix-core executes flow
 - [x] Renamed from Orchestrator to Hub; old command, flags, environment variables, and settings file still work (see [hub.md](hub.md#5-renamed-from-orchestrator))
 - [x] FastAPI service with heartbeat and telemetry ingestion over HTTP
 - [x] Execution and worker storage via SQLAlchemy (SQLite default, `DATABASE_URL` for others)
-- [x] Web dashboard for workers and executions
+- [x] Web dashboard for workers and executions, with per-execution step details
+- [x] Command line: first-run setup saved to `~/.kinenix/hub.env`, `kinenix hub status`, `logs`, `setup`, `show-key`, and `rich` output
+- [x] Default database in `~/.kinenix/hub.db`, outside the source tree
 - [x] AI failure classification with rule-based fallback
 - [x] Worker API key authentication
 - [x] Dashboard authentication (HTTP Basic Auth)
@@ -110,7 +117,7 @@ Hub -> versioned job bundle -> Worker (WebSocket) -> kinenix-core executes flow
 - [x] `kinenix-worker run`, `watch` (file trigger), `schedule` (interval), `daemon` (multi-trigger config)
 - [x] Optional per-job sandbox workspace (`~/.kinenix/workspaces/<job_id>`)
 - [x] Verified on Raspberry Pi 4 (ARM64) with setup script
-- [x] Heartbeat sender to the Hub (`kinenix-worker ping`, busy/online/offline status)
+- [x] Heartbeat sender to the Hub (`kinenix-worker ping`, busy/online/offline status), with `rich` output
 - [x] systemd service installed by the setup script (`install_service.sh`), starts the daemon at boot
 - [x] Cron schedules (`"cron": "0 8 1 * *"` in `triggers.json`, `kinenix-worker schedule --cron`)
 - [ ] WebSocket job client (see 1.7)
