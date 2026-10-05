@@ -50,26 +50,26 @@ function renderWorkers(workers) {
     return;
   }
 
+  // Every value from a worker is escaped: workers are remote machines, and error text can carry content from web pages
   container.innerHTML = workers.map(w => {
     const isOnline = w.status !== 'offline';
     const statusBg = isOnline ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-slate-700/50 text-slate-400 border-slate-600';
-    const icon = w.os_info.toLowerCase().includes('rasp') ? '🍓' : (w.os_info.toLowerCase().includes('ubuntu') ? '🐧' : '🖥️');
-    
+
     return `
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 hover:border-slate-700 transition shadow-sm">
         <div class="flex justify-between items-start mb-3">
           <div class="flex items-center gap-3">
-            <div class="w-9 h-9 rounded-xl bg-slate-800/80 border border-slate-700 flex items-center justify-center text-lg">
-              ${icon}
+            <div class="w-9 h-9 rounded-xl bg-slate-800/80 border border-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-300">
+              ${osBadge(w.os_info)}
             </div>
             <div>
               <h3 class="font-bold text-sm text-slate-100 flex items-center gap-2">
-                ${w.name || w.id}
+                ${escapeHtml(w.name || w.id)}
                 <span class="text-[10px] px-2 py-0.5 rounded-full border ${statusBg}">
-                  ${w.status}
+                  ${escapeHtml(w.status)}
                 </span>
               </h3>
-              <p class="text-xs text-slate-400">${w.os_info} • IP: ${w.ip_address}</p>
+              <p class="text-xs text-slate-400">${escapeHtml(w.os_info)} • IP: ${escapeHtml(w.ip_address)}</p>
             </div>
           </div>
           <span class="text-[11px] text-slate-500">${formatTimeAgo(w.last_heartbeat)}</span>
@@ -79,12 +79,12 @@ function renderWorkers(workers) {
           <div class="flex justify-between text-slate-300">
             <span class="text-slate-400">Current Task:</span>
             <span class="font-mono ${w.current_task ? 'text-amber-300 font-semibold' : 'text-slate-400'}">
-              ${w.current_task || 'Idle (สแตนด์บาย)'}
+              ${escapeHtml(w.current_task || 'Idle (สแตนด์บาย)')}
             </span>
           </div>
           <div class="flex items-center gap-4 text-slate-400 pt-1">
-            <span>CPU: <strong class="text-slate-200">${w.cpu_percent || 0}%</strong></span>
-            <span>RAM: <strong class="text-slate-200">${w.ram_usage || 'N/A'}</strong></span>
+            <span>CPU: <strong class="text-slate-200">${escapeHtml(w.cpu_percent || 0)}%</strong></span>
+            <span>RAM: <strong class="text-slate-200">${escapeHtml(w.ram_usage || 'N/A')}</strong></span>
             <span>LLM: <strong class="text-slate-400 italic">None (Central API)</strong></span>
           </div>
         </div>
@@ -117,14 +117,15 @@ function renderExecutions(executions) {
   tbody.innerHTML = filtered.map(e => {
     const isError = e.has_error || e.status === 'failed';
     const statusPill = isError
-      ? `<span class="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-rose-500/15 text-rose-400 border border-rose-500/30">Failed (${e.failed_step_name || e.failed_step_id || 'Error'})</span>`
+      ? `<span class="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-rose-500/15 text-rose-400 border border-rose-500/30">Failed (${escapeHtml(e.failed_step_name || e.failed_step_id || 'Error')})</span>`
       : `<span class="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">Success</span>`;
 
-    const stepsButton = `<button onclick="openStepsModal('${escapeHtml(e.id)}')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium transition">
+    // The ID travels as data (data-id), never inside the onclick JavaScript, so no value can become code
+    const stepsButton = `<button data-id="${escapeHtml(e.id)}" onclick="openStepsModal(this.dataset.id)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium transition">
           ดู Steps
         </button>`;
     const actionCell = isError
-      ? `<div class="inline-flex gap-2">${stepsButton}<button onclick="openModal('${escapeHtml(e.id)}')" class="px-2.5 py-1 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/30 font-medium inline-flex items-center gap-1.5 transition">
+      ? `<div class="inline-flex gap-2">${stepsButton}<button data-id="${escapeHtml(e.id)}" onclick="openModal(this.dataset.id)" class="px-2.5 py-1 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/30 font-medium inline-flex items-center gap-1.5 transition">
           ดู AI สรุป
         </button></div>`
       : stepsButton;
@@ -135,8 +136,8 @@ function renderExecutions(executions) {
     return `
       <tr class="hover:bg-slate-800/40 transition">
         <td class="py-3.5 px-4 font-mono text-slate-400">${timeFormatted}</td>
-        <td class="py-3.5 px-4 font-semibold text-slate-100">${e.flow_name}</td>
-        <td class="py-3.5 px-4 font-mono text-slate-300">${e.worker_id}</td>
+        <td class="py-3.5 px-4 font-semibold text-slate-100">${escapeHtml(e.flow_name)}</td>
+        <td class="py-3.5 px-4 font-mono text-slate-300">${escapeHtml(e.worker_id)}</td>
         <td class="py-3.5 px-4">${duration}</td>
         <td class="py-3.5 px-4">${statusPill}</td>
         <td class="py-3.5 px-4 text-right">${actionCell}</td>
@@ -181,9 +182,19 @@ function closeModal() {
   document.getElementById('ai-modal').classList.add('hidden');
 }
 
-// Step values come from workers, so they are escaped before being placed in HTML
+// Values from workers are escaped before being placed in HTML (see renderWorkers and renderExecutions)
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// Short text badge for the worker's operating system (no emoji, per project rules)
+function osBadge(osInfo) {
+  const os = String(osInfo || '').toLowerCase();
+  if (os.includes('rasp') || os.includes('aarch64') || os.includes('arm')) return 'Pi';
+  if (os.includes('linux') || os.includes('ubuntu')) return 'LNX';
+  if (os.includes('windows')) return 'WIN';
+  if (os.includes('darwin') || os.includes('mac')) return 'MAC';
+  return 'PC';
 }
 
 const STEP_STATUS_CLASSES = {
