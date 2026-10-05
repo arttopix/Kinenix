@@ -9,7 +9,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # Emoji and pictograph ranges, plus the variation selector that turns symbols into emoji
-EMOJI = re.compile("[\U0001F000-\U0001FAFF☀-➿⬀-⯿️]")
+EMOJI = re.compile(r"[\U0001F000-\U0001FAFF\u2600-\u27BF\u2B00-\u2BFF\uFE0F]")
 SKIP_SUFFIXES = (".png", ".jpg", ".jpeg", ".gif", ".ico", ".xlsx", ".db", ".pdf", ".woff", ".woff2")
 
 
