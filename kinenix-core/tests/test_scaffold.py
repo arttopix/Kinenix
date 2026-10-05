@@ -87,6 +87,18 @@ def test_packaged_examples_match_flows_examples():
     assert sync["problems"]() == []
 
 
+def test_packaged_example_files_are_not_git_ignored():
+    """A file that exists locally but is ignored by git would pass locally and be missing from CI and the wheel."""
+    import shutil
+    if not shutil.which("git"):
+        pytest.skip("git is not available")
+    files = [str(p.relative_to(REPO_ROOT)) for p in scaffold.EXAMPLES_DIR.rglob("*")
+             if p.is_file() and "__pycache__" not in p.parts]
+    result = subprocess.run(["git", "check-ignore", "--no-index", *files], cwd=REPO_ROOT,
+                            capture_output=True, text=True)
+    assert result.stdout.strip() == "", f"Ignored by .gitignore: {result.stdout.split()}"
+
+
 def test_packaged_examples_are_not_discovered_as_runnable_flows():
     from kinenix.cli import discover_flows
 

@@ -1,0 +1,5 @@
+{
+  "names": ["Somchai", "Malee", "Alex"],
+  "greeting": "Hello",
+  "output_path": "./output/greetings.csv"
+}
