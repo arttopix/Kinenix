@@ -51,8 +51,9 @@ version = { attr = "kinenix.__version__" }
 [tool.setuptools.packages.find]
 include = ["kinenix*"]
 
-# Example bundles for `kinenix init` (copied from flows/examples by .github/scripts/sync_examples.py)
+# `kinenix init`: the new-project template, and example bundles copied from flows/examples by
+# .github/scripts/sync_examples.py
 [tool.setuptools.package-data]
-kinenix = ["examples/**/*"]
+kinenix = ["examples/**/*", "templates/**/*"]
 
 

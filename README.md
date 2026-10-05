@@ -94,14 +94,17 @@ kinenix install-browsers         # Playwright Chromium, needed for web actions
 kinenix --version
 ```
 
-Then create and run a first project (no browser needed):
+Check the installation with the `hello` example (no browser needed), then start a project for your own task:
 
 ```bash
-kinenix init my-bot      # copy the `hello` example; `kinenix init --list` shows the others
-kinenix run my-bot       # writes my-bot/output/greetings.csv
+kinenix init demo --example hello    # copy an example; `kinenix init --list` shows the others
+kinenix run demo                     # writes demo/output/greetings.csv
+
+kinenix init "Get stock data"        # new project: describe the task in requirements.md,
+                                     # then let an AI assistant write flow.md (see the AGENTS.md it creates)
 ```
 
-The [Quickstart](docs/quickstart.md) continues from there to a web example and a worker reporting to the Hub, in about ten minutes.
+The [Quickstart](docs/quickstart.md) walks through both, then a worker reporting to the Hub, in about ten minutes.
 
 Kinenix Studio is not on PyPI yet; install it from source as shown below. Maintainers: see [docs/releasing.md](docs/releasing.md).
 

@@ -17,7 +17,15 @@ from .engine.markdown import (
     sync_flow_json,
 )
 from .engine.validation import validate_flow
-from .scaffold import DEFAULT_EXAMPLE, EXAMPLES_DIR, available_examples, create_project
+from .scaffold import (
+    DEFAULT_EXAMPLE,
+    EXAMPLES_DIR,
+    NEW_PROJECT_TEMPLATE,
+    available_examples,
+    create_new_project,
+    create_project,
+    project_folder_name,
+)
 
 
 def report_validation(flow: FlowDefinition) -> List[str]:
@@ -91,7 +99,7 @@ def discover_flows() -> Dict[str, Tuple[Path, str]]:
             if any(p.startswith(".") or p in ["__pycache__", "subflows", "node_modules", ".venv", "venv"] for p in parts):
                 continue
             # The templates for `kinenix init` are not runnable projects; running one would write into the package
-            if EXAMPLES_DIR in flow_file.resolve().parents:
+            if EXAMPLES_DIR in flow_file.resolve().parents or NEW_PROJECT_TEMPLATE in flow_file.resolve().parents:
                 continue
             alias = flow_file.parent.name
             if alias in discovered and flow_file.suffix == ".md":
@@ -202,12 +210,18 @@ def main():
     run_parser.add_argument("--worker-id", help="Identifier for this worker node (default: local-worker)", default=None)
 
     # Command: init
-    init_parser = subparsers.add_parser("init", help="Create a new flow project from an example (default: hello)")
-    init_parser.add_argument("directory", nargs="?", default=None,
-                             help="Folder to create (default: the example's name); must not exist or be empty")
-    init_parser.add_argument("--example", "-e", default=DEFAULT_EXAMPLE,
-                             help=f"Example to start from (default: {DEFAULT_EXAMPLE}); see --list")
+    init_parser = subparsers.add_parser(
+        "init", help="Create a project for a new task (kinenix init \"Get stock data\"), or copy an example (--example)")
+    init_parser.add_argument("name", nargs="?", default=None,
+                             help="Task name, e.g. \"Get stock data\"; the folder becomes get_stock_data")
+    init_parser.add_argument("--dir", default=None, help="Folder to create instead of the one derived from the name")
+    init_parser.add_argument("--example", "-e", default=None,
+                             help="Copy a complete example instead of starting a new task; see --list")
     init_parser.add_argument("--list", action="store_true", help="List the available examples")
+
+    # Command: actions
+    actions_parser = subparsers.add_parser("actions", help="List every action and the parameters it accepts")
+    actions_parser.add_argument("filter", nargs="?", default=None, help="Only actions starting with this, e.g. web or csv.write")
 
     # Command: compile
     compile_parser = subparsers.add_parser("compile", help="Compile a flow.md specification file into flow.json")
@@ -277,21 +291,57 @@ def main():
                 print(f"  {name:<14}{description}{default}{note}")
             sys.exit(0)
 
-        target = Path(args.directory or args.example)
+        if args.example:
+            shown = args.dir or (project_folder_name(args.name) if args.name else args.example)
+            try:
+                created = create_project(Path(shown), args.example)
+            except (ValueError, FileExistsError) as e:
+                print(f"Error: {e}", file=sys.stderr)
+                sys.exit(1)
+            needs_browser = next((nb for name, _, nb in examples if name == args.example), False)
+            print(f"Created {created} from the '{args.example}' example.\n")
+            print("Next steps:")
+            if needs_browser:
+                print("  kinenix install-browsers        # once per machine; this example drives a web browser")
+            print(f"  kinenix run {shown}")
+            print(f"  Edit {shown}/flow.md (the flow) and {shown}/config/config.json (its values); see {shown}/README.md")
+            sys.exit(0)
+
+        if not args.name:
+            print('Error: give the task a name, for example: kinenix init "Get stock data"', file=sys.stderr)
+            print(f"       or copy a complete example: kinenix init --example {DEFAULT_EXAMPLE}  (see --list)",
+                  file=sys.stderr)
+            sys.exit(1)
         try:
-            created = create_project(target, args.example)
+            created = create_new_project(args.name, Path(args.dir) if args.dir else None)
         except (ValueError, FileExistsError) as e:
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
-
-        needs_browser = next((nb for name, _, nb in examples if name == args.example), False)
-        shown = args.directory or args.example
-        print(f"Created {created} from the '{args.example}' example.\n")
+        shown = args.dir or created.name
+        print(f"Created {created} for '{args.name.strip()}'.\n")
         print("Next steps:")
-        if needs_browser:
-            print("  kinenix install-browsers        # once per machine; this example drives a web browser")
-        print(f"  kinenix run {shown}")
-        print(f"  Edit {shown}/flow.md (the flow) and {shown}/config/config.json (its values); see {shown}/README.md")
+        print(f"  1. Describe the task in {shown}/requirements.md")
+        print(f"  2. Open {shown} in your AI assistant and ask it to build the flow from requirements.md")
+        print("     (it follows AGENTS.md; or write flow.md yourself)")
+        print(f"  3. kinenix validate {shown}")
+        print(f"  4. kinenix run {shown}")
+        sys.exit(0)
+
+    elif args.command == "actions":
+        from .actions.registry import ActionRegistry
+        from . import actions as _all_actions  # noqa: F401  (registers every action)
+
+        names = sorted(n for n in ActionRegistry.list_actions() if not args.filter or n.startswith(args.filter))
+        if not names:
+            print(f"No action starts with '{args.filter}'.", file=sys.stderr)
+            sys.exit(1)
+        width = max(len(n) for n in names) + 2
+        print("Actions and the parameters they accept (details: docs/actions_reference.md)\n")
+        for name in names:
+            params = ActionRegistry.get(name).accepted_parameters
+            listed = ", ".join(params) if params else "(none)"
+            print(f"  {name:<{width}}{listed}")
+        print("\nEvery step also accepts: description, output_var, condition, on_error, max_retries, retry_interval, fallback_step_id")
         sys.exit(0)
 
     elif args.command == "validate":

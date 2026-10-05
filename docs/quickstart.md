@@ -1,6 +1,6 @@
 # Quickstart
 
-From installation to a flow running unattended, in about ten minutes. You need Python 3.10 or newer.
+From installation to your own task described in requirements, built with an AI assistant, and running unattended, in about ten minutes of reading. You need Python 3.10 or newer.
 
 ---
 
@@ -13,14 +13,14 @@ pip install kinenix
 kinenix --version
 ```
 
-## 2. Create and run your first flow (2 minutes)
+## 2. Run a first flow (1 minute)
 
 ```bash
-kinenix init my-bot
+kinenix init my-bot --example hello
 kinenix run my-bot
 ```
 
-`kinenix init` copies the `hello` example into a new folder. It needs no browser and no internet. Open `my-bot/output/greetings.csv`:
+`--example hello` copies a small example into a new folder. It needs no browser and no internet, so it is the quickest check that everything works. Open `my-bot/output/greetings.csv`:
 
 ```csv
 Name,Greeting
@@ -31,7 +31,7 @@ Alex,"Hello, Alex!"
 
 A JSON log of every step is saved under `logs/` (in the nearest git repository, otherwise in the folder you ran the command from; set `KINENIX_LOG_DIR` or `--log-dir` to choose).
 
-## 3. Change it (3 minutes)
+## 3. Change it (2 minutes)
 
 A project folder holds:
 
@@ -48,9 +48,38 @@ Try these:
 3. **Catch mistakes before running:** misspell a parameter in `flow.md` (for example `colums` in step 3), then run `kinenix validate my-bot`. It names the step and suggests `columns`.
 4. **See error handling:** set `"names": []`. Step 2 stops the flow with a clear business message instead of writing an empty file.
 
-The syntax is in the [Flow Markdown specification](flow_markdown_spec.md); every action is in the [actions reference](actions_reference.md).
+The syntax is in the [Flow Markdown specification](flow_markdown_spec.md); every action is in the [actions reference](actions_reference.md), and `kinenix actions` lists the parameters each one accepts.
 
-## 4. Automate a website (2 minutes)
+## 4. Start your own task: requirements, then an AI assistant (3 minutes)
+
+This is the normal way to build a flow in Kinenix. You describe the task; an AI assistant writes `flow.md`.
+
+```bash
+kinenix init "Get stock data"
+```
+
+This creates `get_stock_data/` with:
+
+| File | What it is |
+| :--- | :--- |
+| `requirements.md` | Your requirements. Fill in the sections: goal, steps, settings that must be changeable, secrets, output, errors, schedule. |
+| `AGENTS.md` (and `CLAUDE.md`) | Instructions for the AI assistant: follow the flow spec, check parameters with `kinenix actions`, put settings in `config/config.json` and secrets in `.env`, and run `kinenix validate` before handing back. |
+| `flow.md` | A placeholder, to be replaced with the real steps. |
+| `.env.example` | Names of the secrets the flow needs; copy to `.env`, which is never committed. |
+
+Then:
+
+1. Write `requirements.md`.
+2. Open the folder in your AI assistant (for example Claude Code) and ask: *"Build the flow described in requirements.md."*
+3. Review what it wrote, then:
+   ```bash
+   kinenix validate get_stock_data
+   kinenix run get_stock_data
+   ```
+
+The `bot_fx_rate` example below was built this way: its README contains the original requirements.
+
+## 5. Automate a website (2 minutes)
 
 Web examples drive a real browser. Install it once per machine:
 
@@ -63,7 +92,7 @@ kinenix run fx
 
 The browser opens, picks the currencies and dates on the Bank of Thailand site, reads one table per currency, and writes `fx/output/Exchage_Rate.csv`. Its email step runs in dry-run mode until you configure SMTP (see `fx/README.md`).
 
-## 5. Run unattended and watch it from a dashboard (2 minutes)
+## 6. Run unattended and watch it from a dashboard (2 minutes)
 
 On the machine that runs flows (a server, a spare PC, or a Raspberry Pi):
 

@@ -46,14 +46,32 @@ kinenix install-browsers
 ```
 *(Note: kinenix also detects missing browser binaries and automatically downloads Chromium on the first web flow execution).*
 
-### 2.3 Create a Project from an Example (`init`)
-Copies an example bundle that ships with `kinenix` into a new folder, so you can run it and then edit it. The folder must not exist or must be empty; nothing is overwritten.
+### 2.3 Start a Project (`init`)
+**For a new task**, give it a name. The folder is derived from the name (`Get stock data` becomes `get_stock_data`; Thai names work):
+
+```powershell
+kinenix init "Get stock data"
+kinenix init "Get stock data" --dir C:\bots\stocks     # choose the folder yourself
+```
+
+| Created file | Purpose |
+| :--- | :--- |
+| `requirements.md` | The requirements (RQ), with sections to fill in: goal, steps, changeable settings, secrets, output, errors, schedule |
+| `AGENTS.md`, `CLAUDE.md` | Instructions for the AI assistant that turns `requirements.md` into `flow.md`: spec links, `kinenix actions`, config and secret rules, and `kinenix validate` before handing back |
+| `flow.md`, `flow.json` | A one-step placeholder flow named after the task, so `validate` and `run` work from the start |
+| `config/config.json` | Empty settings (`{}`) |
+| `.env.example`, `.gitignore` | Where secrets go, and keeping `.env`, `output/`, and `logs/` out of git |
+| `README.md` | The workflow: requirements, AI assistant, validate, run |
+
+The intended workflow: write `requirements.md`, open the folder in an AI assistant and ask it to build the flow, then `kinenix validate` and `kinenix run`.
+
+**To copy a complete example** instead, use `--example`. The folder must not exist or must be empty; nothing is overwritten.
 
 ```powershell
 kinenix init --list                          # examples, and which need a browser
-kinenix init my-bot                          # the default `hello` example: no browser, no internet
-kinenix init fx --example bot_fx_rate        # folder name, then the example
-kinenix run my-bot
+kinenix init demo --example hello            # no browser, no internet: the quickest installation check
+kinenix init fx --example bot_fx_rate
+kinenix run demo
 ```
 
 | Example | What it does |
@@ -64,14 +82,22 @@ kinenix run my-bot
 
 The examples are copies of `flows/examples/` in the repository, kept identical by `.github/scripts/sync_examples.py` and a test.
 
-### 2.4 List Available Flows (`list`)
+### 2.4 List Actions and Their Parameters (`actions`)
+Prints every action with the parameters it accepts, from the code itself. Useful while writing `flow.md`, and for AI assistants that need exact parameter names:
+
+```powershell
+kinenix actions          # all actions
+kinenix actions web      # only web.*
+```
+
+### 2.5 List Available Flows (`list`)
 Scans the current workspace, `flows/`, `examples/`, and user cache directories to list all runnable workflows and project bundles:
 
 ```powershell
 kinenix list
 ```
 
-### 2.5 Run a Flow (`run`)
+### 2.6 Run a Flow (`run`)
 Executes an automation flow using the Smart Flow Resolver. You can specify a flow by alias, project folder, relative path, or absolute path:
 
 ```powershell
