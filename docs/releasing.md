@@ -26,24 +26,26 @@ Sign in to https://pypi.org with the account that owns `kinenix`.
 | `kinenix-hub` (new) | Account menu, then **Publishing** (https://pypi.org/manage/account/publishing/) | Add a **pending** publisher with project name `kinenix-hub` |
 | `kinenix-worker` (new) | Same page | Add a **pending** publisher with project name `kinenix-worker` |
 
-Use these values every time:
+Use these values:
 
 | Field | Value |
 | :--- | :--- |
 | Owner | `arttopix` |
 | Repository name | `Kinenix` |
 | Workflow name | `release.yml` |
-| Environment name | `pypi` |
+| Environment name | `pypi` for `kinenix` and `kinenix-hub`; **`pypi-worker`** for `kinenix-worker` |
 
 A pending publisher turns into the project on the first successful upload.
 
+`kinenix-worker` has its own environment because PyPI refuses a pending publisher whose owner, repository, workflow, and environment all match another pending publisher ("A pending trusted publisher matching this configuration has already been registered for a different project name"). The release workflow publishes it in a separate job (`pypi-worker`) that runs after `kinenix` and `kinenix-hub` are uploaded.
+
 ### 1.2 Trusted publishers on TestPyPI
 
-Repeat 1.1 on https://test.pypi.org (a separate site with its own account), with environment name **`testpypi`**. Use it to try every release before the real one.
+Repeat 1.1 on https://test.pypi.org (a separate site with its own account), with environment name **`testpypi`** for `kinenix` and `kinenix-hub`, and **`testpypi-worker`** for `kinenix-worker`. Use it to try every release before the real one.
 
 ### 1.3 GitHub environments (recommended)
 
-The workflow creates the `pypi` and `testpypi` environments on first use. To require approval before anything is published, open the repository **Settings**, then **Environments**, then **pypi**, and add yourself under **Required reviewers**.
+The workflow creates the `pypi`, `pypi-worker`, `testpypi`, and `testpypi-worker` environments on first use. To require approval before anything is published, open the repository **Settings**, then **Environments**, then **pypi** and **pypi-worker**, and add yourself under **Required reviewers**.
 
 ---
 
