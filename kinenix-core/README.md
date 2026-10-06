@@ -30,7 +30,14 @@ kinenix version                    # version and environment details
 
 ## Related packages
 
-The worker, Studio, and Hub modules live in the same repository and are not yet published on PyPI.
+All Kinenix packages are released together with the same version.
+
+```bash
+pip install "kinenix[worker]"   # kinenix-worker: run flows unattended on schedules or cron, report to the Hub
+pip install "kinenix[hub]"      # kinenix-hub: central server with dashboard; adds `kinenix hub`
+```
+
+Kinenix Studio (visual flow editor) lives in the same repository and is not yet published on PyPI.
 
 ## Documentation
 

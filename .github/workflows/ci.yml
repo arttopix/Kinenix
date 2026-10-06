@@ -58,6 +58,55 @@ jobs:
       - name: Test kinenix-hub
         run: python -m pytest -q kinenix-hub/tests
 
+  packages:
+    name: Package build and install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Build distributions
+        run: |
+          python -m pip install build twine
+          for package in kinenix-core kinenix-hub kinenix-worker; do
+            python -m build --outdir dist "$package"
+          done
+          python -m twine check --strict dist/*
+          python .github/scripts/check_release.py dist
+
+      # Install the way a user would, in a clean environment, from the built files only
+      - name: Install from the built files
+        run: |
+          python -m venv /tmp/clean
+          version=$(python -c "import re,pathlib; print(re.search(r'__version__ = \"(.+)\"', pathlib.Path('kinenix-core/kinenix/__init__.py').read_text()).group(1))")
+          /tmp/clean/bin/pip install --find-links dist "kinenix[hub,worker]==$version"
+
+      - name: Smoke test the installed commands
+        working-directory: /tmp
+        run: |
+          /tmp/clean/bin/kinenix --version
+          /tmp/clean/bin/kinenix hub --help > /dev/null
+          /tmp/clean/bin/kinenix-worker --version
+          /tmp/clean/bin/python -c "import importlib.resources as r; assert r.files('kinenix_hub').joinpath('static/index.html').is_file(); print('dashboard files packaged')"
+
+      # The quickstart path from the installed package: a new task project, and the hello example run end to end
+      - name: Smoke test kinenix init
+        working-directory: /tmp
+        env:
+          KINENIX_FLOWS_DIR: /tmp/flows
+        run: |
+          /tmp/clean/bin/kinenix init "Smoke task"
+          test -f flows/smoke_task/requirements.md && test -f flows/smoke_task/.gitignore && test -f flows/smoke_task/.env.example
+          /tmp/clean/bin/kinenix validate smoke_task
+          /tmp/clean/bin/kinenix actions web > /dev/null
+          /tmp/clean/bin/kinenix init --list
+          /tmp/clean/bin/kinenix init smoke-bot --example hello
+          /tmp/clean/bin/kinenix run smoke-bot
+          grep -q "Hello, Somchai!" flows/smoke-bot/output/greetings.csv
+
   studio-frontend:
     name: Studio frontend build
     runs-on: ubuntu-latest

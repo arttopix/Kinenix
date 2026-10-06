@@ -21,11 +21,13 @@ Each topic has one owning document. Other files link here instead of repeating t
 
 | Document | Covers |
 | :--- | :--- |
+| [quickstart.md](quickstart.md) | Install, create a project with `kinenix init`, run it, and connect a worker to the Hub in about ten minutes |
 | [cli_guide.md](cli_guide.md) | `kinenix` commands and options |
 | [hub.md](hub.md) | Running the Hub, environment variables, worker authentication |
 | [logging.md](logging.md) | Execution log layout and JSON format |
 | [ask_router.md](ask_router.md) | Natural-language questions to the Hub (work in progress) |
 | [../kinenix-worker/README.md](../kinenix-worker/README.md) | Worker CLI and Raspberry Pi setup |
+| [releasing.md](releasing.md) | Publishing `kinenix`, `kinenix-hub`, and `kinenix-worker` to PyPI with Trusted Publishing |
 | [../kinenix-studio/README.md](../kinenix-studio/README.md) | Studio design and layout |
 
 ## Contribute

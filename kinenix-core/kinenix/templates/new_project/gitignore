@@ -1,0 +1,5 @@
+# Kinenix project
+output/
+logs/
+.env
+__pycache__/

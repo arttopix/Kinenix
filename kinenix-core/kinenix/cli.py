@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import platform
 import sys
 from pathlib import Path
@@ -17,6 +18,23 @@ from .engine.markdown import (
     sync_flow_json,
 )
 from .engine.validation import validate_flow
+from .scaffold import (
+    DEFAULT_EXAMPLE,
+    EXAMPLES_DIR,
+    NEW_PROJECT_TEMPLATE,
+    available_examples,
+    create_new_project,
+    create_project,
+    project_folder_name,
+)
+from .workspace import (
+    configured_flows_dir,
+    ensure_flows_dir,
+    flows_dir,
+    prepare_flows_dir,
+    save_flows_dir,
+    settings_file as workspace_settings_file,
+)
 
 
 def report_validation(flow: FlowDefinition) -> List[str]:
@@ -56,6 +74,7 @@ def _get_project_root() -> Optional[Path]:
 def _get_search_directories() -> List[Path]:
     dirs = [
         Path.cwd(),
+        flows_dir(),  # the user's flows folder (KINENIX_FLOWS_DIR, saved setting, or ~/kinenix-flows)
         Path.cwd() / "flows",
         Path.cwd() / "examples",
         Path(__file__).parent.parent / "examples",
@@ -88,6 +107,9 @@ def discover_flows() -> Dict[str, Tuple[Path, str]]:
         for flow_file in flow_candidates:
             parts = flow_file.parts
             if any(p.startswith(".") or p in ["__pycache__", "subflows", "node_modules", ".venv", "venv"] for p in parts):
+                continue
+            # The templates for `kinenix init` are not runnable projects; running one would write into the package
+            if EXAMPLES_DIR in flow_file.resolve().parents or NEW_PROJECT_TEMPLATE in flow_file.resolve().parents:
                 continue
             alias = flow_file.parent.name
             if alias in discovered and flow_file.suffix == ".md":
@@ -197,6 +219,24 @@ def main():
     run_parser.add_argument("--hub", "--orchestrator", dest="hub", help="Optional Hub URL to transmit telemetry (e.g. http://localhost:8080); --orchestrator is the name from before the rename to Hub", default=None)
     run_parser.add_argument("--worker-id", help="Identifier for this worker node (default: local-worker)", default=None)
 
+    # Command: init
+    init_parser = subparsers.add_parser(
+        "init", help="Create a project for a new task (kinenix init \"Get stock data\"), or copy an example (--example)")
+    init_parser.add_argument("name", nargs="?", default=None,
+                             help="Task name, e.g. \"Get stock data\"; the folder becomes get_stock_data")
+    init_parser.add_argument("--dir", default=None, help="Folder to create instead of the one derived from the name")
+    init_parser.add_argument("--example", "-e", default=None,
+                             help="Copy a complete example instead of starting a new task; see --list")
+    init_parser.add_argument("--list", action="store_true", help="List the available examples")
+
+    # Command: flows-dir
+    flows_dir_parser = subparsers.add_parser("flows-dir", help="Show or set the folder where your flows are kept")
+    flows_dir_parser.add_argument("path", nargs="?", default=None, help="New flows folder to remember")
+
+    # Command: actions
+    actions_parser = subparsers.add_parser("actions", help="List every action and the parameters it accepts")
+    actions_parser.add_argument("filter", nargs="?", default=None, help="Only actions starting with this, e.g. web or csv.write")
+
     # Command: compile
     compile_parser = subparsers.add_parser("compile", help="Compile a flow.md specification file into flow.json")
     compile_parser.add_argument("markdown_file", help="Path to flow.md file or project directory containing flow.md")
@@ -254,6 +294,85 @@ def main():
         else:
             print("Installation failed. On Linux/Raspberry Pi, you may also need: sudo playwright install-deps chromium", file=sys.stderr)
         sys.exit(res.returncode)
+
+    elif args.command == "init":
+        examples = available_examples()
+        if args.list:
+            print("Examples (kinenix init <folder> --example <name>):\n")
+            for name, description, needs_browser in examples:
+                note = "  [needs a browser and internet]" if needs_browser else ""
+                print(f"  {name:<14}{description}{note}")
+            print('\nFor a new task of your own: kinenix init "Task name"')
+            sys.exit(0)
+
+        if not args.example and not args.name:
+            print('Error: give the task a name, for example: kinenix init "Get stock data"', file=sys.stderr)
+            print(f"       or copy a complete example: kinenix init --example {DEFAULT_EXAMPLE}  (see --list)",
+                  file=sys.stderr)
+            sys.exit(1)
+
+        # Projects go into the flows folder (asked the first time), unless --dir names a folder
+        base = None if args.dir else ensure_flows_dir(interactive=sys.stdin.isatty())
+        try:
+            if args.example:
+                # With an example, the positional argument is the folder name, used as typed (my-bot stays my-bot)
+                target = Path(args.dir) if args.dir else base / (args.name or args.example)
+                created = create_project(target, args.example)
+            else:
+                target = Path(args.dir) if args.dir else base / project_folder_name(args.name)
+                created = create_new_project(args.name, target)
+        except (ValueError, FileExistsError) as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+
+        # Inside the flows folder a flow runs by its folder name from anywhere; elsewhere use its path
+        run_name = created.name if base and created.parent == base.resolve() else str(created)
+        print(f"Created {created}" + (f" from the '{args.example}' example." if args.example
+                                      else f" for '{args.name.strip()}'.") + "\n")
+        print("Next steps:")
+        if args.example:
+            if next((nb for name, _, nb in examples if name == args.example), False):
+                print("  kinenix install-browsers        # once per machine; this example drives a web browser")
+            print(f"  kinenix run {run_name}")
+            print(f"  Edit flow.md (the flow) and config/config.json (its values) in {created}; see its README.md")
+        else:
+            print(f"  1. Describe the task in {created / 'requirements.md'}")
+            print(f"  2. Open {created} in your AI assistant and ask it to build the flow from requirements.md")
+            print("     (it follows AGENTS.md; or write flow.md yourself)")
+            print(f"  3. kinenix validate {run_name}")
+            print(f"  4. kinenix run {run_name}")
+        sys.exit(0)
+
+    elif args.command == "flows-dir":
+        if args.path:
+            path = prepare_flows_dir(Path(args.path), use_git=False)
+            save_flows_dir(path)
+            print(f"Flows folder set to {path} (saved in {workspace_settings_file()}).")
+            if os.environ.get("KINENIX_FLOWS_DIR"):
+                print("Note: KINENIX_FLOWS_DIR is set in the environment and takes precedence over this setting.")
+            sys.exit(0)
+        chosen = configured_flows_dir()
+        source = ("KINENIX_FLOWS_DIR" if os.environ.get("KINENIX_FLOWS_DIR")
+                  else f"saved in {workspace_settings_file()}" if chosen else "default; not chosen yet")
+        print(f"{flows_dir()}  ({source})")
+        sys.exit(0)
+
+    elif args.command == "actions":
+        from .actions.registry import ActionRegistry
+        from . import actions as _all_actions  # noqa: F401  (registers every action)
+
+        names = sorted(n for n in ActionRegistry.list_actions() if not args.filter or n.startswith(args.filter))
+        if not names:
+            print(f"No action starts with '{args.filter}'.", file=sys.stderr)
+            sys.exit(1)
+        width = max(len(n) for n in names) + 2
+        print("Actions and the parameters they accept (details: docs/actions_reference.md)\n")
+        for name in names:
+            params = ActionRegistry.get(name).accepted_parameters
+            listed = ", ".join(params) if params else "(none)"
+            print(f"  {name:<{width}}{listed}")
+        print("\nEvery step also accepts: description, output_var, condition, on_error, max_retries, retry_interval, fallback_step_id")
+        sys.exit(0)
 
     elif args.command == "validate":
         resolved_path = resolve_flow_path(args.flow_file)

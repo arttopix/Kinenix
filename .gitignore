@@ -29,6 +29,9 @@ config.json
 !*.template.json
 !flows/examples/**/config.json
 !flows/examples/**/config/*.json
+# Packaged copies for `kinenix init`; made from the templates, so they hold no local values
+!kinenix-core/kinenix/examples/**/config/config.json
+!kinenix-core/kinenix/templates/**/config/config.json
 
 # Runtime Outputs & Screenshots (Results, error images)
 **/output/**

@@ -31,7 +31,7 @@ GitHub Actions workflow `.github/workflows/ci.yml` runs on pushes and pull reque
 - [x] CI status badge in the README.
 - [x] Repository rules checked by tests: every `flow.json` matches its `flow.md`, every flow validates, documented action parameters match the code, and no emojis anywhere.
 - [ ] Formatting, linting, type checking, dependency vulnerability checks, and JSON schema validation of the flows in `flows/`.
-- [ ] Publish `kinenix` to PyPI from a tagged release (Trusted Publishing).
+- [~] Publish `kinenix`, `kinenix-hub`, and `kinenix-worker` from a tagged release with Trusted Publishing (`release.yml`, `docs/releasing.md`); CI builds, checks, and installs the packages on every pull request. Waiting for the first release.
 
 ### 1.5 Hub Hardening
 
@@ -128,7 +128,9 @@ Hub -> versioned job bundle -> Worker (WebSocket) -> kinenix-core executes flow
 - [ ] Windows desktop automation (`uiautomation` / UIA)
 - [ ] Credential vault for flow secrets
 - [ ] Docker Compose one-command deployment
-- [ ] Community quickstart documentation
+- [x] Community quickstart documentation ([quickstart.md](quickstart.md))
+- [x] `kinenix init "Task name"`: new project for the requirements-to-AI-to-`flow.md` workflow (`requirements.md`, `AGENTS.md` for the assistant, `.env.example`); `kinenix init --example` with packaged examples (`hello`, `bot_fx_rate`, `rpachallenge`); `kinenix actions` lists actions and their parameters
+- [x] User flows live in a flows folder outside the Kinenix repository (default `~/kinenix-flows`, asked on the first `kinenix init`, optional git repository, `kinenix flows-dir`, `KINENIX_FLOWS_DIR`); `kinenix run NAME` and worker triggers find flows there by name
 
 ### Phase 6: Advanced Local Agentic Capabilities - Not started
 - [ ] Self-healing UI selectors with DOM fallback matching

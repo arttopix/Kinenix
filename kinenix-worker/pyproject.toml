@@ -1,14 +1,29 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=77.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "kinenix-worker"
-version = "0.1.0a1"
-description = "Unattended worker robot daemon and edge runner for Kinenix"
+dynamic = ["version"]
+description = "Kinenix Worker: runs Kinenix flows unattended on schedules, cron, or file triggers, and reports to the Kinenix Hub"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "arttopix" }]
+keywords = ["rpa", "automation", "raspberry-pi", "scheduler", "worker"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Office/Business",
+    "Topic :: System :: Distributed Computing",
+]
 requires-python = ">=3.10"
 dependencies = [
-    "kinenix>=0.1.0b1",
+    "kinenix>=0.2.0b1",
     "psutil>=5.9.0",
     "requests>=2.28.0",
     "rich>=13.0.0"
@@ -19,8 +34,16 @@ dev = [
     "pytest>=7.0.0"
 ]
 
+[project.urls]
+Homepage = "https://github.com/arttopix/Kinenix"
+Documentation = "https://github.com/arttopix/Kinenix/blob/main/kinenix-worker/README.md"
+Issues = "https://github.com/arttopix/Kinenix/issues"
+
 [project.scripts]
 kinenix-worker = "kinenix_worker.cli:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "kinenix_worker.__version__" }
 
 [tool.setuptools.packages.find]
 include = ["kinenix_worker*"]

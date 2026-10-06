@@ -81,17 +81,32 @@ kinenix install-browsers
 
 ### Installation
 
-#### From PyPI (core engine and CLI)
+#### From PyPI
 
-The core engine is published on PyPI as [`kinenix`](https://pypi.org/project/kinenix/):
+Kinenix is published on PyPI as [`kinenix`](https://pypi.org/project/kinenix/), with the worker and the Hub as extras (from version 0.2.0b1; all packages share one version):
 
 ```bash
-pip install kinenix
-kinenix install-browsers   # Playwright Chromium, needed for web actions
+pip install kinenix              # core engine and the kinenix CLI
+pip install "kinenix[worker]"    # plus kinenix-worker: unattended runs, schedules, cron
+pip install "kinenix[hub]"       # plus kinenix-hub: central server and dashboard (`kinenix hub`)
+
+kinenix install-browsers         # Playwright Chromium, needed for web actions
 kinenix --version
 ```
 
-The worker, Studio, and Hub are not on PyPI yet. Install them from source as shown below.
+Check the installation with the `hello` example (no browser needed), then start a project for your own task:
+
+```bash
+kinenix init demo --example hello    # copy an example; `kinenix init --list` shows the others
+kinenix run demo                     # writes demo/output/greetings.csv
+
+kinenix init "Get stock data"        # new project: describe the task in requirements.md,
+                                     # then let an AI assistant write flow.md (see the AGENTS.md it creates)
+```
+
+Projects are created in your own flows folder (default `~/kinenix-flows`, asked the first time), separate from this repository, and run by name from anywhere. Keep that folder in a private git repository. The [Quickstart](docs/quickstart.md) walks through all of this, then a worker reporting to the Hub, in about ten minutes.
+
+Kinenix Studio is not on PyPI yet; install it from source as shown below. Maintainers: see [docs/releasing.md](docs/releasing.md).
 
 #### From source (all modules, for development)
 

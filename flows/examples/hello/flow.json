@@ -1,0 +1,57 @@
+{
+  "$schema": "../../../schemas/flow.schema.json",
+  "name": "Hello Kinenix",
+  "description": "A first flow that builds a small greeting table from config.json and writes it to a CSV file. It needs no browser and no internet.",
+  "version": "1.0.0",
+  "variables": {
+    "greetings": []
+  },
+  "steps": [
+    {
+      "id": "step_1",
+      "name": "Build One Greeting Per Name",
+      "action": "logic.loop",
+      "parameters": {
+        "items": "${config.names}",
+        "item_var": "name"
+      },
+      "sub_steps": [
+        {
+          "id": "sub_step_1_1",
+          "name": "Add Greeting Row",
+          "action": "logic.append",
+          "parameters": {
+            "target": "greetings",
+            "item": {
+              "Name": "${name}",
+              "Greeting": "${config.greeting}, ${name}!"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "step_2",
+      "name": "Stop When There Is Nobody To Greet",
+      "action": "flow.fail",
+      "parameters": {
+        "message": "config.json has no names to greet; add some to \"names\""
+      },
+      "condition": "${greetings} == []"
+    },
+    {
+      "id": "step_3",
+      "name": "Write Greetings To CSV",
+      "action": "csv.write",
+      "parameters": {
+        "file_path": "${config.output_path}",
+        "data": "${greetings}",
+        "columns": [
+          "Name",
+          "Greeting"
+        ]
+      },
+      "output_var": "csv_result"
+    }
+  ]
+}
