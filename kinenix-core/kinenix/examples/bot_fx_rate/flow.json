@@ -1,0 +1,284 @@
+{
+  "$schema": "../../../schemas/flow.schema.json",
+  "name": "BOT FX Transfer Rate Collector",
+  "description": "Collect Bank of Thailand historical buying transfer rates for the configured currencies and date range, write them to a CSV file grouped by currency, and email the file.",
+  "version": "1.0.0",
+  "variables": {
+    "fx_rows": []
+  },
+  "steps": [
+    {
+      "id": "step_1",
+      "name": "Open BOT Exchange Rate Page",
+      "action": "web.open",
+      "parameters": {
+        "url": "${config.url}",
+        "headless": "${config.headless}",
+        "timeout": 60000
+      },
+      "error_handler": {
+        "on_error": "retry",
+        "max_retries": 2,
+        "retry_interval": 5.0
+      }
+    },
+    {
+      "id": "step_2",
+      "name": "Accept Cookie Banner",
+      "action": "web.click",
+      "parameters": {
+        "selector": "button:has-text('Accept recommended cookies')",
+        "timeout": 15000,
+        "optional": true
+      }
+    },
+    {
+      "id": "step_3",
+      "name": "Open Currency Filter",
+      "action": "web.click",
+      "parameters": {
+        "selector": "#dropdownCurrency"
+      },
+      "error_handler": {
+        "on_error": "retry",
+        "max_retries": 2,
+        "retry_interval": 2.0
+      }
+    },
+    {
+      "id": "step_4",
+      "name": "Select Configured Currencies",
+      "action": "logic.loop",
+      "parameters": {
+        "items": "${config.currencies}",
+        "item_var": "currency"
+      },
+      "sub_steps": [
+        {
+          "id": "sub_step_4_1",
+          "name": "Tick Currency Checkbox",
+          "action": "web.check",
+          "parameters": {
+            "selector": ".currency-filter input[name='currencyCheck'][value='${currency}']",
+            "timeout": 10000
+          }
+        }
+      ]
+    },
+    {
+      "id": "step_5",
+      "name": "Close Currency Filter",
+      "action": "web.click",
+      "parameters": {
+        "selector": "h3:has-text('Historical Foreign Exchange Rates')"
+      }
+    },
+    {
+      "id": "step_6",
+      "name": "Open Start Date Picker",
+      "action": "web.click",
+      "parameters": {
+        "selector": ".date-filter input[placeholder='Select a date'] >> nth=0"
+      }
+    },
+    {
+      "id": "step_7",
+      "name": "Choose Start Year",
+      "action": "web.select_option",
+      "parameters": {
+        "selector": ".react-datepicker select >> nth=1",
+        "value": "${config.start_date.year}"
+      }
+    },
+    {
+      "id": "step_8",
+      "name": "Choose Start Month",
+      "action": "web.select_option",
+      "parameters": {
+        "selector": ".react-datepicker select >> nth=0",
+        "text": "${config.start_date.month}"
+      }
+    },
+    {
+      "id": "step_9",
+      "name": "Choose Start Day",
+      "action": "web.click",
+      "parameters": {
+        "selector": ".react-datepicker__day:not(.react-datepicker__day--outside-month):text-is('${config.start_date.day}')"
+      }
+    },
+    {
+      "id": "step_10",
+      "name": "Open End Date Picker",
+      "action": "web.click",
+      "parameters": {
+        "selector": ".date-filter input[placeholder='Select a date'] >> nth=1"
+      }
+    },
+    {
+      "id": "step_11",
+      "name": "Choose End Year",
+      "action": "web.select_option",
+      "parameters": {
+        "selector": ".react-datepicker select >> nth=1",
+        "value": "${config.end_date.year}"
+      }
+    },
+    {
+      "id": "step_12",
+      "name": "Choose End Month",
+      "action": "web.select_option",
+      "parameters": {
+        "selector": ".react-datepicker select >> nth=0",
+        "text": "${config.end_date.month}"
+      }
+    },
+    {
+      "id": "step_13",
+      "name": "Choose End Day",
+      "action": "web.click",
+      "parameters": {
+        "selector": ".react-datepicker__day:not(.react-datepicker__day--outside-month):text-is('${config.end_date.day}')"
+      }
+    },
+    {
+      "id": "step_14",
+      "name": "Search Historical Rates",
+      "action": "web.click",
+      "parameters": {
+        "selector": "button.historical-btn"
+      },
+      "error_handler": {
+        "on_error": "retry",
+        "max_retries": 2,
+        "retry_interval": 3.0
+      }
+    },
+    {
+      "id": "step_15",
+      "name": "Wait For Results To Load",
+      "action": "logic.delay",
+      "parameters": {
+        "seconds": 3
+      }
+    },
+    {
+      "id": "step_16",
+      "name": "Read Transfer Rates Per Currency",
+      "action": "logic.loop",
+      "parameters": {
+        "items": "${config.currencies}",
+        "item_var": "currency"
+      },
+      "sub_steps": [
+        {
+          "id": "sub_step_16_1",
+          "name": "Show Currency Table",
+          "action": "web.click",
+          "parameters": {
+            "selector": ".main-content:has(button.historical-btn) button:text-is('${currency}')",
+            "timeout": 10000
+          }
+        },
+        {
+          "id": "sub_step_16_2",
+          "name": "Read Currency Table",
+          "action": "web.get_table",
+          "parameters": {
+            "selector": ".main-content:has(button.historical-btn) table:visible",
+            "columns": {
+              "Period": "Date",
+              "Buying Rates Transfer": "Buying Transfer Rate"
+            },
+            "numeric_columns": [
+              "Buying Transfer Rate"
+            ],
+            "add_columns": {
+              "Currency": "${currency}"
+            },
+            "min_rows": 1,
+            "timeout": 15000
+          },
+          "output_var": "currency_rows",
+          "error_handler": {
+            "on_error": "retry",
+            "max_retries": 2,
+            "retry_interval": 2.0
+          }
+        },
+        {
+          "id": "sub_step_16_3",
+          "name": "Collect Currency Rows",
+          "action": "logic.append",
+          "parameters": {
+            "target": "fx_rows",
+            "item": "${currency_rows}",
+            "extend": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "step_17",
+      "name": "Write Grouped Rates To CSV",
+      "action": "csv.write",
+      "parameters": {
+        "file_path": "${config.output_path}",
+        "data": "${fx_rows}",
+        "columns": [
+          "Currency",
+          "Date",
+          "Buying Transfer Rate"
+        ]
+      },
+      "error_handler": {
+        "on_error": "retry",
+        "max_retries": 2,
+        "retry_interval": 2.0
+      }
+    },
+    {
+      "id": "step_18",
+      "name": "Capture Result Screenshot",
+      "action": "web.screenshot",
+      "parameters": {
+        "path": "${config.screenshot_path}"
+      },
+      "error_handler": {
+        "on_error": "continue",
+        "max_retries": 0,
+        "retry_interval": 1.0
+      }
+    },
+    {
+      "id": "step_19",
+      "name": "Close Browser",
+      "action": "web.close",
+      "parameters": {},
+      "error_handler": {
+        "on_error": "continue",
+        "max_retries": 0,
+        "retry_interval": 1.0
+      }
+    },
+    {
+      "id": "step_20",
+      "name": "Email CSV Report",
+      "action": "email.send",
+      "parameters": {
+        "to": "${config.email.to}",
+        "subject": "${config.email.subject}",
+        "body": "${config.email.body}",
+        "attachments": [
+          "${config.output_path}"
+        ],
+        "dry_run": "${config.email.dry_run}"
+      },
+      "error_handler": {
+        "on_error": "retry",
+        "max_retries": 2,
+        "retry_interval": 10.0
+      }
+    }
+  ]
+}

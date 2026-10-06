@@ -39,7 +39,10 @@ cd kinenix-core; ../.venv/Scripts/python.exe -m pytest -q; cd ..
 # Studio frontend
 cd kinenix-studio/frontend; npm ci; npm run build
 
-# Run or check a flow / start the hub
+# Create, run, or check a flow / start the hub
+kinenix init "Get stock data"                     # new task project: requirements.md, AGENTS.md, flow.md skeleton
+kinenix init demo --example hello                 # copy of a flows/examples bundle shipped in the package
+kinenix actions [web]                             # actions and the parameters each accepts
 kinenix run flows/examples/rpachallenge
 kinenix validate flows/examples/rpachallenge   # unknown actions and ignored parameters
 kinenix hub            # first run asks setup questions and saves them
@@ -50,6 +53,10 @@ kinenix hub logs [ID]  # steps of one execution (latest when ID is omitted)
 CLI output in `kinenix-worker` and `kinenix hub` is rendered with `rich` (`kinenix_worker/display.py`, `kinenix_hub/console.py`); `kinenix-core` itself does not depend on it.
 
 Run the test suites for every module you touch before reporting work as done. GitHub Actions (`.github/workflows/ci.yml`) runs the same commands on every push and pull request to `main` and `dev`; keep the workflow in sync when these commands change.
+
+Users keep their own flows in a flows folder outside this repository (`workspace.py`, default `~/kinenix-flows`). `flows/` here holds only the examples shipped with Kinenix and shared subflows; do not add user or business flows to it.
+
+After editing `flows/examples/hello`, `bot_fx_rate`, or `rpachallenge`, run `python .github/scripts/sync_examples.py`: the package ships copies of them for `kinenix init --example`, and a test fails when the copies differ. The new-project template (`requirements.md`, an `AGENTS.md` for the user's AI assistant, and the rest) lives in `kinenix-core/kinenix/templates/new_project/`.
 
 `kinenix`, `kinenix-hub`, and `kinenix-worker` are published to PyPI together with one version (`pip install "kinenix[hub]"`, `"kinenix[worker]"`); the version lives in each package's `__version__`. Releases are tag-driven through `.github/workflows/release.yml`; follow [docs/releasing.md](docs/releasing.md) and never reuse a released version number. `kinenix-studio` is not published.
 
@@ -104,6 +111,7 @@ When you change code so that it matches a target, update this table and `docs/ro
 | :--- | :--- | :--- |
 | `KINENIX_HUB_URL` | kinenix-core, kinenix-worker | Hub URL for telemetry and heartbeats |
 | `KINENIX_HUB_API_KEY` | kinenix-core, kinenix-worker, kinenix-hub | Shared worker key: workers send it as `X-API-Key`, the Hub requires it on write endpoints (unset on the Hub means localhost-only). Same value on both sides |
+| `KINENIX_FLOWS_DIR` | kinenix-core, kinenix-worker | The user's flows folder (default `~/kinenix-flows`, or the setting saved in `~/.kinenix/kinenix.env`); `kinenix init` creates projects there and `kinenix run NAME` finds them |
 | `KINENIX_WORKER_ID` | kinenix-core, kinenix-worker | Worker identifier in telemetry and heartbeats; kinenix-worker defaults to the host name |
 | `KINENIX_HEARTBEAT_INTERVAL` | kinenix-worker | Seconds between heartbeats while a worker command runs (default 30) |
 | `KINENIX_HUB_DASHBOARD_USER` / `KINENIX_HUB_DASHBOARD_PASSWORD` | kinenix-hub | Basic Auth for the dashboard and read endpoints; unset password means localhost-only |

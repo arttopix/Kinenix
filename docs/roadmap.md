@@ -128,7 +128,9 @@ Hub -> versioned job bundle -> Worker (WebSocket) -> kinenix-core executes flow
 - [ ] Windows desktop automation (`uiautomation` / UIA)
 - [ ] Credential vault for flow secrets
 - [ ] Docker Compose one-command deployment
-- [ ] Community quickstart documentation
+- [x] Community quickstart documentation ([quickstart.md](quickstart.md))
+- [x] `kinenix init "Task name"`: new project for the requirements-to-AI-to-`flow.md` workflow (`requirements.md`, `AGENTS.md` for the assistant, `.env.example`); `kinenix init --example` with packaged examples (`hello`, `bot_fx_rate`, `rpachallenge`); `kinenix actions` lists actions and their parameters
+- [x] User flows live in a flows folder outside the Kinenix repository (default `~/kinenix-flows`, asked on the first `kinenix init`, optional git repository, `kinenix flows-dir`, `KINENIX_FLOWS_DIR`); `kinenix run NAME` and worker triggers find flows there by name
 
 ### Phase 6: Advanced Local Agentic Capabilities - Not started
 - [ ] Self-healing UI selectors with DOM fallback matching
