@@ -104,7 +104,7 @@ kinenix init "Get stock data"        # new project: describe the task in require
                                      # then let an AI assistant write flow.md (see the AGENTS.md it creates)
 ```
 
-The [Quickstart](docs/quickstart.md) walks through both, then a worker reporting to the Hub, in about ten minutes.
+Projects are created in your own flows folder (default `~/kinenix-flows`, asked the first time), separate from this repository, and run by name from anywhere. Keep that folder in a private git repository. The [Quickstart](docs/quickstart.md) walks through all of this, then a worker reporting to the Hub, in about ten minutes.
 
 Kinenix Studio is not on PyPI yet; install it from source as shown below. Maintainers: see [docs/releasing.md](docs/releasing.md).
 

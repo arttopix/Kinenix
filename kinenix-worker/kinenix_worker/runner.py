@@ -52,6 +52,12 @@ class WorkerRunner:
         log_dir: Optional[str] = None
     ) -> Dict[str, Any]:
         target_path = Path(flow_path_or_alias).resolve()
+        if not target_path.exists():
+            # A bare name such as "get_stock_data" is looked up like `kinenix run` does, including the flows folder
+            from kinenix.cli import resolve_flow_path
+            found = resolve_flow_path(str(flow_path_or_alias))
+            if found:
+                target_path = found
         if target_path.is_dir():
             if (target_path / "flow.json").is_file():
                 target_path = target_path / "flow.json"

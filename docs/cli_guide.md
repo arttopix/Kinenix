@@ -47,6 +47,8 @@ kinenix install-browsers
 *(Note: kinenix also detects missing browser binaries and automatically downloads Chromium on the first web flow execution).*
 
 ### 2.3 Start a Project (`init`)
+Projects are created in your **flows folder**, separate from the Kinenix source code (default `~/kinenix-flows`; see [Where your flows live](quickstart.md#2-where-your-flows-live)). The first `kinenix init` at a terminal asks where it should be and whether to make it a git repository; scripts and CI use the default without asking. Every project in it runs by name from any folder.
+
 **For a new task**, give it a name. The folder is derived from the name (`Get stock data` becomes `get_stock_data`; Thai names work):
 
 ```powershell
@@ -82,7 +84,16 @@ kinenix run demo
 
 The examples are copies of `flows/examples/` in the repository, kept identical by `.github/scripts/sync_examples.py` and a test.
 
-### 2.4 List Actions and Their Parameters (`actions`)
+### 2.4 Show or Change the Flows Folder (`flows-dir`)
+
+```powershell
+kinenix flows-dir                    # where flows are kept, and where that setting comes from
+kinenix flows-dir D:\bots\flows      # change it (saved in ~/.kinenix/kinenix.env)
+```
+
+Order of precedence: the `KINENIX_FLOWS_DIR` environment variable, then the saved setting, then `~/kinenix-flows`.
+
+### 2.5 List Actions and Their Parameters (`actions`)
 Prints every action with the parameters it accepts, from the code itself. Useful while writing `flow.md`, and for AI assistants that need exact parameter names:
 
 ```powershell
@@ -90,14 +101,14 @@ kinenix actions          # all actions
 kinenix actions web      # only web.*
 ```
 
-### 2.5 List Available Flows (`list`)
-Scans the current workspace, `flows/`, `examples/`, and user cache directories to list all runnable workflows and project bundles:
+### 2.6 List Available Flows (`list`)
+Scans the current folder, your flows folder (`kinenix flows-dir`), and a repository's `flows/` and `examples/` folders, and lists every runnable flow and project bundle:
 
 ```powershell
 kinenix list
 ```
 
-### 2.6 Run a Flow (`run`)
+### 2.7 Run a Flow (`run`)
 Executes an automation flow using the Smart Flow Resolver. You can specify a flow by alias, project folder, relative path, or absolute path:
 
 ```powershell

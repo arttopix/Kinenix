@@ -2,6 +2,8 @@
 
 This guide documents Kinenix's **Self-Contained Project Bundle** architecture, subflow execution standards, and the complete lifecycle from development to unattended deployment.
 
+Your bundles live in your flows folder (default `~/kinenix-flows`), outside the Kinenix repository; `kinenix init` creates them there. The layout below is the inside of one bundle, wherever it lives. See [Where your flows live](quickstart.md#2-where-your-flows-live).
+
 ---
 
 ## 1. Self-Contained Project Bundle Overview

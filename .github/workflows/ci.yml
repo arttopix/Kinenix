@@ -95,15 +95,17 @@ jobs:
       # The quickstart path from the installed package: a new task project, and the hello example run end to end
       - name: Smoke test kinenix init
         working-directory: /tmp
+        env:
+          KINENIX_FLOWS_DIR: /tmp/flows
         run: |
           /tmp/clean/bin/kinenix init "Smoke task"
-          test -f smoke_task/requirements.md && test -f smoke_task/.gitignore && test -f smoke_task/.env.example
+          test -f flows/smoke_task/requirements.md && test -f flows/smoke_task/.gitignore && test -f flows/smoke_task/.env.example
           /tmp/clean/bin/kinenix validate smoke_task
           /tmp/clean/bin/kinenix actions web > /dev/null
           /tmp/clean/bin/kinenix init --list
           /tmp/clean/bin/kinenix init smoke-bot --example hello
           /tmp/clean/bin/kinenix run smoke-bot
-          grep -q "Hello, Somchai!" smoke-bot/output/greetings.csv
+          grep -q "Hello, Somchai!" flows/smoke-bot/output/greetings.csv
 
   studio-frontend:
     name: Studio frontend build

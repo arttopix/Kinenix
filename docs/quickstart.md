@@ -13,14 +13,32 @@ pip install kinenix
 kinenix --version
 ```
 
-## 2. Run a first flow (1 minute)
+## 2. Where your flows live
+
+Your flows are your own work, so Kinenix keeps them in **one folder of your own, separate from the Kinenix source code**. The first time you run `kinenix init`, it asks where; press Enter for the default:
+
+| System | Default flows folder |
+| :--- | :--- |
+| Windows | `C:\Users\<you>\kinenix-flows` |
+| Linux, Raspberry Pi | `/home/<you>/kinenix-flows` |
+| macOS | `/Users/<you>/kinenix-flows` |
+
+- It is a normal, visible folder, because you will open and review flows often. On Windows it is outside `Documents`, which OneDrive often syncs to the cloud.
+- `kinenix init` offers to make it a **git repository**. Push it to a **private** repository (for example on GitHub) for history and backup: flows and their requirements often describe internal systems and business data.
+- Every flow in it runs by name from any folder: `kinenix run <name>`. `kinenix list` shows them all.
+- `kinenix flows-dir` shows the folder; `kinenix flows-dir PATH` changes it; the `KINENIX_FLOWS_DIR` environment variable overrides both (useful on servers).
+- Do not keep your flows inside a clone of the Kinenix repository. Its `flows/examples` folder is for the examples that ship with Kinenix.
+
+`~/.kinenix` is a different, hidden folder: it holds settings and data (`hub.env`, `hub.db`, `worker.env`), not flows.
+
+## 3. Run a first flow (1 minute)
 
 ```bash
 kinenix init my-bot --example hello
 kinenix run my-bot
 ```
 
-`--example hello` copies a small example into a new folder. It needs no browser and no internet, so it is the quickest check that everything works. Open `my-bot/output/greetings.csv`:
+`--example hello` copies a small example into `my-bot` in your flows folder. It needs no browser and no internet, so it is the quickest check that everything works. Open `kinenix-flows/my-bot/output/greetings.csv` in your home folder:
 
 ```csv
 Name,Greeting
@@ -31,7 +49,7 @@ Alex,"Hello, Alex!"
 
 A JSON log of every step is saved under `logs/` (in the nearest git repository, otherwise in the folder you ran the command from; set `KINENIX_LOG_DIR` or `--log-dir` to choose).
 
-## 3. Change it (2 minutes)
+## 4. Change it (2 minutes)
 
 A project folder holds:
 
@@ -50,7 +68,7 @@ Try these:
 
 The syntax is in the [Flow Markdown specification](flow_markdown_spec.md); every action is in the [actions reference](actions_reference.md), and `kinenix actions` lists the parameters each one accepts.
 
-## 4. Start your own task: requirements, then an AI assistant (3 minutes)
+## 5. Start your own task: requirements, then an AI assistant (3 minutes)
 
 This is the normal way to build a flow in Kinenix. You describe the task; an AI assistant writes `flow.md`.
 
@@ -58,7 +76,7 @@ This is the normal way to build a flow in Kinenix. You describe the task; an AI 
 kinenix init "Get stock data"
 ```
 
-This creates `get_stock_data/` with:
+This creates `get_stock_data` in your flows folder, with:
 
 | File | What it is |
 | :--- | :--- |
@@ -79,7 +97,7 @@ Then:
 
 The `bot_fx_rate` example below was built this way: its README contains the original requirements.
 
-## 5. Automate a website (2 minutes)
+## 6. Automate a website (2 minutes)
 
 Web examples drive a real browser. Install it once per machine:
 
@@ -90,9 +108,9 @@ kinenix init fx --example bot_fx_rate       # Bank of Thailand exchange rates to
 kinenix run fx
 ```
 
-The browser opens, picks the currencies and dates on the Bank of Thailand site, reads one table per currency, and writes `fx/output/Exchage_Rate.csv`. Its email step runs in dry-run mode until you configure SMTP (see `fx/README.md`).
+The browser opens, picks the currencies and dates on the Bank of Thailand site, reads one table per currency, and writes `output/Exchage_Rate.csv` in the `fx` project. Its email step runs in dry-run mode until you configure SMTP (see the README in the `fx` project).
 
-## 6. Run unattended and watch it from a dashboard (2 minutes)
+## 7. Run unattended and watch it from a dashboard (2 minutes)
 
 On the machine that runs flows (a server, a spare PC, or a Raspberry Pi):
 

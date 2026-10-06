@@ -152,10 +152,19 @@ def test_packaged_examples_are_not_discovered_as_runnable_flows():
         assert scaffold.NEW_PROJECT_TEMPLATE not in path.resolve().parents
 
 
-def test_init_command(tmp_path):
+def _kinenix_in(tmp_path):
+    """Run the CLI with the flows folder set to tmp_path, never the real ~/kinenix-flows."""
+    import os
+    env = {**os.environ, "KINENIX_FLOWS_DIR": str(tmp_path)}
+
     def kinenix(*args):
-        return subprocess.run([sys.executable, "-m", "kinenix.cli", *args], cwd=tmp_path,
+        return subprocess.run([sys.executable, "-m", "kinenix.cli", *args], cwd=tmp_path, env=env,
                               capture_output=True, text=True, timeout=120)
+    return kinenix
+
+
+def test_init_command(tmp_path):
+    kinenix = _kinenix_in(tmp_path)
 
     listing = kinenix("init", "--list")
     assert listing.returncode == 0 and "hello" in listing.stdout and "needs a browser" in listing.stdout
@@ -184,9 +193,7 @@ def test_init_command(tmp_path):
 
 
 def test_actions_command(tmp_path):
-    def kinenix(*args):
-        return subprocess.run([sys.executable, "-m", "kinenix.cli", *args], cwd=tmp_path,
-                              capture_output=True, text=True, timeout=120)
+    kinenix = _kinenix_in(tmp_path)
 
     every = kinenix("actions")
     assert every.returncode == 0
