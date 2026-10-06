@@ -8,7 +8,7 @@
   "error_dir": "./output/errors/",
   "headless": false,
   "email": {
-    "to": ["arttopix@gmail.com"],
+    "to": ["recipient@example.com"],
     "subject": "[Kinenix] BOT Foreign Exchange Transfer Rates",
     "body": "Hello,\n\nAttached are the Bank of Thailand buying transfer rates for the requested currencies and period, grouped by currency.\n\nKinenix Worker",
     "dry_run": true
