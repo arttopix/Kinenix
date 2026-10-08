@@ -5,10 +5,12 @@ name: Release
 #   Run this workflow by hand        -> publish to TestPyPI, to try a release first
 # Uses PyPI Trusted Publishing: no API token is stored in GitHub. See docs/releasing.md.
 #
-# kinenix-worker is published by its own job with its own environment (pypi-worker, testpypi-worker).
-# PyPI refuses two pending publishers with the same repository, workflow, and environment, so a new
-# project needs a configuration that no other pending publisher uses. It runs after the other two
-# packages, so kinenix-worker never appears on an index before the kinenix version it requires.
+# Each package is published by its own job with its own environment (pypi, pypi-hub, pypi-worker and
+# the testpypi equivalents). A job gets one OIDC token, and PyPI scopes it to the publisher that
+# matches the job's environment; when one environment matches the publishers of several projects,
+# for example an active one and a pending one, the token is valid for only one of them.
+# kinenix is published first, so kinenix-hub and kinenix-worker never appear on an index before the
+# kinenix version they require.
 
 on:
   push:
@@ -44,24 +46,32 @@ jobs:
       - name: Check versions and tag
         run: python .github/scripts/check_release.py dist "${{ github.ref_type == 'tag' && github.ref_name || '' }}"
 
-      - name: Separate kinenix-worker
+      - name: Separate the packages
         run: |
-          mkdir dist-worker
-          mv dist/kinenix_worker-* dist-worker/
-          ls dist dist-worker
+          mkdir -p split/kinenix split/kinenix-hub split/kinenix-worker
+          mv dist/kinenix_hub-* split/kinenix-hub/
+          mv dist/kinenix_worker-* split/kinenix-worker/
+          mv dist/kinenix-* split/kinenix/
+          test -z "$(ls dist)"
+          ls -R split
 
       - uses: actions/upload-artifact@v4
         with:
-          name: dist
-          path: dist/
+          name: kinenix
+          path: split/kinenix/
 
       - uses: actions/upload-artifact@v4
         with:
-          name: dist-worker
-          path: dist-worker/
+          name: kinenix-hub
+          path: split/kinenix-hub/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kinenix-worker
+          path: split/kinenix-worker/
 
   testpypi:
-    name: Publish kinenix and kinenix-hub to TestPyPI
+    name: Publish kinenix to TestPyPI
     if: github.event_name == 'workflow_dispatch'
     needs: build
     runs-on: ubuntu-latest
@@ -73,26 +83,34 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: dist
+          name: kinenix
           path: dist/
 
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
 
-  testpypi-worker:
-    name: Publish kinenix-worker to TestPyPI
+  testpypi-extras:
+    name: Publish ${{ matrix.package }} to TestPyPI
     needs: testpypi
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: kinenix-hub
+            environment: testpypi-hub
+          - package: kinenix-worker
+            environment: testpypi-worker
     environment:
-      name: testpypi-worker
-      url: https://test.pypi.org/project/kinenix-worker/
+      name: ${{ matrix.environment }}
+      url: https://test.pypi.org/project/${{ matrix.package }}/
     permissions:
       id-token: write
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: dist-worker
+          name: ${{ matrix.package }}
           path: dist/
 
       - uses: pypa/gh-action-pypi-publish@release/v1
@@ -100,7 +118,7 @@ jobs:
           repository-url: https://test.pypi.org/legacy/
 
   pypi:
-    name: Publish kinenix and kinenix-hub to PyPI
+    name: Publish kinenix to PyPI
     if: github.ref_type == 'tag'
     needs: build
     runs-on: ubuntu-latest
@@ -112,24 +130,32 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: dist
+          name: kinenix
           path: dist/
 
       - uses: pypa/gh-action-pypi-publish@release/v1
 
-  pypi-worker:
-    name: Publish kinenix-worker to PyPI
+  pypi-extras:
+    name: Publish ${{ matrix.package }} to PyPI
     needs: pypi
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: kinenix-hub
+            environment: pypi-hub
+          - package: kinenix-worker
+            environment: pypi-worker
     environment:
-      name: pypi-worker
-      url: https://pypi.org/project/kinenix-worker/
+      name: ${{ matrix.environment }}
+      url: https://pypi.org/project/${{ matrix.package }}/
     permissions:
       id-token: write
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: dist-worker
+          name: ${{ matrix.package }}
           path: dist/
 
       - uses: pypa/gh-action-pypi-publish@release/v1
