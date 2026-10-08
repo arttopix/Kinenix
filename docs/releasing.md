@@ -33,19 +33,24 @@ Use these values:
 | Owner | `arttopix` |
 | Repository name | `Kinenix` |
 | Workflow name | `release.yml` |
-| Environment name | `pypi` for `kinenix` and `kinenix-hub`; **`pypi-worker`** for `kinenix-worker` |
+| Environment name | `pypi` for `kinenix`, **`pypi-hub`** for `kinenix-hub`, **`pypi-worker`** for `kinenix-worker` |
 
 A pending publisher turns into the project on the first successful upload.
 
-`kinenix-worker` has its own environment because PyPI refuses a pending publisher whose owner, repository, workflow, and environment all match another pending publisher ("A pending trusted publisher matching this configuration has already been registered for a different project name"). The release workflow publishes it in a separate job (`pypi-worker`) that runs after `kinenix` and `kinenix-hub` are uploaded.
+Each package has its own environment, and the release workflow publishes each one in its own job: `kinenix` first, then `kinenix-hub` and `kinenix-worker`.
+
+- A job gets one OIDC token from PyPI, scoped to the publisher that matches the job's environment. When one environment matches the publishers of several projects (for example the active publisher of `kinenix` and a pending one for `kinenix-hub`), the token is valid for only one of them and the other uploads fail with `403 Invalid API Token: OIDC scoped token is not valid for project`.
+- PyPI also refuses two pending publishers with the same owner, repository, workflow, and environment ("A pending trusted publisher matching this configuration has already been registered for a different project name").
+
+Once a project exists, a pending publisher can no longer be added for it; add the publisher in the project's own settings (**Manage**, then **Publishing**) instead.
 
 ### 1.2 Trusted publishers on TestPyPI
 
-Repeat 1.1 on https://test.pypi.org (a separate site with its own account), with environment name **`testpypi`** for `kinenix` and `kinenix-hub`, and **`testpypi-worker`** for `kinenix-worker`. Use it to try every release before the real one.
+Repeat 1.1 on https://test.pypi.org (a separate site with its own account), with environment names **`testpypi`** for `kinenix`, **`testpypi-hub`** for `kinenix-hub`, and **`testpypi-worker`** for `kinenix-worker`. Use it to try every release before the real one.
 
 ### 1.3 GitHub environments (recommended)
 
-The workflow creates the `pypi`, `pypi-worker`, `testpypi`, and `testpypi-worker` environments on first use. To require approval before anything is published, open the repository **Settings**, then **Environments**, then **pypi** and **pypi-worker**, and add yourself under **Required reviewers**.
+The workflow creates the `pypi`, `pypi-hub`, `pypi-worker`, `testpypi`, `testpypi-hub`, and `testpypi-worker` environments on first use. To require approval before anything is published, open the repository **Settings**, then **Environments**, then **pypi**, **pypi-hub**, and **pypi-worker**, and add yourself under **Required reviewers**.
 
 ---
 
