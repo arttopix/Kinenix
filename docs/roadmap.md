@@ -17,8 +17,10 @@ Ordered so that safety and predictable runtime behavior come before new distribu
 | 3 | Hub worker authentication (API key) | Done |
 | 4 | Continuous integration for Python tests and the Studio frontend build | Done |
 | 5 | Hub dashboard authentication, CORS, and safe default host | Done |
-| 6 | Persistent Studio sessions, single-step execution, and live telemetry | Not started |
-| 7 | Worker WebSocket protocol and job dispatch from the Hub | Not started |
+| 6 | Date actions for scheduled flows (`date.calc`) | Done |
+| 7 | `kinenix record` (record browser steps) and `kinenix inspect` (list page elements, test a selector), with an `## Elements` section in `flow.md` that names each selector once; replaces the Studio element picker | Planned |
+| 8 | Worker WebSocket protocol and job dispatch from the Hub | Not started |
+| - | Persistent Studio sessions, single-step execution, and live telemetry | Paused with Studio |
 
 ### 1.4 Continuous Integration
 
@@ -87,8 +89,12 @@ Hub -> versioned job bundle -> Worker (WebSocket) -> kinenix-core executes flow
 - [x] Example flow `bot_fx_rate`: Bank of Thailand transfer rates to CSV and email, verified against the BOT data
 - [x] `file.zip` and `file.unzip`: pack a run's output for an email attachment; extraction refuses entries that point outside the destination
 - [x] `file.list` (loop over the files in a folder, newest first), `file.read_text` and `file.write_text` (text, lines, JSON, append, Thai legacy encodings), `file.create_folder`; boolean parameters given as text in config ("false") are read correctly by all file actions
+- [x] `date.calc`: today or a given date, shifted by days, weeks, months, or years and snapped to the start or end of a week, month, or year; `bot_fx_rate` reports the previous month by default instead of fixed dates
 
-### Phase 2: Studio (`kinenix-studio`) - In progress
+### Phase 2: Studio (`kinenix-studio`) - Paused
+
+Paused on 2026-10-08. Flows are written as `flow.md` from a `requirements.md` with an AI assistant (`kinenix init`), so a visual flow editor duplicates that work while adding a React and FastAPI application to maintain. The hardest part of authoring, finding selectors on real pages, moves to a `kinenix record` command built on Playwright's recorder (priority 7 above). The code stays in the repository and in CI, is not published, and receives no new features until this decision is revisited.
+
 - [x] FastAPI backend: flow discovery, read/save with schema validation, step update, action metadata, run
 - [x] Path containment to `flows/` and restricted CORS
 - [x] React/Vite 3-column UI (step timeline, inspector, context panel) served by the backend

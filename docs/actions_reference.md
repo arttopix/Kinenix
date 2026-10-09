@@ -48,16 +48,18 @@ This document provides a comprehensive specification of standard actions availab
    - [logic.if](#logicif)
    - [logic.loop](#logicloop)
    - [logic.append](#logicappend)
-5. [HTTP API Integration (`http.*`)](#http-api-integration-http)
+5. [Dates (`date.*`)](#dates-date)
+   - [date.calc](#datecalc)
+6. [HTTP API Integration (`http.*`)](#http-api-integration-http)
    - [http.request](#httprequest)
    - [http.download](#httpdownload)
-6. [Modular Subflows and Flow Control (`flow.*`)](#modular-subflows-and-flow-control-flow)
+7. [Modular Subflows and Flow Control (`flow.*`)](#modular-subflows-and-flow-control-flow)
    - [flow.call](#flowcall)
    - [flow.return](#flowreturn)
    - [flow.fail](#flowfail)
-7. [Email Notification (`email.*`)](#email-notification-email)
+8. [Email Notification (`email.*`)](#email-notification-email)
    - [email.send](#emailsend)
-8. [AI and Local LLM (`ai.*`)](#ai-and-local-llm-ai)
+9. [AI and Local LLM (`ai.*`)](#ai-and-local-llm-ai)
    - [ai.prompt](#aiprompt)
    - [ai.extract](#aiextract)
    - [ai.decide](#aidecide)
@@ -1628,6 +1630,117 @@ Appends an item, dictionary, or primitive value to a list in context variables. 
   }
 ]
 ```
+
+---
+
+## Dates (`date.*`)
+
+Works out dates relative to the day the flow runs, so a scheduled flow always processes the right period without editing its config.
+
+---
+
+### `date.calc`
+Starts from a date (today by default), optionally moves it by days, weeks, months, or years, optionally snaps it to the start or end of a week, month, or year, and returns the result split into parts. Steps in order: read `date`, add `add_years` and `add_months`, add `add_weeks` and `add_days`, then apply `snap`. Month arithmetic keeps the day where it can and otherwise uses the last day of the month (31 March minus one month is 28 or 29 February). "Today" is the worker's local date, so set the machine's time zone correctly.
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `date` | string | No | `today` | Starting point: `today` (midnight), `now` (current time), an ISO date or date-time such as `2024-12-01` or `2024-12-01T09:30`, or a date in another format together with `input_format` |
+| `input_format` | string | No | - | Python `strptime` pattern for reading `date`, for example `%d/%m/%Y` for `31/12/2024` |
+| `add_days` | integer | No | `0` | Days to add; negative moves back |
+| `add_weeks` | integer | No | `0` | Weeks to add; negative moves back |
+| `add_months` | integer | No | `0` | Months to add; negative moves back |
+| `add_years` | integer | No | `0` | Years to add; negative moves back |
+| `snap` | string | No | - | `start_of_month`, `end_of_month`, `start_of_year`, `end_of_year`, `start_of_week` (Monday), or `end_of_week` (Sunday) |
+| `format` | string | No | `%Y-%m-%d` | Python `strftime` pattern for the `text` field of the result, for example `%d-%m-%Y` or `%Y%m%d_%H%M` |
+
+**Example in `flow.md` (Markdown):**
+```markdown
+### 1. First Day Of Last Month (`date.calc`)
+- **add_months:** -1
+- **snap:** start_of_month
+- **output_var:** `start`
+
+### 2. Last Day Of Last Month (`date.calc`)
+- **add_months:** -1
+- **snap:** end_of_month
+- **format:** %d-%m-%Y
+- **output_var:** `end`
+
+### 3. Choose Start Month (`web.select_option`)
+- **selector:** `.react-datepicker select >> nth=0`
+- **text:** `${start.month_name}`
+
+### 4. Report File Name (`logic.set_variable`)
+- **name:** report_path
+- **value:** ./output/fx_${start.year}-${start.month}.csv
+```
+
+**Compiled `flow.json`:**
+```json
+[
+  {
+    "id": "step_1",
+    "name": "First Day Of Last Month",
+    "action": "date.calc",
+    "parameters": {
+      "add_months": -1,
+      "snap": "start_of_month"
+    },
+    "output_var": "start"
+  },
+  {
+    "id": "step_2",
+    "name": "Last Day Of Last Month",
+    "action": "date.calc",
+    "parameters": {
+      "add_months": -1,
+      "snap": "end_of_month",
+      "format": "%d-%m-%Y"
+    },
+    "output_var": "end"
+  },
+  {
+    "id": "step_3",
+    "name": "Choose Start Month",
+    "action": "web.select_option",
+    "parameters": {
+      "selector": ".react-datepicker select >> nth=0",
+      "text": "${start.month_name}"
+    }
+  },
+  {
+    "id": "step_4",
+    "name": "Report File Name",
+    "action": "logic.set_variable",
+    "parameters": {
+      "name": "report_path",
+      "value": "./output/fx_${start.year}-${start.month}.csv"
+    }
+  }
+]
+```
+
+**Output Format** (run on 8 October 2026, step 2 above):
+```json
+{
+  "text": "30-09-2026",
+  "date": "2026-09-30",
+  "datetime": "2026-09-30T00:00:00",
+  "year": 2026,
+  "month": 9,
+  "day": 30,
+  "month_name": "September",
+  "month_abbr": "Sep",
+  "weekday": "Wednesday",
+  "weekday_number": 3,
+  "days_in_month": 30,
+  "hour": 0,
+  "minute": 0
+}
+```
+
+Month and weekday names are always English, whatever the machine's language. `weekday_number` runs from 1 (Monday) to 7 (Sunday). `year`, `month`, `day`, `hour`, and `minute` are numbers; inside a longer text such as a selector or file name they appear without leading zeros (`9`, not `09`). Use `text` with `format` when leading zeros are needed.
 
 ---
 

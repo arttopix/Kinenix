@@ -30,7 +30,7 @@
 | :--- | :--- | :--- |
 | **`kinenix-core`** | Flow interpreter, action plugins, and `kinenix` CLI | Implemented |
 | **`kinenix-worker`** | Unattended runner with schedule and file-watch triggers | Implemented (WebSocket dispatch planned) |
-| **`kinenix-studio`** | Web-based flow editor and runner | In progress |
+| **`kinenix-studio`** | Web-based flow editor and runner | Paused (see [Roadmap](docs/roadmap.md#phase-2-studio-kinenix-studio---paused)) |
 | **`kinenix-hub`** | Central telemetry server, dashboard, and AI failure summaries | Early |
 
 Flows are packaged as self-contained project bundles under `flows/`. See [Architecture](docs/architecture.md) for the execution pipeline, AI integration, and target design, and [Roadmap](docs/roadmap.md) for delivery status.
@@ -106,7 +106,7 @@ kinenix init "Get stock data"        # new project: describe the task in require
 
 Projects are created in your own flows folder (default `~/kinenix-flows`, asked the first time), separate from this repository, and run by name from anywhere. Keep that folder in a private git repository. The [Quickstart](docs/quickstart.md) walks through all of this, then a worker reporting to the Hub, in about ten minutes.
 
-Kinenix Studio is not on PyPI yet; install it from source as shown below. Maintainers: see [docs/releasing.md](docs/releasing.md).
+Kinenix Studio is paused and not on PyPI: flows are written as `flow.md` with an AI assistant instead (see the [Roadmap](docs/roadmap.md#phase-2-studio-kinenix-studio---paused)). Its code stays in the repository and can be installed from source as shown below. Maintainers: see [docs/releasing.md](docs/releasing.md).
 
 #### From source (all modules, for development)
 
