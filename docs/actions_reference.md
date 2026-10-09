@@ -1480,10 +1480,12 @@ Conditionally branches execution into `sub_steps` (when condition evaluates to t
 - `greater_than_or_equal`, `>=`, `gte`
 - `less_than`, `<`, `lt`
 - `less_than_or_equal`, `<=`, `lte`
-- `contains`, `in`
-- `not_contains`, `not_in`
+- `contains`, `not_contains` (right is part of left)
+- `in`, `not_in` (left is part of right; with a list, an item equals left)
 - `starts_with`, `ends_with`
 - `is_empty`, `is_not_empty`
+
+In `condition`, write the operators as words: `contains`, `not contains`, `in`, `not in`, `starts with`, `ends with`, `is empty`, `is not empty` (see [Conditions](flow_markdown_spec.md#c-conditions)).
 
 **Parameters:**
 | Parameter | Type | Required | Description |
@@ -1997,10 +1999,11 @@ The message is `multipart/mixed`: the body (plain text, HTML, or both as alterna
 - **output_var:** `email_result`
 - **to:** manager@company.com
 - **subject:** Daily RPA Processing Summary - [${status}]
-- **body:** Hello,
+- **body:** |
+    Hello,
 
-The automated workflow has completed successfully.
-Processed records: ${count}
+    The automated workflow has completed successfully.
+    Processed records: ${count}
 - **attachments:** ["./assets/daily_summary.xlsx"]
 - **dry_run:** false
 ```

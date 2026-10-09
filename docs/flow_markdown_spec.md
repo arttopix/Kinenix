@@ -134,6 +134,25 @@ All parameters passed to the action must be written as Markdown bullet items dir
 
 ---
 
+#### Multi-line Values
+A value with several lines, such as an email body, starts with `|` after the parameter name. The lines below it that are indented further than the parameter line are its value; their common indentation is removed, and blank lines inside are kept. The value ends at the first line that is not indented further, such as the next parameter.
+
+```markdown
+### 5. Email Report (`email.send`)
+- **to:** `${config.email.to}`
+- **subject:** Insurance packages
+- **body:** |
+    Hello,
+
+    The packages for ${request_count} requests are attached.
+    - Source: tipinsure.com
+- **attachments:** ["${packed.zip_path}"]
+```
+
+The `body` above is `"Hello,\n\nThe packages for ${request_count} requests are attached.\n- Source: tipinsure.com"`. A `|` with no indented lines after it is the plain value `|` (for example `- **delimiter:** |`). Text lines under a step that are neither a parameter nor part of a `|` value are ignored, and `kinenix validate` reports each one with its line number.
+
+---
+
 ### Rule 4: Standard Indentation for Control Flow (`logic.loop` & `logic.if`)
 
 For actions that contain nested steps, use standard Markdown 2-space or 4-space indentation under `- **Sub-steps:**` (and optionally `- **Else-steps:**` for `logic.if`).
@@ -161,6 +180,28 @@ For actions that contain nested steps, use standard Markdown 2-space or 4-space 
     - **param1:** value
 ```
 
+
+#### C. Conditions
+`condition` on any step runs the step only when the condition is true; on `logic.if` it chooses between `Sub-steps` and `Else-steps`. A condition is `left operator right`, or `left is empty` / `left is not empty`:
+
+| Operator | True when |
+| :--- | :--- |
+| `==`, `!=` | the two sides are equal / differ (text comparison ignores case) |
+| `>`, `>=`, `<`, `<=` | both sides are numbers and compare so |
+| `contains`, `not contains` | right is / is not part of left; with a list on the left, an item equals right |
+| `in`, `not in` | left is / is not part of right; with a list on the right, an item equals left |
+| `starts with`, `ends with` | left starts / ends with right |
+| `is empty`, `is not empty` | left is / is not missing or blank (no right side) |
+
+The condition is split into its sides before variables are replaced, so values containing `<`, `>`, or the word `in` (for example `< 5,000 km`) never split it, and neither does text inside `${...}` or quotes. Quote a literal that contains an operator: `${label} == 'x > y'`.
+
+```markdown
+### 6. Skip Requests Without A Model (`flow.fail`)
+- **condition:** `${req.model} is empty`
+- **message:** Request ${req.request_id} has no car model
+- **category:** business
+```
+
 #### Example
 ```markdown
 ### 4. Loop Applicants and Submit Form (`logic.loop`)
@@ -169,10 +210,10 @@ For actions that contain nested steps, use standard Markdown 2-space or 4-space 
 - **Sub-steps:**
   - Fill First Name (`web.type`):
     - **selector:** `//input[@ng-reflect-name="labelFirstName"]`
-    - **value:** `${row.First Name}`
+    - **text:** `${row.First Name}`
   - Fill Last Name (`web.type`):
     - **selector:** `//input[@ng-reflect-name="labelLastName"]`
-    - **value:** `${row.Last Name}`
+    - **text:** `${row.Last Name}`
   - Click Round Submit Button (`web.click`):
     - **selector:** `input[value="Submit"]`
 ```
@@ -187,6 +228,7 @@ Dynamic variables in both `flow.md` and `flow.json` must strictly use the standa
 - **`${variable_name}`**: Accesses runtime variables initialized in flow or stored by `output_var`.
 - **`${item.property}`**: Accesses fields of the current iteration object in `logic.loop`.
 - **`${env.VAR_NAME}`**: Accesses operating system environment variables.
+- **`${__flow_dir__}`**: The absolute path of the flow's bundle folder. Relative paths in file actions already resolve against it; use it to build an absolute path, for example to pass a file location to a subflow: `"${__flow_dir__}/output/report.csv"`.
 
 ---
 
@@ -225,13 +267,13 @@ Below is the complete `flow.md` specification for the **RPA Challenge Solver** b
     - **Sub-steps:**
       - Fill First Name (`web.type`):
         - **selector:** `//input[@ng-reflect-name="labelFirstName"]`
-        - **value:** `${row.First Name}`
+        - **text:** `${row.First Name}`
       - Fill Last Name (`web.type`):
         - **selector:** `//input[@ng-reflect-name="labelLastName"]`
-        - **value:** `${row.Last Name}`
+        - **text:** `${row.Last Name}`
     - **Else-steps:**
       - Record Non-Programmer Person (`logic.append`):
-        - **target_list:** `${non_programmers}`
+        - **target:** non_programmers
         - **item:** `{"First Name": "${row.First Name}", "Role in Company": "${row.Role in Company}"}`
   - Click Round Submit Button (`web.click`):
     - **selector:** `input[value="Submit"]`

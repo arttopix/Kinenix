@@ -37,6 +37,45 @@ _ALT_ELSE_STEPS_REGEX = re.compile(
 ERROR_HANDLER_KEYS = ("on_error", "max_retries", "retry_interval", "fallback_step_id")
 
 
+# A parameter written as `- **body:** |` takes the indented lines below it as its value
+BLOCK_MARKER = "|"
+
+Line = Tuple[int, str, int]  # (indent, stripped text, line number)
+
+
+def _block_value(body_lines: List[Line], start: int, key_indent: int) -> Tuple[Optional[str], int]:
+    """
+    Reads a multi-line value: the blank or more deeply indented lines from `start` on. Their common
+    indentation is removed, relative indentation and blank lines inside are kept, and blank lines at
+    the end are dropped. Returns (None, start) when no indented line follows, so a lone `|` stays a value.
+    """
+    end = start
+    while end < len(body_lines) and (not body_lines[end][1] or body_lines[end][0] > key_indent):
+        end += 1
+    collected = body_lines[start:end]
+    while collected and not collected[-1][1]:
+        collected.pop()
+    if not collected:
+        return None, start
+    base = min(indent for indent, text, _ in collected if text)
+    text = "\n".join(" " * (indent - base) + line if line else "" for indent, line, _ in collected)
+    return text, start + len(collected)
+
+
+def _stray_line_issue(lineno: int, text: str, step_name: str) -> str:
+    shown = text if len(text) <= 60 else text[:57] + "..."
+    return (f"Line {lineno}: '{shown}' in step '{step_name}' is not a parameter and was ignored. "
+            f"For a value with several lines, write the parameter as `- **name:** |` and indent the lines below it.")
+
+
+def _param_lines(pad: str, key: str, value: Any) -> List[str]:
+    """Markdown lines for one parameter; text with line breaks is written as a `|` block."""
+    if isinstance(value, str) and "\n" in value:
+        inner = pad + "    "
+        return [f"{pad}- **{key}:** {BLOCK_MARKER}"] + [inner + line if line else "" for line in value.split("\n")]
+    return [f"{pad}- **{key}:** {format_value(value)}"]
+
+
 def _error_handler_lines(step: Step, pad: str) -> List[str]:
     if not step.error_handler:
         return []
@@ -106,9 +145,10 @@ def format_value(val: Any) -> str:
     return str(val)
 
 
-def _parse_sub_steps_block(lines: List[Tuple[int, str, int]], parent_id: str) -> List[Dict[str, Any]]:
+def _parse_sub_steps_block(lines: List[Line], parent_id: str, issues: Optional[List[str]] = None) -> List[Dict[str, Any]]:
     """
-    Recursively parse indented sub-steps from lines formatted as: (indent, raw_stripped_text, line_number)
+    Recursively parse indented sub-steps from lines formatted as: (indent, raw_stripped_text, line_number).
+    Blank lines are kept, because they belong to multi-line values.
     """
     if not lines:
         return []
@@ -150,14 +190,18 @@ def _parse_sub_steps_block(lines: List[Tuple[int, str, int]], parent_id: str) ->
             sub_match = _SUB_STEPS_REGEX.match(text) or _ALT_SUB_STEPS_REGEX.match(text)
             else_match = _ELSE_STEPS_REGEX.match(text) or _ALT_ELSE_STEPS_REGEX.match(text)
 
+            if not text:
+                i += 1
+                continue
+
             if sub_match:
                 # Collect all subsequent lines that have higher indentation
                 sub_lines = []
                 i += 1
-                while i < len(body_lines) and body_lines[i][0] > indent:
+                while i < len(body_lines) and (body_lines[i][0] > indent or not body_lines[i][1]):
                     sub_lines.append(body_lines[i])
                     i += 1
-                sub_parsed = _parse_sub_steps_block(sub_lines, parent_id=step_id)
+                sub_parsed = _parse_sub_steps_block(sub_lines, parent_id=step_id, issues=issues)
                 if sub_parsed:
                     step_dict["sub_steps"] = sub_parsed
                 continue
@@ -165,10 +209,10 @@ def _parse_sub_steps_block(lines: List[Tuple[int, str, int]], parent_id: str) ->
             elif else_match:
                 else_lines = []
                 i += 1
-                while i < len(body_lines) and body_lines[i][0] > indent:
+                while i < len(body_lines) and (body_lines[i][0] > indent or not body_lines[i][1]):
                     else_lines.append(body_lines[i])
                     i += 1
-                else_parsed = _parse_sub_steps_block(else_lines, parent_id=f"{step_id}_else")
+                else_parsed = _parse_sub_steps_block(else_lines, parent_id=f"{step_id}_else", issues=issues)
                 if else_parsed:
                     step_dict["else_steps"] = else_parsed
                 continue
@@ -179,6 +223,11 @@ def _parse_sub_steps_block(lines: List[Tuple[int, str, int]], parent_id: str) ->
                 key = param_match.group("key")
                 val_raw = param_match.group("val")
                 val = parse_value(val_raw)
+                if val_raw.strip() == BLOCK_MARKER:
+                    block, next_i = _block_value(body_lines, i + 1, indent)
+                    if block is not None:
+                        val_raw, val = block, block
+                        i = next_i - 1
 
                 if key == "output_var":
                     step_dict["output_var"] = str(val) if val is not None else None
@@ -197,13 +246,15 @@ def _parse_sub_steps_block(lines: List[Tuple[int, str, int]], parent_id: str) ->
                     step_dict.setdefault("error_handler", {}).update(val)
                 else:
                     step_dict["parameters"][key] = val
+            elif issues is not None:
+                issues.append(_stray_line_issue(lineno, text, name))
             i += 1
 
         return step_dict
 
     child_counter = 1
-    for indent, text, lineno in non_blank:
-        if indent == min_indent:
+    for indent, text, lineno in lines:
+        if text and indent == min_indent:
             match = _CHILD_STEP_REGEX.match(text)
             if match:
                 if current_match:
@@ -214,6 +265,8 @@ def _parse_sub_steps_block(lines: List[Tuple[int, str, int]], parent_id: str) ->
                 continue
         if current_match:
             current_step_lines.append((indent, text, lineno))
+        elif text and issues is not None:
+            issues.append(f"Line {lineno}: '{text[:60]}' is not a sub-step; a sub-step looks like `- Name (`action.name`):`.")
 
     if current_match:
         steps.append(finalize_step(current_match, current_step_lines, child_counter))
@@ -221,12 +274,14 @@ def _parse_sub_steps_block(lines: List[Tuple[int, str, int]], parent_id: str) ->
     return steps
 
 
-def markdown_to_flow(md_content: str) -> FlowDefinition:
+def markdown_to_flow(md_content: str, issues: Optional[List[str]] = None) -> FlowDefinition:
     """
     Parses a Flow Markdown specification string into a validated FlowDefinition.
-    Adheres strictly to docs/flow_markdown_spec.md.
+    Adheres strictly to docs/flow_markdown_spec.md. When `issues` is a list, lines that were ignored
+    (text under a step that is not a parameter) are reported in it.
     """
-    lines = md_content.splitlines()
+    # Tabs count as four spaces, so indentation typed with Tab works like spaces
+    lines = [line.expandtabs(4) for line in md_content.splitlines()]
     
     flow_name = "Untitled Flow"
     description: Optional[str] = None
@@ -340,7 +395,7 @@ def markdown_to_flow(md_content: str) -> FlowDefinition:
                 while i < len(body_lines) and (body_lines[i][0] > indent or not body_lines[i][1]):
                     sub_lines.append(body_lines[i])
                     i += 1
-                sub_parsed = _parse_sub_steps_block(sub_lines, parent_id=f"sub_{step_id}")
+                sub_parsed = _parse_sub_steps_block(sub_lines, parent_id=f"sub_{step_id}", issues=issues)
                 if sub_parsed:
                     step_dict["sub_steps"] = sub_parsed
                 continue
@@ -351,7 +406,7 @@ def markdown_to_flow(md_content: str) -> FlowDefinition:
                 while i < len(body_lines) and (body_lines[i][0] > indent or not body_lines[i][1]):
                     else_lines.append(body_lines[i])
                     i += 1
-                else_parsed = _parse_sub_steps_block(else_lines, parent_id=f"sub_{step_id}_else")
+                else_parsed = _parse_sub_steps_block(else_lines, parent_id=f"sub_{step_id}_else", issues=issues)
                 if else_parsed:
                     step_dict["else_steps"] = else_parsed
                 continue
@@ -361,6 +416,11 @@ def markdown_to_flow(md_content: str) -> FlowDefinition:
                 key = param_match.group("key")
                 val_raw = param_match.group("val")
                 val = parse_value(val_raw)
+                if val_raw.strip() == BLOCK_MARKER:
+                    block, next_i = _block_value(body_lines, i + 1, indent)
+                    if block is not None:
+                        val_raw, val = block, block
+                        i = next_i - 1
 
                 if key == "output_var":
                     step_dict["output_var"] = str(val) if val is not None else None
@@ -379,6 +439,8 @@ def markdown_to_flow(md_content: str) -> FlowDefinition:
                     step_dict.setdefault("error_handler", {}).update(val)
                 else:
                     step_dict["parameters"][key] = val
+            elif issues is not None:
+                issues.append(_stray_line_issue(lineno, text, name))
             i += 1
 
         compiled_steps.append(step_dict)
@@ -409,7 +471,7 @@ def _serialize_sub_steps(steps: List[Step], indent_spaces: int = 2) -> List[str]
         if s.output_var:
             lines.append(f"{param_pad}- **output_var:** `{s.output_var}`")
         for k, v in s.parameters.items():
-            lines.append(f"{param_pad}- **{k}:** {format_value(v)}")
+            lines.extend(_param_lines(param_pad, k, v))
         lines.extend(_error_handler_lines(s, param_pad))
 
         if s.sub_steps:
@@ -463,7 +525,7 @@ def flow_to_markdown(flow: FlowDefinition) -> str:
         if step.output_var:
             doc.append(f"- **output_var:** `{step.output_var}`")
         for k, v in step.parameters.items():
-            doc.append(f"- **{k}:** {format_value(v)}")
+            doc.extend(_param_lines("", k, v))
         doc.extend(_error_handler_lines(step, ""))
 
         if step.sub_steps:
@@ -476,6 +538,13 @@ def flow_to_markdown(flow: FlowDefinition) -> str:
         doc.append("")
 
     return "\n".join(doc).rstrip() + "\n"
+
+
+def markdown_issues(md_content: str) -> List[str]:
+    """Lines of a flow.md that the compiler ignores, as human-readable problems."""
+    issues: List[str] = []
+    markdown_to_flow(md_content, issues=issues)
+    return issues
 
 
 def load_flow(path_or_content: Union[str, Path]) -> FlowDefinition:
