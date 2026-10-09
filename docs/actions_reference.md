@@ -738,7 +738,7 @@ Closes current page, browser context, and terminates Playwright session.
 Provides zero-license tabular data processing via Pandas and OpenPyXL.
 
 ### `excel.read`
-Reads an Excel sheet into an in-memory list of dictionaries (records).
+Reads an Excel sheet into an in-memory list of dictionaries (records). Empty cells are `None` (never `NaN`), and a column of whole numbers stays whole even when some cells are empty (`2023`, not `2023.0`).
 
 **Parameters:**
 | Parameter | Type | Required | Default | Description |
@@ -746,6 +746,7 @@ Reads an Excel sheet into an in-memory list of dictionaries (records).
 | `file_path` | string | Yes | - | Path to .xlsx or .xls file (relative paths resolved against bundle) |
 | `sheet_name` | string / int | No | `0` | Sheet name or index to read |
 | `clean_headers` | boolean | No | `true` | Strip leading and trailing whitespace from column names |
+| `as_text` | boolean | No | `false` | Return every cell as text, with `""` for empty cells |
 
 **Example in `flow.md` (Markdown):**
 ```markdown
@@ -809,15 +810,25 @@ Writes a list of dictionaries or single dictionary to an Excel spreadsheet. A re
 ---
 
 ### `csv.read`
-Reads a delimiter-separated text file (CSV, TSV, semicolon-separated) into a list of dictionaries.
+Reads a delimiter-separated text file (CSV, TSV, semicolon-separated) into a list of dictionaries. Each column gets one type from its values:
+
+| Column values | Result |
+|---|---|
+| All whole numbers, such as `2023` | `int`; empty cells `None` |
+| Numbers with decimals, such as `15434.75` | `float`; empty cells `None` |
+| All `true` / `false` (any case) | `bool`; empty cells `None` |
+| Anything else, including codes with a leading zero (`0812345678`, `00100`) and text such as `NA` | text exactly as written; empty cells `None` |
+
+A column with a single non-numeric value stays text, so phone numbers, postal codes, and IDs are never turned into numbers. Set `as_text: true` to get every cell as text instead, with `""` for empty cells.
 
 **Parameters:**
 | Parameter | Type | Required | Default | Description |
 |---|---|---|---|---|
 | `file_path` | string | Yes | - | Path to CSV file (resolved against bundle or absolute) |
 | `delimiter` | string | No | `","` | Field separator character (e.g. `","`, `";"`, `"\t"`) |
-| `encoding` | string | No | `"utf-8"` | File character encoding |
+| `encoding` | string | No | `"utf-8-sig"` | File character encoding. The default also reads files saved by Excel with a byte order mark. Thai files from older systems are often `cp874`; the error message says so when the file cannot be read |
 | `clean_headers` | boolean | No | `true` | Strip leading and trailing whitespace from column headers |
+| `as_text` | boolean | No | `false` | Return every cell as text, with `""` for empty cells |
 
 **Example in `flow.md` (Markdown):**
 ```markdown
@@ -846,7 +857,7 @@ Reads a delimiter-separated text file (CSV, TSV, semicolon-separated) into a lis
 ---
 
 ### `csv.write`
-Exports a list of dictionaries or single record to a CSV file.
+Exports a list of dictionaries or single record to a CSV file. By default the file starts with a UTF-8 byte order mark, so Excel shows Thai and other non-English text correctly when the file is opened by double-clicking. Set `encoding: utf-8` for a system that does not accept the mark.
 
 **Parameters:**
 | Parameter | Type | Required | Default | Description |
@@ -854,6 +865,8 @@ Exports a list of dictionaries or single record to a CSV file.
 | `file_path` | string | Yes | - | Output CSV file path |
 | `data` | list / dict | Yes | `[]` | Records to export |
 | `columns` | list | No | `null` | Explicit list and order of column names |
+| `encoding` | string | No | `"utf-8-sig"` | File character encoding; `utf-8-sig` is UTF-8 with a byte order mark for Excel |
+| `append` | boolean | No | `false` | Add the rows to the end of an existing file. The header is written only when the file is new or empty; the rows follow the existing file's column order, and a column the file does not have stops the step |
 
 **Example in `flow.md` (Markdown):**
 ```markdown

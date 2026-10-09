@@ -233,7 +233,12 @@ class FlowInterpreter:
 
         evaluated_params = VariableEvaluator.evaluate_value(step.parameters, context.variables)
 
-        if step.condition:
+        if step.condition and step.action == "logic.if":
+            # For logic.if, `condition` chooses the branch. As a step gate it would skip the step, and Else-steps would never run
+            if "condition" not in evaluated_params and "left" not in evaluated_params:
+                evaluated_params = dict(evaluated_params)
+                evaluated_params["condition"] = VariableEvaluator.evaluate_value(step.condition, context.variables)
+        elif step.condition:
             eval_cond = VariableEvaluator.evaluate_value(step.condition, context.variables)
             if not self._evaluate_condition_expr(eval_cond):
                 result = StepResult(
