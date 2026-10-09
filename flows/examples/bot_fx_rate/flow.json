@@ -1,7 +1,7 @@
 {
   "$schema": "../../../schemas/flow.schema.json",
   "name": "BOT FX Transfer Rate Collector",
-  "description": "Collect Bank of Thailand historical buying transfer rates for the configured currencies and date range, write them to a CSV file grouped by currency, and email the file.",
+  "description": "Collect Bank of Thailand historical buying transfer rates for the configured currencies over one month (the previous month by default), write them to a CSV file grouped by currency, and email the file.",
   "version": "1.0.0",
   "variables": {
     "fx_rows": []
@@ -9,6 +9,28 @@
   "steps": [
     {
       "id": "step_1",
+      "name": "First Day Of Report Month",
+      "action": "date.calc",
+      "parameters": {
+        "date": "${config.month.date}",
+        "add_months": "${config.month.add_months}",
+        "snap": "start_of_month"
+      },
+      "output_var": "start"
+    },
+    {
+      "id": "step_2",
+      "name": "Last Day Of Report Month",
+      "action": "date.calc",
+      "parameters": {
+        "date": "${config.month.date}",
+        "add_months": "${config.month.add_months}",
+        "snap": "end_of_month"
+      },
+      "output_var": "end"
+    },
+    {
+      "id": "step_3",
       "name": "Open BOT Exchange Rate Page",
       "action": "web.open",
       "parameters": {
@@ -23,7 +45,7 @@
       }
     },
     {
-      "id": "step_2",
+      "id": "step_4",
       "name": "Accept Cookie Banner",
       "action": "web.click",
       "parameters": {
@@ -33,7 +55,7 @@
       }
     },
     {
-      "id": "step_3",
+      "id": "step_5",
       "name": "Open Currency Filter",
       "action": "web.click",
       "parameters": {
@@ -46,7 +68,7 @@
       }
     },
     {
-      "id": "step_4",
+      "id": "step_6",
       "name": "Select Configured Currencies",
       "action": "logic.loop",
       "parameters": {
@@ -55,7 +77,7 @@
       },
       "sub_steps": [
         {
-          "id": "sub_step_4_1",
+          "id": "sub_step_6_1",
           "name": "Tick Currency Checkbox",
           "action": "web.check",
           "parameters": {
@@ -66,7 +88,7 @@
       ]
     },
     {
-      "id": "step_5",
+      "id": "step_7",
       "name": "Close Currency Filter",
       "action": "web.click",
       "parameters": {
@@ -74,7 +96,7 @@
       }
     },
     {
-      "id": "step_6",
+      "id": "step_8",
       "name": "Open Start Date Picker",
       "action": "web.click",
       "parameters": {
@@ -82,33 +104,33 @@
       }
     },
     {
-      "id": "step_7",
+      "id": "step_9",
       "name": "Choose Start Year",
       "action": "web.select_option",
       "parameters": {
         "selector": ".react-datepicker select >> nth=1",
-        "value": "${config.start_date.year}"
-      }
-    },
-    {
-      "id": "step_8",
-      "name": "Choose Start Month",
-      "action": "web.select_option",
-      "parameters": {
-        "selector": ".react-datepicker select >> nth=0",
-        "text": "${config.start_date.month}"
-      }
-    },
-    {
-      "id": "step_9",
-      "name": "Choose Start Day",
-      "action": "web.click",
-      "parameters": {
-        "selector": ".react-datepicker__day:not(.react-datepicker__day--outside-month):text-is('${config.start_date.day}')"
+        "value": "${start.year}"
       }
     },
     {
       "id": "step_10",
+      "name": "Choose Start Month",
+      "action": "web.select_option",
+      "parameters": {
+        "selector": ".react-datepicker select >> nth=0",
+        "text": "${start.month_name}"
+      }
+    },
+    {
+      "id": "step_11",
+      "name": "Choose Start Day",
+      "action": "web.click",
+      "parameters": {
+        "selector": ".react-datepicker__day:not(.react-datepicker__day--outside-month):text-is('${start.day}')"
+      }
+    },
+    {
+      "id": "step_12",
       "name": "Open End Date Picker",
       "action": "web.click",
       "parameters": {
@@ -116,33 +138,33 @@
       }
     },
     {
-      "id": "step_11",
+      "id": "step_13",
       "name": "Choose End Year",
       "action": "web.select_option",
       "parameters": {
         "selector": ".react-datepicker select >> nth=1",
-        "value": "${config.end_date.year}"
-      }
-    },
-    {
-      "id": "step_12",
-      "name": "Choose End Month",
-      "action": "web.select_option",
-      "parameters": {
-        "selector": ".react-datepicker select >> nth=0",
-        "text": "${config.end_date.month}"
-      }
-    },
-    {
-      "id": "step_13",
-      "name": "Choose End Day",
-      "action": "web.click",
-      "parameters": {
-        "selector": ".react-datepicker__day:not(.react-datepicker__day--outside-month):text-is('${config.end_date.day}')"
+        "value": "${end.year}"
       }
     },
     {
       "id": "step_14",
+      "name": "Choose End Month",
+      "action": "web.select_option",
+      "parameters": {
+        "selector": ".react-datepicker select >> nth=0",
+        "text": "${end.month_name}"
+      }
+    },
+    {
+      "id": "step_15",
+      "name": "Choose End Day",
+      "action": "web.click",
+      "parameters": {
+        "selector": ".react-datepicker__day:not(.react-datepicker__day--outside-month):text-is('${end.day}')"
+      }
+    },
+    {
+      "id": "step_16",
       "name": "Search Historical Rates",
       "action": "web.click",
       "parameters": {
@@ -155,7 +177,7 @@
       }
     },
     {
-      "id": "step_15",
+      "id": "step_17",
       "name": "Wait For Results To Load",
       "action": "logic.delay",
       "parameters": {
@@ -163,7 +185,7 @@
       }
     },
     {
-      "id": "step_16",
+      "id": "step_18",
       "name": "Read Transfer Rates Per Currency",
       "action": "logic.loop",
       "parameters": {
@@ -172,7 +194,7 @@
       },
       "sub_steps": [
         {
-          "id": "sub_step_16_1",
+          "id": "sub_step_18_1",
           "name": "Show Currency Table",
           "action": "web.click",
           "parameters": {
@@ -181,7 +203,7 @@
           }
         },
         {
-          "id": "sub_step_16_2",
+          "id": "sub_step_18_2",
           "name": "Read Currency Table",
           "action": "web.get_table",
           "parameters": {
@@ -207,7 +229,7 @@
           }
         },
         {
-          "id": "sub_step_16_3",
+          "id": "sub_step_18_3",
           "name": "Collect Currency Rows",
           "action": "logic.append",
           "parameters": {
@@ -219,7 +241,7 @@
       ]
     },
     {
-      "id": "step_17",
+      "id": "step_19",
       "name": "Write Grouped Rates To CSV",
       "action": "csv.write",
       "parameters": {
@@ -238,7 +260,7 @@
       }
     },
     {
-      "id": "step_18",
+      "id": "step_20",
       "name": "Capture Result Screenshot",
       "action": "web.screenshot",
       "parameters": {
@@ -251,7 +273,7 @@
       }
     },
     {
-      "id": "step_19",
+      "id": "step_21",
       "name": "Close Browser",
       "action": "web.close",
       "parameters": {},
@@ -262,7 +284,7 @@
       }
     },
     {
-      "id": "step_20",
+      "id": "step_22",
       "name": "Email CSV Report",
       "action": "email.send",
       "parameters": {

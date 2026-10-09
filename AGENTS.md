@@ -8,7 +8,7 @@ Entry point for AI coding assistants (any vendor) working on **Kinenix**, a loca
 | :--- | :--- | :--- |
 | `kinenix-core/` | Flow interpreter, variable evaluator, action plugins, `kinenix` CLI | Implemented |
 | `kinenix-worker/` | Unattended runner with schedule and file-watch triggers | Implemented |
-| `kinenix-studio/` | FastAPI server + React/Vite web UI for viewing and editing flows | Implemented (web, not Tauri yet) |
+| `kinenix-studio/` | FastAPI server + React/Vite web UI for viewing and editing flows | Paused: kept and tested, no new features (`docs/roadmap.md`) |
 | `kinenix-hub/` | FastAPI + SQLAlchemy telemetry receiver and dashboard | Early (HTTP push, SQLite default) |
 | `flows/` | Project bundles (`flow.json`, `flow.md`, `config/`, `assets/`, `subflows/`); `@shared/` holds reusable subflows | |
 | `schemas/` | JSON schemas for flows and execution logs | |
@@ -99,7 +99,7 @@ Some rule files and the README describe the target architecture, not what exists
 | :--- | :--- | :--- |
 | Action parameters | Pydantic model per action | Actions receive a plain `Dict[str, Any]` and declare their parameter names in `accepted_parameters` for flow validation |
 | Action tests | `kinenix-core/tests/actions/` | Tests live directly in `kinenix-core/tests/` |
-| Studio | Tauri desktop app | FastAPI + React/Vite in the browser |
+| Studio | Tauri desktop app | FastAPI + React/Vite in the browser; paused, do not extend without asking |
 | Hub backend | Async handlers, PostgreSQL, Redis/Celery | Sync handlers, SQLite by default, no queue |
 | Worker communication | WebSocket job dispatch and log streaming | Workers push telemetry and heartbeats over HTTP; no dispatch |
 

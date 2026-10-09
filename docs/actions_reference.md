@@ -36,22 +36,30 @@ This document provides a comprehensive specification of standard actions availab
    - [file.copy](#filecopy)
    - [file.move](#filemove)
    - [file.delete](#filedelete)
+   - [file.zip](#filezip)
+   - [file.unzip](#fileunzip)
+   - [file.list](#filelist)
+   - [file.read_text](#fileread_text)
+   - [file.write_text](#filewrite_text)
+   - [file.create_folder](#filecreate_folder)
 4. [Control Flow and Logic (`logic.*`)](#control-flow-and-logic-logic)
    - [logic.set_variable](#logicset_variable)
    - [logic.delay](#logicdelay)
    - [logic.if](#logicif)
    - [logic.loop](#logicloop)
    - [logic.append](#logicappend)
-5. [HTTP API Integration (`http.*`)](#http-api-integration-http)
+5. [Dates (`date.*`)](#dates-date)
+   - [date.calc](#datecalc)
+6. [HTTP API Integration (`http.*`)](#http-api-integration-http)
    - [http.request](#httprequest)
    - [http.download](#httpdownload)
-6. [Modular Subflows and Flow Control (`flow.*`)](#modular-subflows-and-flow-control-flow)
+7. [Modular Subflows and Flow Control (`flow.*`)](#modular-subflows-and-flow-control-flow)
    - [flow.call](#flowcall)
    - [flow.return](#flowreturn)
    - [flow.fail](#flowfail)
-7. [Email Notification (`email.*`)](#email-notification-email)
+8. [Email Notification (`email.*`)](#email-notification-email)
    - [email.send](#emailsend)
-8. [AI and Local LLM (`ai.*`)](#ai-and-local-llm-ai)
+9. [AI and Local LLM (`ai.*`)](#ai-and-local-llm-ai)
    - [ai.prompt](#aiprompt)
    - [ai.extract](#aiextract)
    - [ai.decide](#aidecide)
@@ -1004,6 +1012,342 @@ Deletes a file or recursively removes a directory.
 
 ---
 
+### `file.zip`
+Packs files and folders into one zip file (deflate compression), for example to attach everything a run produced to an email. A folder keeps its name as the top level inside the zip, so `./output` is stored as `output/...`. If the zip file lies inside a folder being packed, it is left out, so `./output` can be zipped into `./output/run.zip` on every run. The zip is written under a temporary name first and renamed when complete, so a failure never leaves a half-written file. Paths are relative to the flow folder.
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `source` | string or list | Yes | - | A file or folder, or a list of files and folders. Two entries that would be stored under the same name (for example two `report.csv` files) stop the step with an error |
+| `destination` | string | Yes | - | Path of the zip file to create; missing parent folders are created |
+| `overwrite` | boolean | No | `true` | Replace an existing zip file. With `false`, an existing file stops the step |
+
+**Example in `flow.md` (Markdown):**
+```markdown
+### 18. Zip Run Output (`file.zip`)
+- **source:** ./output
+- **destination:** ./outbox/run.zip
+- **output_var:** `packed`
+
+### 19. Email Results (`email.send`)
+- **to:** `${config.email.to}`
+- **subject:** Insurance packages
+- **body:** All files from this run are attached.
+- **attachments:** ["${packed.zip_path}"]
+```
+
+**Compiled `flow.json`:**
+```json
+[
+  {
+    "id": "step_18",
+    "name": "Zip Run Output",
+    "action": "file.zip",
+    "parameters": {
+      "source": "./output",
+      "destination": "./outbox/run.zip"
+    },
+    "output_var": "packed"
+  },
+  {
+    "id": "step_19",
+    "name": "Email Results",
+    "action": "email.send",
+    "parameters": {
+      "to": "${config.email.to}",
+      "subject": "Insurance packages",
+      "body": "All files from this run are attached.",
+      "attachments": ["${packed.zip_path}"]
+    }
+  }
+]
+```
+
+**Output Format:**
+```json
+{
+  "zip_path": "/home/user/kinenix-flows/tiph/outbox/run.zip",
+  "files_added": 7,
+  "size_bytes": 184320,
+  "status": "zipped"
+}
+```
+
+---
+
+### `file.unzip`
+Extracts a zip file into a folder. Every entry is checked before anything is written: an entry that would land outside the destination folder (for example `../../etc/passwd`) stops the step, and so does an existing file when `overwrite` is `false`. Paths are relative to the flow folder.
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `source` | string | Yes | - | Path of the zip file |
+| `destination` | string | No | zip path without `.zip` | Folder to extract into; created if missing. `./inbox/orders.zip` extracts into `./inbox/orders` by default |
+| `overwrite` | boolean | No | `true` | Replace files that already exist in the destination |
+
+**Example in `flow.md` (Markdown):**
+```markdown
+### 2. Extract Received Orders (`file.unzip`)
+- **source:** ./inbox/orders.zip
+- **destination:** ./work/orders
+- **output_var:** `extracted`
+```
+
+**Compiled `flow.json`:**
+```json
+{
+  "id": "step_2",
+  "name": "Extract Received Orders",
+  "action": "file.unzip",
+  "parameters": {
+    "source": "./inbox/orders.zip",
+    "destination": "./work/orders"
+  },
+  "output_var": "extracted"
+}
+```
+
+**Output Format:**
+```json
+{
+  "destination": "/home/user/kinenix-flows/orders/work/orders",
+  "files": ["orders_2026-10.csv", "notes/readme.txt"],
+  "files_extracted": 2,
+  "status": "unzipped"
+}
+```
+
+---
+
+### `file.list`
+Lists the files or folders in a folder, so a flow can loop over them with `logic.loop` (for example every CSV that arrived in an inbox) or pick the newest one. Each item carries its name, path, size, and modification time, so no separate "file info" action is needed. Paths are relative to the flow folder. An empty result is an empty list, which a `logic.if` or the `condition` of `flow.fail` can check.
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `path` | string | Yes | - | Folder to list; a missing folder stops the step |
+| `pattern` | string | No | `*` | File name pattern, for example `*.csv` or `orders_2026-*.xlsx` |
+| `recursive` | boolean | No | `false` | Also look in subfolders; `relative_path` then includes the subfolder |
+| `type` | string | No | `files` | `files`, `folders`, or `all` |
+| `sort_by` | string | No | `name` | `name`, `modified`, or `size` |
+| `descending` | boolean | No | `false` | Reverse the order, for example newest or largest first |
+| `limit` | integer | No | - | Keep only the first N items after sorting; `1` with `sort_by: modified` and `descending: true` gives the newest file |
+
+**Example in `flow.md` (Markdown):**
+```markdown
+### 1. Find Order Files (`file.list`)
+- **path:** ./inbox
+- **pattern:** *.csv
+- **sort_by:** modified
+- **output_var:** `files`
+
+### 2. Handle Each File (`logic.loop`)
+- **items:** `${files}`
+- **item_var:** `f`
+- **Sub-steps:**
+  - Read Orders (`csv.read`):
+    - **file_path:** `${f.path}`
+    - **output_var:** `orders`
+  - Move To Archive (`file.move`):
+    - **source:** `${f.path}`
+    - **destination:** ./archive/${f.name}
+```
+
+**Compiled `flow.json`:**
+```json
+[
+  {
+    "id": "step_1",
+    "name": "Find Order Files",
+    "action": "file.list",
+    "parameters": {
+      "path": "./inbox",
+      "pattern": "*.csv",
+      "sort_by": "modified"
+    },
+    "output_var": "files"
+  },
+  {
+    "id": "step_2",
+    "name": "Handle Each File",
+    "action": "logic.loop",
+    "parameters": {
+      "items": "${files}",
+      "item_var": "f"
+    },
+    "sub_steps": [
+      {
+        "id": "sub_step_2_1",
+        "name": "Read Orders",
+        "action": "csv.read",
+        "parameters": {
+          "file_path": "${f.path}"
+        },
+        "output_var": "orders"
+      },
+      {
+        "id": "sub_step_2_2",
+        "name": "Move To Archive",
+        "action": "file.move",
+        "parameters": {
+          "source": "${f.path}",
+          "destination": "./archive/${f.name}"
+        }
+      }
+    ]
+  }
+]
+```
+
+**Output Format** (one item per file):
+```json
+[
+  {
+    "name": "orders_2026-10.csv",
+    "stem": "orders_2026-10",
+    "extension": ".csv",
+    "path": "/home/user/kinenix-flows/orders/inbox/orders_2026-10.csv",
+    "relative_path": "orders_2026-10.csv",
+    "is_folder": false,
+    "size": 2048,
+    "modified": "2026-10-09T08:15:02"
+  }
+]
+```
+
+---
+
+### `file.read_text`
+Reads a text file as one string, as a list of lines, or as parsed JSON, for example an email body template, a JSON file from another system, or a list of IDs one per line. The default encoding also reads files saved with a byte order mark (Excel, Notepad). Paths are relative to the flow folder.
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `path` | string | Yes | - | File to read |
+| `format` | string | No | `text` | `text` returns one string; `lines` returns a list of lines without line breaks (ready for `logic.loop`); `json` returns the parsed object or list |
+| `encoding` | string | No | `utf-8-sig` | Text encoding. Thai files from older Windows systems are usually `cp874` (or `tis-620`); the error message suggests this when UTF-8 fails |
+
+**Example in `flow.md` (Markdown):**
+```markdown
+### 3. Read Email Template (`file.read_text`)
+- **path:** ./assets/email_body.txt
+- **output_var:** `email_body`
+
+### 4. Read Policy List (`file.read_text`)
+- **path:** ./inbox/policies.txt
+- **format:** lines
+- **output_var:** `policy_ids`
+```
+
+**Compiled `flow.json`:**
+```json
+[
+  {
+    "id": "step_3",
+    "name": "Read Email Template",
+    "action": "file.read_text",
+    "parameters": {
+      "path": "./assets/email_body.txt"
+    },
+    "output_var": "email_body"
+  },
+  {
+    "id": "step_4",
+    "name": "Read Policy List",
+    "action": "file.read_text",
+    "parameters": {
+      "path": "./inbox/policies.txt",
+      "format": "lines"
+    },
+    "output_var": "policy_ids"
+  }
+]
+```
+
+---
+
+### `file.write_text`
+Writes text to a file, replacing it or adding to its end, for example a run summary, a log line per processed item, or a JSON file for another system. A list or object in `content` is written as formatted JSON (Thai text stays readable). With `append`, the text is added as a line: a line break follows it if it does not already end with one. Missing parent folders are created. Paths are relative to the flow folder.
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `path` | string | Yes | - | File to write |
+| `content` | string, list, or object | Yes | - | Text to write; a list or object is written as JSON |
+| `append` | boolean | No | `false` | Add to the end of the file as a new line instead of replacing it |
+| `encoding` | string | No | `utf-8` | Text encoding, for example `cp874` for a system that only reads Thai Windows encoding |
+
+**Example in `flow.md` (Markdown):**
+```markdown
+### 7. Log Processed Plan (`file.write_text`)
+- **path:** ./output/run_log.txt
+- **content:** ${plan.brand} ${plan.model}: ${plan_count} packages
+- **append:** true
+```
+
+**Compiled `flow.json`:**
+```json
+{
+  "id": "step_7",
+  "name": "Log Processed Plan",
+  "action": "file.write_text",
+  "parameters": {
+    "path": "./output/run_log.txt",
+    "content": "${plan.brand} ${plan.model}: ${plan_count} packages",
+    "append": true
+  }
+}
+```
+
+**Output Format:**
+```json
+{
+  "path": "/home/user/kinenix-flows/tiph/output/run_log.txt",
+  "characters_written": 24,
+  "mode": "append",
+  "status": "written"
+}
+```
+
+---
+
+### `file.create_folder`
+Creates a folder, including any missing parent folders. An existing folder is not an error. Most actions that write files already create their parent folders; use this for a folder that must exist before anything is written into it, for example a per-run folder that a browser download goes to. Paths are relative to the flow folder.
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `path` | string | Yes | - | Folder to create. A file with the same name stops the step |
+
+**Example in `flow.md` (Markdown):**
+```markdown
+### 1. Prepare Screenshot Folder (`file.create_folder`)
+- **path:** ./output/screenshots
+```
+
+**Compiled `flow.json`:**
+```json
+{
+  "id": "step_1",
+  "name": "Prepare Screenshot Folder",
+  "action": "file.create_folder",
+  "parameters": {
+    "path": "./output/screenshots"
+  }
+}
+```
+
+**Output Format:**
+```json
+{
+  "path": "/home/user/kinenix-flows/tiph/output/screenshots",
+  "created": true,
+  "status": "created"
+}
+```
+
+---
+
 ## Control Flow and Logic (`logic.*`)
 
 Core orchestration primitives for variable manipulation, loops, conditions, and error recovery.
@@ -1286,6 +1630,117 @@ Appends an item, dictionary, or primitive value to a list in context variables. 
   }
 ]
 ```
+
+---
+
+## Dates (`date.*`)
+
+Works out dates relative to the day the flow runs, so a scheduled flow always processes the right period without editing its config.
+
+---
+
+### `date.calc`
+Starts from a date (today by default), optionally moves it by days, weeks, months, or years, optionally snaps it to the start or end of a week, month, or year, and returns the result split into parts. Steps in order: read `date`, add `add_years` and `add_months`, add `add_weeks` and `add_days`, then apply `snap`. Month arithmetic keeps the day where it can and otherwise uses the last day of the month (31 March minus one month is 28 or 29 February). "Today" is the worker's local date, so set the machine's time zone correctly.
+
+**Parameters:**
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `date` | string | No | `today` | Starting point: `today` (midnight), `now` (current time), an ISO date or date-time such as `2024-12-01` or `2024-12-01T09:30`, or a date in another format together with `input_format` |
+| `input_format` | string | No | - | Python `strptime` pattern for reading `date`, for example `%d/%m/%Y` for `31/12/2024` |
+| `add_days` | integer | No | `0` | Days to add; negative moves back |
+| `add_weeks` | integer | No | `0` | Weeks to add; negative moves back |
+| `add_months` | integer | No | `0` | Months to add; negative moves back |
+| `add_years` | integer | No | `0` | Years to add; negative moves back |
+| `snap` | string | No | - | `start_of_month`, `end_of_month`, `start_of_year`, `end_of_year`, `start_of_week` (Monday), or `end_of_week` (Sunday) |
+| `format` | string | No | `%Y-%m-%d` | Python `strftime` pattern for the `text` field of the result, for example `%d-%m-%Y` or `%Y%m%d_%H%M` |
+
+**Example in `flow.md` (Markdown):**
+```markdown
+### 1. First Day Of Last Month (`date.calc`)
+- **add_months:** -1
+- **snap:** start_of_month
+- **output_var:** `start`
+
+### 2. Last Day Of Last Month (`date.calc`)
+- **add_months:** -1
+- **snap:** end_of_month
+- **format:** %d-%m-%Y
+- **output_var:** `end`
+
+### 3. Choose Start Month (`web.select_option`)
+- **selector:** `.react-datepicker select >> nth=0`
+- **text:** `${start.month_name}`
+
+### 4. Report File Name (`logic.set_variable`)
+- **name:** report_path
+- **value:** ./output/fx_${start.year}-${start.month}.csv
+```
+
+**Compiled `flow.json`:**
+```json
+[
+  {
+    "id": "step_1",
+    "name": "First Day Of Last Month",
+    "action": "date.calc",
+    "parameters": {
+      "add_months": -1,
+      "snap": "start_of_month"
+    },
+    "output_var": "start"
+  },
+  {
+    "id": "step_2",
+    "name": "Last Day Of Last Month",
+    "action": "date.calc",
+    "parameters": {
+      "add_months": -1,
+      "snap": "end_of_month",
+      "format": "%d-%m-%Y"
+    },
+    "output_var": "end"
+  },
+  {
+    "id": "step_3",
+    "name": "Choose Start Month",
+    "action": "web.select_option",
+    "parameters": {
+      "selector": ".react-datepicker select >> nth=0",
+      "text": "${start.month_name}"
+    }
+  },
+  {
+    "id": "step_4",
+    "name": "Report File Name",
+    "action": "logic.set_variable",
+    "parameters": {
+      "name": "report_path",
+      "value": "./output/fx_${start.year}-${start.month}.csv"
+    }
+  }
+]
+```
+
+**Output Format** (run on 8 October 2026, step 2 above):
+```json
+{
+  "text": "30-09-2026",
+  "date": "2026-09-30",
+  "datetime": "2026-09-30T00:00:00",
+  "year": 2026,
+  "month": 9,
+  "day": 30,
+  "month_name": "September",
+  "month_abbr": "Sep",
+  "weekday": "Wednesday",
+  "weekday_number": 3,
+  "days_in_month": 30,
+  "hour": 0,
+  "minute": 0
+}
+```
+
+Month and weekday names are always English, whatever the machine's language. `weekday_number` runs from 1 (Monday) to 7 (Sunday). `year`, `month`, `day`, `hour`, and `minute` are numbers; inside a longer text such as a selector or file name they appear without leading zeros (`9`, not `09`). Use `text` with `format` when leading zeros are needed.
 
 ---
 

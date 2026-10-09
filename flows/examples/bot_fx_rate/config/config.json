@@ -1,8 +1,7 @@
 {
   "url": "https://www.bot.or.th/en/statistics/exchange-rate.html",
   "currencies": ["USD", "GBP", "SGD", "JPY", "EUR"],
-  "start_date": { "day": "1", "month": "December", "year": "2024" },
-  "end_date": { "day": "31", "month": "December", "year": "2024" },
+  "month": { "date": "today", "add_months": -1 },
   "output_path": "./output/Exchage_Rate.csv",
   "screenshot_path": "./output/screenshots/bot_fx_rate_result.png",
   "error_dir": "./output/errors/",
