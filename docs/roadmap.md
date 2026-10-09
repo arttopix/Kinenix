@@ -85,6 +85,8 @@ Hub -> versioned job bundle -> Worker (WebSocket) -> kinenix-core executes flow
 - [x] Business exceptions with `flow.fail` (recorded as Business, never retried); `web.click` waits for a response; `web.get_table`
 - [x] `email.send` through any SMTP provider (Gmail, Microsoft 365, company servers), tested with a local fake SMTP server
 - [x] Example flow `bot_fx_rate`: Bank of Thailand transfer rates to CSV and email, verified against the BOT data
+- [x] `file.zip` and `file.unzip`: pack a run's output for an email attachment; extraction refuses entries that point outside the destination
+- [x] `file.list` (loop over the files in a folder, newest first), `file.read_text` and `file.write_text` (text, lines, JSON, append, Thai legacy encodings), `file.create_folder`; boolean parameters given as text in config ("false") are read correctly by all file actions
 
 ### Phase 2: Studio (`kinenix-studio`) - In progress
 - [x] FastAPI backend: flow discovery, read/save with schema validation, step update, action metadata, run
