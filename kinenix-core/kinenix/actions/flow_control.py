@@ -11,6 +11,9 @@ class SubflowExecutionError(RuntimeError):
         self.subflow_name = subflow_name
         self.failed_step_id = failed_step_id
         self.child_context = child_context
+        # Keeps the child's error type, so a business error inside a subflow stays Business in the parent
+        details = getattr(child_context, "failure_details", None)
+        self.error_type = getattr(details, "error_type", None)
 
 
 class BusinessRuleError(RuntimeError):
@@ -22,8 +25,11 @@ class FlowFailedError(RuntimeError):
 
 
 def is_business_error(exc: BaseException) -> bool:
-    """Business exceptions are recognized by class name, so actions can define their own *Business* errors."""
-    return "Business" in type(exc).__name__
+    """
+    Business exceptions are recognized by class name, so actions can define their own *Business* errors,
+    or by an error_type of "Business" carried over from a subflow.
+    """
+    return "Business" in type(exc).__name__ or getattr(exc, "error_type", None) == "Business"
 
 
 @register_action("flow.fail")

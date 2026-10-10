@@ -15,6 +15,7 @@ from .engine.markdown import (
     load_flow,
     compile_markdown_to_json,
     export_json_to_markdown,
+    markdown_issues,
     sync_flow_json,
 )
 from .engine.validation import validate_flow
@@ -37,9 +38,12 @@ from .workspace import (
 )
 
 
-def report_validation(flow: FlowDefinition) -> List[str]:
-    """Print validation problems as warnings and return them."""
-    issues = validate_flow(flow)
+def report_validation(flow: FlowDefinition, md_path: Optional[Path] = None) -> List[str]:
+    """Print validation problems as warnings and return them; with md_path, also lines flow.md ignores."""
+    issues = []
+    if md_path is not None and md_path.suffix.lower() == ".md" and md_path.is_file():
+        issues.extend(markdown_issues(md_path.read_text(encoding="utf-8-sig")))
+    issues.extend(validate_flow(flow))
     for issue in issues:
         print(f"Warning: {issue}", file=sys.stderr)
     return issues
@@ -386,7 +390,7 @@ def main():
         except Exception as e:
             print(f"Error loading flow at '{source}': {e}", file=sys.stderr)
             sys.exit(1)
-        issues = report_validation(flow_def)
+        issues = report_validation(flow_def, md_path=source)
         if issues:
             print(f"{len(issues)} problem(s) in {source}", file=sys.stderr)
             sys.exit(1)
@@ -405,7 +409,7 @@ def main():
             target = compile_markdown_to_json(src, output_json_path=out)
             print(f"Successfully compiled: {src}")
             print(f"Output saved to:       {target}")
-            issues = report_validation(load_flow(target))
+            issues = report_validation(load_flow(target), md_path=src)
             sys.exit(1 if issues and args.strict else 0)
         except Exception as e:
             print(f"Compilation error: {e}", file=sys.stderr)
@@ -477,7 +481,7 @@ def main():
         except Exception as e:
             print(f"Error loading flow at '{resolved_path}': {str(e)}", file=sys.stderr)
             sys.exit(1)
-        report_validation(flow_def)
+        report_validation(flow_def, md_path=resolved_path.parent / "flow.md")
 
         extra_vars = {}
         if args.vars:

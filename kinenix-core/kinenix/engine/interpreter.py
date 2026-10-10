@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from .conditions import resolve_condition
 from .evaluator import VariableEvaluator
 from .logger import ExecutionLogger
 from ..actions.registry import ActionRegistry
@@ -233,9 +234,10 @@ class FlowInterpreter:
 
         evaluated_params = VariableEvaluator.evaluate_value(step.parameters, context.variables)
 
-        if step.condition:
-            eval_cond = VariableEvaluator.evaluate_value(step.condition, context.variables)
-            if not self._evaluate_condition_expr(eval_cond):
+        # For logic.if, `condition` chooses the branch (see _handle_if_step). As a step gate it would skip
+        # the step, and Else-steps would never run
+        if step.condition and step.action != "logic.if":
+            if not self._condition_holds(step.condition, context.variables):
                 result = StepResult(
                     step_id=step.id,
                     step_name=step.name,
@@ -392,8 +394,10 @@ class FlowInterpreter:
         operator = evaluated_params.get("operator", "equals")
         right = evaluated_params.get("right")
 
-        if "condition" in evaluated_params and "left" not in evaluated_params:
-            condition_met = self._evaluate_condition_expr(evaluated_params["condition"])
+        # The raw text is used, not evaluated_params, so the expression is split before variables are replaced
+        raw_condition = step.parameters.get("condition", step.condition)
+        if raw_condition is not None and "left" not in evaluated_params:
+            condition_met = self._condition_holds(raw_condition, context.variables)
         else:
             condition_met = self._evaluate_condition(left, operator, right)
 
@@ -761,10 +765,19 @@ class FlowInterpreter:
             return s_left.lower() == s_right.lower()
         if op in ["not_equals", "!=", "neq"]:
             return s_left.lower() != s_right.lower()
-        if op in ["contains", "in"]:
-            return s_right.lower() in s_left.lower()
-        if op in ["not_contains", "not_in"]:
-            return s_right.lower() not in s_left.lower()
+        # `left in right` means left is part of right; a list on the other side is checked item by item
+        if op in ["in", "not_in"]:
+            if isinstance(right, (list, tuple, set)):
+                found = any(s_left.lower() == ("" if item is None else str(item).strip()).lower() for item in right)
+            else:
+                found = s_left.lower() in s_right.lower()
+            return found if op == "in" else not found
+        if op in ["contains", "not_contains"]:
+            if isinstance(left, (list, tuple, set)):
+                found = any(s_right.lower() == ("" if item is None else str(item).strip()).lower() for item in left)
+            else:
+                found = s_right.lower() in s_left.lower()
+            return found if op == "contains" else not found
         if op in ["starts_with", "startswith"]:
             return s_left.lower().startswith(s_right.lower())
         if op in ["ends_with", "endswith"]:
@@ -772,26 +785,13 @@ class FlowInterpreter:
 
         return s_left == s_right
 
-    def _evaluate_condition_expr(self, expr: Any) -> bool:
-        if isinstance(expr, bool):
-            return expr
-        s = str(expr).strip()
-        if s.startswith("`") and s.endswith("`") and len(s) >= 2:
-            s = s[1:-1].strip()
-        for token, mapped_op in [
-            ("==", "equals"),
-            ("!=", "not_equals"),
-            (">=", "greater_than_or_equal"),
-            ("<=", "less_than_or_equal"),
-            (">", "greater_than"),
-            ("<", "less_than"),
-            (" contains ", "contains"),
-            (" in ", "in"),
-        ]:
-            if token in s:
-                parts = s.split(token, 1)
-                left = parts[0].strip().strip("'\"`")
-                right = parts[1].strip().strip("'\"`")
-                return self._evaluate_condition(left, mapped_op, right)
+    def _condition_holds(self, expression: Any, variables: Dict[str, Any]) -> bool:
+        """Evaluates a condition such as `${a} == b` or `${note} is empty` (see engine/conditions.py)."""
+        left, operator, right = resolve_condition(expression, variables)
+        if operator is None:
+            return left if isinstance(left, bool) else str(left).strip().lower() in ["true", "1", "yes"]
+        return self._evaluate_condition(left, operator, right)
 
-        return s.lower() in ["true", "1", "yes"]
+    def _evaluate_condition_expr(self, expr: Any) -> bool:
+        """A condition whose variables are already replaced; kept for callers outside the interpreter."""
+        return self._condition_holds(expr, {})

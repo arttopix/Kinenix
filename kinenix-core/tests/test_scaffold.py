@@ -38,7 +38,8 @@ def test_hello_project_is_created_and_runs(tmp_path):
         flow, initial_vars={"__flow_dir__": str(project)}
     )
     assert not ctx.has_error
-    with open(project / "output" / "greetings.csv", encoding="utf-8") as f:
+    # csv.write adds a byte order mark so Excel shows Thai text correctly
+    with open(project / "output" / "greetings.csv", encoding="utf-8-sig") as f:
         rows = list(csv.DictReader(f))
     assert rows[0] == {"Name": "Somchai", "Greeting": "Hello, Somchai!"}
     assert len(rows) == 3
