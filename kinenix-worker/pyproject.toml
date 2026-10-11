@@ -7,8 +7,8 @@ name = "kinenix-worker"
 dynamic = ["version"]
 description = "Kinenix Worker: runs Kinenix flows unattended on schedules, cron, or file triggers, and reports to the Kinenix Hub"
 readme = "README.md"
-license = "MIT"
-license-files = ["LICENSE"]
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 authors = [{ name = "arttopix" }]
 keywords = ["rpa", "automation", "raspberry-pi", "scheduler", "worker"]
 classifiers = [

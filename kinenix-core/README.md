@@ -48,4 +48,4 @@ Kinenix Studio (visual flow editor) lives in the same repository and is not yet 
 
 ## License
 
-MIT
+Apache License 2.0. Releases up to and including 0.2.0b3 were published under the MIT License.

@@ -37,4 +37,4 @@ Settings are saved in `~/.kinenix/hub.env` and data in `~/.kinenix/hub.db`. On a
 
 ## License
 
-MIT
+Apache License 2.0. Releases up to and including 0.2.0b3 were published under the MIT License.
