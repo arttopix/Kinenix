@@ -4,7 +4,7 @@
 [![CI](https://github.com/arttopix/Kinenix/actions/workflows/ci.yml/badge.svg)](https://github.com/arttopix/Kinenix/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/kinenix.svg?style=flat-square)](https://pypi.org/project/kinenix/)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-brightgreen.svg?style=flat-square)](#)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=flat-square)](LICENSE)
 
 > **Project Status: Active Development (Pre-Alpha / Work-in-Progress)**  
 > kinenix is currently under rapid, active development. Core engine APIs, subflow execution specifications, and action schemas are evolving. It is not yet intended for mission-critical production deployments. Community feedback and contributions are warmly welcome!
@@ -167,4 +167,4 @@ Kinenix is developed with the help of [Claude Code](https://claude.com/claude-co
 
 ## 7. License
 
-This project is licensed under the terms of the Open Source [MIT License](LICENSE).
+Kinenix is licensed under the [Apache License 2.0](LICENSE); see also [NOTICE](NOTICE). Releases up to and including 0.2.0b3 were published under the MIT License.

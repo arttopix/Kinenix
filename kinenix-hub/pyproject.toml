@@ -7,8 +7,8 @@ name = "kinenix-hub"
 dynamic = ["version"]
 description = "Kinenix Hub: central server that receives worker heartbeats and execution logs, with a web dashboard and AI failure summaries"
 readme = "README.md"
-license = "MIT"
-license-files = ["LICENSE"]
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 authors = [{ name = "arttopix" }]
 keywords = ["rpa", "automation", "dashboard", "telemetry", "local-ai"]
 classifiers = [

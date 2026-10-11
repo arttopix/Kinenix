@@ -54,6 +54,18 @@ def test_published_packages_share_one_version():
     assert f'"kinenix>={version}"' in worker
 
 
+def test_published_packages_carry_the_project_license():
+    """Each published package ships the repository's LICENSE and NOTICE (Apache-2.0 requires NOTICE in copies)."""
+    for name in ("LICENSE", "NOTICE"):
+        root = (REPO_ROOT / name).read_bytes()
+        for package in ("kinenix-core", "kinenix-hub", "kinenix-worker"):
+            assert (REPO_ROOT / package / name).read_bytes() == root, f"{package}/{name} differs from the root {name}"
+    for package in ("kinenix-core", "kinenix-hub", "kinenix-worker"):
+        pyproject = (REPO_ROOT / package / "pyproject.toml").read_text(encoding="utf-8")
+        assert 'license = "Apache-2.0"' in pyproject
+        assert 'license-files = ["LICENSE", "NOTICE"]' in pyproject
+
+
 def test_no_emojis_in_repository():
     """AGENTS.md rule 6: no emojis in code, comments, UI text, or documentation."""
     found = [

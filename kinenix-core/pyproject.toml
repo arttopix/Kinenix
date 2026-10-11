@@ -7,8 +7,8 @@ name = "kinenix"
 dynamic = ["version"]
 description = "Core execution engine and standard action libraries for Kinenix RPA platform"
 readme = "README.md"
-license = "MIT"
-license-files = ["LICENSE"]
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 authors = [{ name = "arttopix" }]
 keywords = ["rpa", "automation", "playwright", "workflow", "local-ai"]
 classifiers = [
