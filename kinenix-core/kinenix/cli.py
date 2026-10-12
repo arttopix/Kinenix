@@ -18,7 +18,7 @@ from .engine.markdown import (
     markdown_issues,
     sync_flow_json,
 )
-from .engine.validation import validate_flow
+from .engine.validation import validate_flow, validate_subflows
 from .scaffold import (
     DEFAULT_EXAMPLE,
     EXAMPLES_DIR,
@@ -39,11 +39,14 @@ from .workspace import (
 
 
 def report_validation(flow: FlowDefinition, md_path: Optional[Path] = None) -> List[str]:
-    """Print validation problems as warnings and return them; with md_path, also lines flow.md ignores."""
+    """Print validation problems as warnings and return them; with md_path, also lines flow.md ignores
+    and problems in the subflows of that bundle."""
     issues = []
     if md_path is not None and md_path.suffix.lower() == ".md" and md_path.is_file():
         issues.extend(markdown_issues(md_path.read_text(encoding="utf-8-sig")))
     issues.extend(validate_flow(flow))
+    if md_path is not None:
+        issues.extend(validate_subflows(flow, md_path.parent))
     for issue in issues:
         print(f"Warning: {issue}", file=sys.stderr)
     return issues

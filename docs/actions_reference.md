@@ -1853,15 +1853,17 @@ Executes an external child flow (subflow) within an isolated context.
 **Parameters:**
 | Parameter | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `flow` | string | Yes | - | Path to child flow (`./subflows/name.json`, `@shared/name.json`, or alias) |
-| `inputs` | dict | No | `{}` | Arguments passed into the subflow (evaluated in parent context) |
+| `flow` | string | Yes | - | Path to the child flow: `./subflows/name.md` (compiled when it runs), `@shared/name.md`, a `.json` file, or a flow name. Without an extension, `.md` is used before `.json` |
+| `inputs` | dict | No | `{}` | Values passed into the subflow (evaluated in the parent). Each key should be declared in the subflow's `## Variables`; `kinenix validate` reports undeclared keys. A `config` key is merged over the subflow's config |
+| `inherit_config` | boolean | No | `false` | For a shared subflow (`@shared/` or outside the bundle): pass the caller's config, merged over the subflow's own. Subflows of the bundle always get the bundle's config |
 | `propagate_sessions` | boolean | No | `true` | Share active Playwright browser sessions with child flow |
 | `outputs` | dict | No | `null` | Optional direct mapping from child variables to parent variables |
 
 **Variable Resolution & Priority:**
 1. **Subflow Defaults:** Initial variables declared in the subflow definition.
-2. **Inputs:** Values explicitly passed via `inputs` parameter (overrides defaults).
-3. **System Variables:** Internal paths (`__flow_dir__`, `__parent_flow__`) and shared sessions.
+2. **Config:** the bundle's config for a subflow of the bundle; the subflow's own config for a shared one (with `inherit_config`, the caller's config merged over it).
+3. **Inputs:** Values explicitly passed via `inputs` (override defaults; an `inputs` `config` is merged over the config).
+4. **System Variables:** Internal paths (`__flow_dir__`, `__parent_flow__`) and shared sessions. For a subflow of the bundle, `__flow_dir__` is the bundle folder, so relative paths resolve as in the main flow; for a shared subflow it is the subflow's own folder.
 
 **Safeguards & Protections:**
 - **Max Depth:** Enforces maximum call nesting limit (default: 10 levels) to prevent memory exhaustion.

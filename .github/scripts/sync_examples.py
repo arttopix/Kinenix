@@ -5,8 +5,8 @@ Usage:
     python .github/scripts/sync_examples.py --check   report differences without writing (exit 1 when out of date)
 
 flows/examples/ is the source. The package holds a copy because pip installs only what is inside the package.
-Per example, the copy contains flow.md, flow.json, README.md, the config template as config/config.json, and
-input data in assets/ (screenshots and other outputs are left out).
+Per example, the copy contains flow.md, flow.json, README.md, the config template as config/config.json,
+subflows/*.md, and input data in assets/ (screenshots and other outputs are left out).
 """
 import sys
 from pathlib import Path
@@ -28,6 +28,10 @@ def expected_files(name: str) -> Dict[str, Path]:
         "README.md": src / "README.md",
         "config/config.json": src / "config" / "config.template.json",
     }
+    subflows = src / "subflows"
+    if subflows.is_dir():
+        for path in sorted(subflows.glob("*.md")):
+            files[f"subflows/{path.name}"] = path
     assets = src / "assets"
     if assets.is_dir():
         for path in sorted(assets.iterdir()):

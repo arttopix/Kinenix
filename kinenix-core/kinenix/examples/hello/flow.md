@@ -1,5 +1,5 @@
 # Hello Kinenix
-> Description: A first flow that builds a small greeting table from config.json and writes it to a CSV file. It needs no browser and no internet.
+> Description: A first flow that builds a small greeting table from config.json, one subflow call per name, and writes it to a CSV file. It needs no browser and no internet.
 > Version: 1.0.0
 
 ## Variables
@@ -11,9 +11,13 @@
 - **items:** `${config.names}`
 - **item_var:** `name`
 - **Sub-steps:**
+  - Make Greeting (`flow.call`):
+    - **flow:** ./subflows/make_greeting.md
+    - **inputs:** {"name": "${name}"}
+    - **output_var:** `row`
   - Add Greeting Row (`logic.append`):
     - **target:** `greetings`
-    - **item:** {"Name": "${name}", "Greeting": "${config.greeting}, ${name}!"}
+    - **item:** `${row}`
 
 ### 2. Stop When There Is Nobody To Greet (`flow.fail`)
 - **condition:** `${greetings} == []`

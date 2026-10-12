@@ -30,7 +30,7 @@ def test_examples_are_listed_with_the_default_first():
 def test_hello_project_is_created_and_runs(tmp_path):
     project = scaffold.create_project(tmp_path / "my-bot")
     assert sorted(p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file()) == [
-        "README.md", "config/config.json", "flow.json", "flow.md",
+        "README.md", "config/config.json", "flow.json", "flow.md", "subflows/make_greeting.md",
     ]
 
     flow = load_flow(project / "flow.json")
