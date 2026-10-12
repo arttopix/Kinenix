@@ -220,3 +220,25 @@ The Hub was called the Orchestrator. Old names keep working for now, with a warn
 | `kinenix_orchestrator/orchestrator.db` inside the package | `~/.kinenix/hub.db` (move the old file there to keep its data) |
 
 To upgrade an editable install: `pip uninstall kinenix-orchestrator`, then `pip install -e kinenix-hub`.
+
+---
+
+## 6. Database
+
+The Hub keeps workers and executions in one SQLite file, `~/.kinenix/hub.db` by default (`DATABASE_URL` selects another file or a PostgreSQL server).
+
+### 6.1 Upgrades
+
+A newer Hub may need more tables or columns than an existing `hub.db` has. At every start, the Hub applies the schema changes it has not applied yet and records each one in the `schema_version` table; existing data is kept. Each change runs in its own transaction, so a change that fails leaves the database as it was, and the Hub stops with the error. Nothing needs to be run by hand.
+
+### 6.2 WAL mode and the extra files
+
+The SQLite database runs in WAL (write-ahead log) mode, so workers can write while the dashboard, `kinenix hub` commands, and other readers read. In this mode SQLite keeps two more files next to the database while the Hub runs:
+
+| File | Purpose |
+| :--- | :--- |
+| `hub.db` | The database |
+| `hub.db-wal` | Recent changes not yet copied into `hub.db` |
+| `hub.db-shm` | Shared index for the WAL file |
+
+**To back up or move the database** (for example to another machine), stop the Hub first. When the last connection closes, SQLite copies the recent changes into `hub.db` and removes the other two files, so `hub.db` alone is complete. If `hub.db-wal` is still there (for example after the machine lost power), copy all three files together; SQLite applies the log the next time it opens the database. Copying only `hub.db` while the Hub runs can miss the latest executions. Do not keep `hub.db` on a network drive; SQLite needs local file locking.
