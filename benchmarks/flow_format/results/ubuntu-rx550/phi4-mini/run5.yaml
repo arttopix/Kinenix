@@ -1,0 +1,141 @@
+```
+name: Monthly Currency Buying Transfer Rates
+description: Collect Bank of Thailand buying transfer rates for specified currencies over one month and email them as a CSV file.
+variables:
+  config:
+    url: https://www.bot.go.th
+    currencies: "USD, EUR, GBP, JPY"
+    month: {"date": "today", "add_months": -1}
+    output_path: ./data/bot-buying-transfer-rates.csv
+    headless: true
+    email:
+      to: example@example.com
+      subject: "Monthly Currency Buying Transfer Rates"
+      body: |
+        Here is the monthly currency buying transfer rates for the selected currencies.
+      dry_run: false
+steps:
+  - name: Calculate first and last day of the report month
+    action: date.calc
+    with:
+      date: ${config.month.date}
+      input_format: "%Y-%m-%d"
+      add_months: -1
+      snap: "today"
+      format: "%Y-%m-%d"
+    output_var: report_month
+    on_error: retry
+    max_retries: 2
+
+  - name: Open Bank of Thailand website
+    action: web.open
+    with:
+      url: ${config.url}
+      headless: ${config.headless}
+    output_var: bot_site
+    on_error: retry
+    max_retries: 2
+
+  - name: Accept cookie banner
+    action: web.click
+    with:
+      selector: "#accept-cookies"
+    output_var: cookie_accepted
+    on_error: retry
+    max_retries: 2
+
+  - name: Open currency filter
+    action: web.click
+    with:
+      selector: "#dropdownCurrency"
+    output_var: currency_filter_opened
+    on_error: retry
+    max_retries: 2
+
+  - name: Tick each currency checkbox
+    action: logic.loop
+    with:
+      items: ${config.currencies}
+      item_var: currency
+    steps:
+      - name: Check currency
+        action: web.uncheck
+        with:
+          selector: "#currency-filter input[name='currencyCheck'][value='${currency}']"
+        output_var: currency_checked
+        on_error: retry
+        max_retries: 2
+
+  - name: Pick start and end dates
+    action: web.get_text
+    with:
+      selector: ".react-datepicker select >> nth=1"
+    output_var: start_date
+    on_error: retry
+    max_retries: 2
+
+  - name: Pick end date
+    action: web.get_text
+    with:
+      selector: ".react-datepicker select >> nth=0"
+    output_var: end_date
+    on_error: retry
+    max_retries: 2
+
+  - name: Click 'button.historical-btn' to search
+    action: web.click
+    with:
+      selector: ".button.historical-btn"
+    output_var: search_click
+    on_error: retry
+    max_retries: 2
+
+  - name: Collect buying transfer rates for each currency
+    action: logic.loop
+    with:
+      items: ${config.currencies}
+      item_var: currency
+    steps:
+      - name: Click currency tab
+        action: web.click
+        with:
+          selector: "tab[text='${currency}']"
+        output_var: currency_tab
+        on_error: retry
+        max_retries: 2
+
+      - name: Read table
+        action: web.get_table
+        with:
+          selector: "table.buying-transfer-rates"
+          columns: ["Period", "Buying Rates Transfer"]
+          add_columns: ["Currency"]
+        output_var: buying_transfer_rates
+        on_error: retry
+        max_retries: 2
+
+      - name: Write to CSV
+        action: csv.write
+        with:
+          file_path: ${config.output_path}
+          data: ${buying_transfer_rates}
+          columns: ["Currency", "Date", "Buying Transfer Rate"]
+        on_error: retry
+        max_retries: 2
+
+  - name: Close browser
+    action: web.close
+    output_var: none
+
+  - name: Email the CSV file
+    action: email.send
+    with:
+      to: ${config.email.to}
+      subject: ${config.email.subject}
+      body: |
+        Here is the monthly currency buying transfer rates for the selected currencies.
+      attachments: [${config.output_path}]
+    on_error: retry
+    max_retries: 2
+    dry_run: ${config.email.dry_run}
+`` ```

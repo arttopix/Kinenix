@@ -21,7 +21,6 @@ To run it on a schedule, see the worker guide: https://github.com/arttopix/Kinen
 | :--- | :--- |
 | `requirements.md` | What the automation must do. You write it. |
 | `flow.md` | The flow. Written by you or an AI assistant from `requirements.md`. |
-| `flow.json` | Build output of `flow.md`, rebuilt before each run. Do not edit. |
 | `config/config.json` | Settings the flow reads as `${config.*}`. |
 | `.env.example` | Names of the secrets the flow needs. Copy to `.env` and fill in; `.env` is never committed. |
 | `AGENTS.md`, `CLAUDE.md` | Instructions for AI assistants working in this folder. |

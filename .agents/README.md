@@ -10,7 +10,7 @@ This directory is for AI developer tooling only. It is unrelated to `kinenix-wor
 | :--- | :--- |
 | `rules/architecture.md` | Design principles and module boundaries that code must respect |
 | `rules/coding_standards.md` | Python typing, `BaseAction` pattern, `${var}` evaluation, CLI conventions, no emojis |
-| `rules/action_documentation.md` | Required documentation for every action (`flow.md` + `flow.json` examples) |
+| `rules/action_documentation.md` | Required documentation for every action (`flow.md` examples) |
 | `rules/error_handling.md` | Technical vs. business exceptions and failure telemetry |
 | `rules/logging.md` | Execution log requirements, variable sanitization, business metrics |
 | `rules/security.md` | Secrets, log masking, local data privacy |

@@ -1,0 +1,216 @@
+name: Collect_BankOfThailand_Rates
+description: Collect Bank of Thailand buying transfer rates for several currencies over one month and email them as a CSV file.
+
+variables:
+  config: {}
+  config_month_date: "today"
+  config_month_add_months: -1
+  config_currencies: ["THB"]
+  config_output_path: "./output/rates.csv"
+  config_email_to: "recipient@example.com"
+  config_email_subject: "Bank of Thailand Buying Transfer Rates"
+  config_email_body: "Here are the Bank of Thailand buying transfer rates for the specified currencies."
+  config_email_dry_run: False
+
+steps:
+  - name: Work_out_first_last_day_of_the_report_month
+    action: date.calc
+    with:
+      date: ${config_month_date}
+      input_format: "%Y-%m-%d"
+      add_months: ${config_month_add_months}
+      add_days: 0
+      add_weeks: 0
+      add_years: 0
+      snap: False
+      format: "%Y-%m-%d"
+    output_var: config_month_date
+    on_error: retry
+    max_retries: 2
+
+  - name: Open_page_and_accept_cookie_banner
+    action: web.open
+    with:
+      url: ${config.url}
+      headless: ${config.headless}
+      timeout: 120
+    output_var: page_handle
+    on_error: retry
+    max_retries: 2
+    steps:
+      - name: Check_cookie_banner_text
+        action: web.is_visible
+        with:
+          selector: "button.historical-btn"
+          label: "Accept recommended cookies"
+        output_var: cookie_banner_text
+        on_error: retry
+        max_retries: 2
+        steps:
+          - name: Click_cookie_banner_button
+            action: web.click
+            with:
+              selector: "button.historical-btn"
+            output_var: None
+            on_error: continue
+            max_retries: 1
+            steps:
+              - name: Check_cookie_banner_text
+                action: web.is_visible
+                with:
+                  selector: "button.historical-btn"
+                  label: "Accept recommended cookies"
+                output_var: cookie_banner_text
+                on_error: continue
+                max_retries: 1
+
+  - name: Open_currency_filter_and_select_currencies
+    action: web.click
+    with:
+      selector: "#dropdownCurrency"
+      label: "Currency"
+    output_var: currency_filter_handle
+    on_error: retry
+    max_retries: 2
+    steps:
+      - name: Select_currency
+        action: web.select_option
+        with:
+          selector: ".currency-filter input[name='currencyCheck'][value='<currency>']"
+          label: "${item}"
+          value: "${item}"
+          text: "${item}"
+          label_text: "${item}"
+          index: 0
+          ai_match: False
+          base_url: "${base_url}"
+          systemone_url: "${base_url}"
+          fallback_to_ollama: False
+          timeout: 60
+        output_var: None
+        on_error: retry
+        max_retries: 1
+        steps:
+          - name: Select_currency
+            action: web.select_option
+            with:
+              selector: ".currency-filter input[name='currencyCheck'][value='<currency>']"
+              label: "${item}"
+              value: "${item}"
+              text: "${item}"
+              label_text: "${item}"
+              index: 1
+              ai_match: False
+              base_url: "${base_url}"
+              systemone_url: "${base_url}"
+              fallback_to_ollama: False
+              timeout: 60
+            output_var: None
+            on_error: retry
+            max_retries: 1
+
+  - name: Select_start_end_dates
+    action: web.select_option
+    with:
+      selector: ".react-datepicker select >> nth=0"
+      label: "${config_month_date}"
+      value: "${config_month_date}"
+      text: "${config_month_date}"
+      label_text: "${config_month_date}"
+      index: 0
+      ai_match: False
+      base_url: "${base_url}"
+      systemone_url: "${base_url}"
+      fallback_to_ollama: False
+      timeout: 60
+    output_var: start_date_select
+    on_error: retry
+    max_retries: 2
+
+  - name: Select_start_end_dates
+    action: web.select_option
+    with:
+      selector: ".react-datepicker select >> nth=1"
+      label: "${start_date_select}"
+      value: "${start_date_select}"
+      text: "${start_date_select}"
+      label_text: "${start_date_select}"
+      index: 0
+      ai_match: False
+      base_url: "${base_url}"
+      systemone_url: "${base_url}"
+      fallback_to_ollama: False
+      timeout: 60
+    output_var: end_date_select
+    on_error: retry
+    max_retries: 2
+
+  - name: Click_search_button
+    action: web.click
+    with:
+      selector: "button.historical-btn"
+    output_var: None
+    on_error: retry
+    max_retries: 1
+
+  - name: Get_table_data
+    action: web.get_table
+    with:
+      selector: ".table tbody"
+      label: "table"
+      columns: ["Period", "Buying Rates Transfer"]
+      numeric_columns: ["Buying Rates Transfer"]
+      add_columns: ["Currency"]
+      min_rows: 0
+      timeout: 60
+    output_var: table_data
+    on_error: retry
+    max_retries: 2
+    steps:
+      - name: Append_currency_to_table_data
+        action: logic.append
+        with:
+          target: table_data
+          item: {"Currency": "${item}"}
+        output_var: None
+        on_error: continue
+        max_retries: 1
+        steps:
+          - name: Append_currency_to_table_data
+            action: logic.append
+            with:
+              target: table_data
+              item: {"Currency": "${item}"}
+            output_var: None
+            on_error: continue
+            max_retries: 1
+
+  - name: Write_to_csv
+    action: csv.write
+    with:
+      file_path: ${config_output_path}
+      data: ${table_data}
+      columns: ["Currency", "Date", "Buying Transfer Rate"]
+      encoding: "utf-8"
+      append: False
+    output_var: None
+    on_error: retry
+    max_retries: 2
+
+  - name: Close_browser_and_email_csv
+    action: email.send
+    with:
+      to: ${config_email_to}
+      subject: ${config_email_subject}
+      body: ${config_email_body}
+      html: False
+      attachments: ["${config_output_path}"]
+      smtp_host: "smtp.example.com"
+      smtp_port: 587
+      smtp_user: "user@example.com"
+      smtp_password: "password"
+      use_tls: True
+      dry_run: ${config_email_dry_run}
+    output_var: None
+    on_error: retry
+    max_retries: 2

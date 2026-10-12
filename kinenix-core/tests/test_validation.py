@@ -77,14 +77,12 @@ def test_documented_parameters_are_accepted():
 
 def _repo_flows():
     flows = []
-    for path in sorted((REPO_ROOT / "flows").rglob("*")):
-        if path.name == "flow.md" or (path.suffix == ".json" and path.name != "config.json"
-                                      and not path.name.startswith("config.")):
-            if any(part in ("output", "assets", "config") for part in path.relative_to(REPO_ROOT).parts):
-                continue
-            if path.name == "flow.json" and path.with_name("flow.md").is_file():
-                continue  # the flow.md source is checked instead
-            flows.append(path)
+    for path in sorted((REPO_ROOT / "flows").rglob("*.md")):
+        if path.name == "README.md":
+            continue
+        if any(part in ("output", "assets", "config") for part in path.relative_to(REPO_ROOT).parts):
+            continue
+        flows.append(path)
     return flows
 
 

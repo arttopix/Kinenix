@@ -1,0 +1,237 @@
+name: Collect Bank of Thailand Buying Transfer Rates
+description: Collect Bank of Thailand buying transfer rates for several currencies over one month and email them as a CSV file.
+variables:
+  url: https://www.bangkokbank.com/bangkokbank/en/transfer-rates/rates
+  currencies: ["USD", "EUR", "JPY", "SGD", "THB"]
+  month: {"date": "today", "add_months": -1}
+  output_path: /path/to/output/bangkok_bank_rates.csv
+  headless: true
+  email:
+    to: example@example.com
+    subject: Bangkok Bank Buying Transfer Rates
+    dry_run: false
+steps:
+  - name: Open URL
+    action: web.open
+    with:
+      url: ${url}
+      headless: ${headless}
+    output_var: browser
+    on_error: retry
+    max_retries: 2
+  - name: Accept Cookies
+    action: web.click
+    with:
+      selector: button.historical-btn
+      label: Accept recommended cookies
+    on_error: retry
+    max_retries: 2
+  - name: Select Currencies
+    action: logic.loop
+    with:
+      items: ${currencies}
+      item_var: currency
+    steps:
+      - name: Check Currency
+        action: web.select_option
+        with:
+          selector: #dropdownCurrency
+          value: ${currency}
+  - name: Calculate Dates
+    action: date.calc
+    with:
+      date: ${month.date}
+      add_months: ${month.add_months}
+      snap: "start_of_month"
+      format: "%Y-%m-%d"
+    output_var: start_date
+    on_error: retry
+    max_retries: 2
+    steps:
+      - name: Calculate End Date
+        action: date.calc
+        with:
+          date: ${month.date}
+          add_months: ${month.add_months}
+          snap: "end_of_month"
+          format: "%Y-%m-%d"
+        output_var: end_date
+        on_error: retry
+        max_retries: 2
+  - name: Set Dates
+    action: web.set_variable
+    with:
+      name: start_date
+      value: ${start_date}
+  - name: Set Dates
+    action: web.set_variable
+    with:
+      name: end_date
+      value: ${end_date}
+  - name: Set Dates
+    action: web.set_variable
+    with:
+      name: currency
+      value: ${currency}
+  - name: Click Search
+    action: web.click
+    with:
+      selector: button.historical-btn
+    on_error: retry
+    max_retries: 2
+  - name: Select Currency Tab
+    action: web.click
+    with:
+      selector: a[href^="#tab-${currency}"]
+    on_error: retry
+    max_retries: 2
+  - name: Read Table
+    action: web.get_table
+    with:
+      selector: table.table-striped
+      columns: ["Period", "Buying Rates Transfer"]
+      numeric_columns: ["Buying Rates Transfer"]
+      min_rows: 1
+      output_var: table
+    on_error: retry
+    max_retries: 2
+  - name: Set Currency Column
+    action: logic.append
+    with:
+      target: ${table}
+      var_name: Currency
+      list_var: [${currency}]
+  - name: Write CSV
+    action: csv.write
+    with:
+      file_path: ${output_path}
+      data: ${table}
+      columns: [Currency, Date, Buying Transfer Rate]
+      append: true
+    on_error: retry
+    max_retries: 2
+  - name: Close Browser
+    action: web.close
+    with: (none)
+  - name: Email CSV
+    action: email.send
+    with:
+      to: ${email.to}
+      subject: ${email.subject}
+      body: "Bangkok Bank Buying Transfer Rates for ${start_date} to ${end_date}"
+      attachments: ${output_path}
+      dry_run: ${email.dry_run}
+    on_error: retry
+    max_retries: 2
+  - name: Retry Browser
+    action: web.open
+    with:
+      url: ${url}
+      headless: ${headless}
+    output_var: browser
+    on_error: retry
+    max_retries: 2
+  - name: Retry Accept Cookies
+    action: web.click
+    with:
+      selector: button.historical-btn
+      label: Accept recommended cookies
+    on_error: retry
+    max_retries: 2
+  - name: Retry Select Currencies
+    action: logic.loop
+    with:
+      items: ${currencies}
+      item_var: currency
+    steps:
+      - name: Retry Check Currency
+        action: web.select_option
+        with:
+          selector: #dropdownCurrency
+          value: ${currency}
+  - name: Retry Calculate Dates
+    action: date.calc
+    with:
+      date: ${month.date}
+      add_months: ${month.add_months}
+      snap: "start_of_month"
+      format: "%Y-%m-%d"
+    output_var: start_date
+    on_error: retry
+    max_retries: 2
+    steps:
+      - name: Retry Calculate End Date
+        action: date.calc
+        with:
+          date: ${month.date}
+          add_months: ${month.add_months}
+          snap: "end_of_month"
+          format: "%Y-%m-%d"
+        output_var: end_date
+        on_error: retry
+        max_retries: 2
+  - name: Retry Set Dates
+    action: web.set_variable
+    with:
+      name: start_date
+      value: ${start_date}
+  - name: Retry Set Dates
+    action: web.set_variable
+    with:
+      name: end_date
+      value: ${end_date}
+  - name: Retry Set Dates
+    action: web.set_variable
+    with:
+      name: currency
+      value: ${currency}
+  - name: Retry Click Search
+    action: web.click
+    with:
+      selector: button.historical-btn
+    on_error: retry
+    max_retries: 2
+  - name: Retry Select Currency Tab
+    action: web.click
+    with:
+      selector: a[href^="#tab-${currency}"]
+    on_error: retry
+    max_retries: 2
+  - name: Retry Read Table
+    action: web.get_table
+    with:
+      selector: table.table-striped
+      columns: ["Period", "Buying Rates Transfer"]
+      numeric_columns: ["Buying Rates Transfer"]
+      min_rows: 1
+      output_var: table
+    on_error: retry
+    max_retries: 2
+  - name: Retry Set Currency Column
+    action: logic.append
+    with:
+      target: ${table}
+      var_name: Currency
+      list_var: [${currency}]
+  - name: Retry Write CSV
+    action: csv.write
+    with:
+      file_path: ${output_path}
+      data: ${table}
+      columns: [Currency, Date, Buying Transfer Rate]
+      append: true
+    on_error: retry
+    max_retries: 2
+  - name: Retry Close Browser
+    action: web.close
+    with: (none)
+  - name: Retry Email CSV
+    action: email.send
+    with:
+      to: ${email.to}
+      subject: ${email.subject}
+      body: "Bangkok Bank Buying Transfer Rates for ${start_date} to ${end_date}"
+      attachments: ${output_path}
+      dry_run: ${email.dry_run}
+    on_error: retry
+    max_retries: 2

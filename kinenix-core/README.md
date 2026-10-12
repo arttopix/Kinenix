@@ -4,7 +4,7 @@ Core execution engine and `kinenix` CLI for **Kinenix**, an open-source, local A
 
 > **Status: beta.** Flow schemas and action parameters may still change between releases.
 
-- Runs automation flows written as `flow.json` or `flow.md`
+- Runs automation flows written as `flow.md`
 - Built-in actions for web automation (Playwright), Excel and CSV (no Microsoft Office required), files, HTTP, email, and flow control
 - Local AI actions through Ollama, so business data stays on your machine
 - Retries, fallbacks, failure screenshots, and structured JSON execution logs
@@ -23,8 +23,8 @@ Requires Python 3.10 or newer.
 
 ```bash
 kinenix list                       # list flows found in the current project
-kinenix run path/to/flow.json      # run a flow
-kinenix compile path/to/flow.md    # compile flow.md into flow.json
+kinenix run path/to/bundle         # run the flow.md in a bundle folder
+kinenix compile path/to/flow.md    # print the compiled form as JSON (inspection)
 kinenix version                    # version and environment details
 ```
 

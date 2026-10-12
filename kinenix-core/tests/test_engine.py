@@ -4,6 +4,7 @@ import pytest
 from kinenix.models.flow import FlowDefinition, Step
 from kinenix.models.context import ExecutionContext
 from kinenix.engine.interpreter import FlowInterpreter
+from kinenix.engine.markdown import flow_to_markdown, load_flow
 from kinenix.engine.evaluator import VariableEvaluator
 
 
@@ -38,13 +39,11 @@ def test_interpreter_basic_run():
     assert ctx.step_results[0].status == "success"
 
 
-def test_interpreter_load_sample_flow_json():
-    json_path = Path(__file__).parent.parent / "examples" / "sample_flow.json"
-    assert json_path.exists()
+def test_interpreter_load_sample_flow():
+    md_path = Path(__file__).parent.parent / "examples" / "sample_flow.md"
+    assert md_path.exists()
 
-    content = json_path.read_text(encoding="utf-8")
-    raw_json = json.loads(content)
-    flow_def = FlowDefinition.model_validate(raw_json)
+    flow_def = load_flow(md_path)
 
     interpreter = FlowInterpreter()
     ctx = interpreter.run_flow(flow_def)
@@ -263,7 +262,7 @@ def test_flow_failure_diagnosis():
 
 
 def test_subflow_contract_first_return(tmp_path):
-    subflow_path = tmp_path / "calc_subflow.json"
+    subflow_path = tmp_path / "calc_subflow.md"
     subflow_def = {
         "name": "Calculation Subflow",
         "variables": {
@@ -298,7 +297,7 @@ def test_subflow_contract_first_return(tmp_path):
             }
         ]
     }
-    subflow_path.write_text(json.dumps(subflow_def), encoding="utf-8")
+    subflow_path.write_text(flow_to_markdown(FlowDefinition(**subflow_def)), encoding="utf-8")
 
     parent_flow = FlowDefinition(
         name="Parent Main Flow",
@@ -343,7 +342,7 @@ def test_subflow_contract_first_return(tmp_path):
 
 
 def test_subflow_default_variables_priority(tmp_path):
-    subflow_path = tmp_path / "priority_subflow.json"
+    subflow_path = tmp_path / "priority_subflow.md"
     subflow_def = {
         "name": "Priority Subflow",
         "variables": {
@@ -366,7 +365,7 @@ def test_subflow_default_variables_priority(tmp_path):
             }
         ]
     }
-    subflow_path.write_text(json.dumps(subflow_def), encoding="utf-8")
+    subflow_path.write_text(flow_to_markdown(FlowDefinition(**subflow_def)), encoding="utf-8")
 
     parent_flow = FlowDefinition(
         name="Parent Priority Flow",
@@ -397,7 +396,7 @@ def test_subflow_default_variables_priority(tmp_path):
 
 
 def test_subflow_max_depth_exceeded(tmp_path):
-    subflow_path = tmp_path / "depth_subflow.json"
+    subflow_path = tmp_path / "depth_subflow.md"
     subflow_def = {
         "name": "Recursive Subflow",
         "steps": [
@@ -409,7 +408,7 @@ def test_subflow_max_depth_exceeded(tmp_path):
             }
         ]
     }
-    subflow_path.write_text(json.dumps(subflow_def), encoding="utf-8")
+    subflow_path.write_text(flow_to_markdown(FlowDefinition(**subflow_def)), encoding="utf-8")
 
     parent_flow = FlowDefinition(
         name="Parent Flow",
@@ -431,8 +430,8 @@ def test_subflow_max_depth_exceeded(tmp_path):
 
 
 def test_subflow_circular_call_detection(tmp_path):
-    flow_a_path = tmp_path / "flow_a.json"
-    flow_b_path = tmp_path / "flow_b.json"
+    flow_a_path = tmp_path / "flow_a.md"
+    flow_b_path = tmp_path / "flow_b.md"
 
     flow_a_def = {
         "name": "Flow A",
@@ -458,8 +457,8 @@ def test_subflow_circular_call_detection(tmp_path):
         ]
     }
 
-    flow_a_path.write_text(json.dumps(flow_a_def), encoding="utf-8")
-    flow_b_path.write_text(json.dumps(flow_b_def), encoding="utf-8")
+    flow_a_path.write_text(flow_to_markdown(FlowDefinition(**flow_a_def)), encoding="utf-8")
+    flow_b_path.write_text(flow_to_markdown(FlowDefinition(**flow_b_def)), encoding="utf-8")
 
     parent_flow = FlowDefinition.model_validate(flow_a_def)
     interpreter = FlowInterpreter()
@@ -491,7 +490,7 @@ def test_subflow_shared_component_send_email():
                 name="Call Shared Email Component",
                 action="flow.call",
                 parameters={
-                    "flow": "@shared/send_email.json",
+                    "flow": "@shared/send_email.md",
                     "inputs": {
                         "to": "finance@example.com",
                         "subject": "Monthly Close Completed",
@@ -557,7 +556,7 @@ def test_auto_load_flow_config_json(tmp_path):
     }
     (bundle_dir / "config.json").write_text(json.dumps(config_data), encoding="utf-8")
 
-    # Create flow.json that references ${config.portal_url} and ${email_to}
+    # A flow that references ${config.portal_url} and ${email_to}
     flow_def = FlowDefinition(
         name="Invoice Filing Bundle",
         steps=[

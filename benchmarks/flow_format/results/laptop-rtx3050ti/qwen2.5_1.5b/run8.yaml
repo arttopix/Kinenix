@@ -1,0 +1,105 @@
+name: Collect Bank of Thailand Transfer Rates
+description: Collects Bank of Thailand buying transfer rates for several currencies over one month and emails them as a CSV file.
+variables:
+  month: {"date": "today", "add_months": -1}
+  urls: ["https://api.btc.th/bankrates"]
+  currencies: ["USD", "JPY", "THB", "EUR", "AUD"]
+  output_path: "/tmp/transfer_rates.csv"
+  email.to: "recipient@example.com"
+  email.subject: "Bank of Thailand Transfer Rates Report"
+  email.body: "The latest Bank of Thailand transfer rates for the month."
+  headless: false
+  dry_run: false
+steps:
+  - name: Calculate Report Month
+    action: date.calc
+    with:
+      date: "${month.date}"
+      input_format: "%Y-%m-%d"
+      add_days: 30
+      add_weeks: 0
+      add_months: 0
+      add_years: 0
+      snap: 1
+      format: "%Y-%m-%d"
+    output_var: month_start
+
+  - name: Prepare URLs
+    action: logic.append
+    with:
+      target: urls
+      item: "https://api.btc.th/bankrates?date=${month_start}"
+
+  - name: Open URLs
+    action: http.request
+    with:
+      url: "${urls}"
+      method: "GET"
+      headers:
+        Accept: "application/json"
+      timeout: 10
+
+  - name: Filter Currencies
+    action: logic.append
+    with:
+      target: urls
+      item: "https://api.btc.th/bankrates?date=${month_start}"
+
+  - name: Collect Data
+    action: excel.read
+    with:
+      file_path: "${output_path}"
+      sheet_name: "Bank of Thailand Transfer Rates"
+      clean_headers: true
+      as_text: true
+
+  - name: Extract Data
+    action: ai.extract
+    with:
+      base_url: "${urls}"
+      model: "json"
+      text: "Bank of Thailand Transfer Rates"
+      system: "Collect and organize data for the month."
+      temperature: 0.7
+      clean_headers: true
+      as_text: true
+
+  - name: Write CSV
+    action: csv.write
+    with:
+      file_path: "${output_path}"
+      data: ${extracted_data}
+      columns: ["Currency", "Date", "Buying Transfer Rate"]
+      encoding: "utf-8"
+      append: true
+
+  - name: Email Report
+    action: email.send
+    with:
+      to: "${email.to}"
+      cc: []
+      bcc: []
+      subject: "${email.subject}"
+      body: "${email.body}"
+      html: false
+      attachments: []
+      smtp_host: "smtp.example.com"
+      smtp_port: 587
+      smtp_user: "user@example.com"
+      smtp_password: "password"
+      use_tls: true
+      dry_run: ${dry_run}
+    on_error: retry
+    max_retries: 2
+    retry_interval: 60
+
+  - name: Clean Up
+    action: file.delete
+    with:
+      path: "${output_path}"
+
+  - name: Retry
+    action: flow.fail
+    with:
+      message: "Failed to collect or write CSV. Retrying..."
+      category: "Error"

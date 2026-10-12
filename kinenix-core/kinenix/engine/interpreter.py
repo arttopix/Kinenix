@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 from .conditions import resolve_condition
 from .evaluator import VariableEvaluator
 from .logger import ExecutionLogger
-from .markdown import markdown_to_flow
+from .markdown import JSON_FLOW_NOT_RUN, markdown_to_flow
 from ..actions.registry import ActionRegistry
 from ..actions.flow_control import SubflowExecutionError, is_business_error
 from ..models.context import ExecutionContext, StepResult, FailureDetails, local_now
@@ -16,20 +16,20 @@ from ..models.flow import FlowDefinition, Step
 
 
 def _flow_file(path: Path) -> Optional[Path]:
-    """The flow file at path, or path + .md, or path + .json (a .md source wins over a .json build)."""
+    """The flow file at path, or path + .md."""
     if path.is_file():
         return path.resolve()
-    for suffix in (".md", ".json"):
-        candidate = path.with_name(path.name + suffix)
-        if candidate.is_file():
-            return candidate.resolve()
+    candidate = path.with_name(path.name + ".md")
+    if candidate.is_file():
+        return candidate.resolve()
     return None
 
 
 def load_subflow(path: Path) -> FlowDefinition:
-    if path.suffix.lower() == ".md":
-        return markdown_to_flow(path.read_text(encoding="utf-8-sig"))
-    return FlowDefinition.model_validate(json.loads(path.read_text(encoding="utf-8-sig")))
+    """Subflows are flow.md files, compiled in memory on every call; JSON flows are not read."""
+    if path.suffix.lower() == ".json":
+        raise ValueError(JSON_FLOW_NOT_RUN.format(path=path))
+    return markdown_to_flow(path.read_text(encoding="utf-8-sig"))
 
 
 def is_shared_subflow(flow_target: Any, resolved_path: Path, context: Any) -> bool:
@@ -650,8 +650,7 @@ class FlowInterpreter:
                 failed_step_id=step.id
             )
 
-        # 3. Load child FlowDefinition; a .md subflow is compiled in memory on every run, so no
-        #    flow.json next to it can go stale
+        # 3. Load child FlowDefinition; the .md subflow is compiled in memory on every run
         try:
             subflow_def = load_subflow(resolved_path)
         except Exception as e:

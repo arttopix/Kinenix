@@ -1,7 +1,7 @@
-import json
 from pathlib import Path
 import pytest
 
+from kinenix.engine.markdown import flow_to_markdown
 from kinenix_worker.runner import WorkerRunner
 from kinenix.models.flow import FlowDefinition, Step
 
@@ -16,7 +16,7 @@ def test_worker_system_info():
 
 
 def test_worker_execute_simple_flow(tmp_path: Path):
-    flow_file = tmp_path / "flow.json"
+    flow_file = tmp_path / "flow.md"
     flow_content = {
         "name": "Worker Simple Test Flow",
         "variables": {
@@ -34,7 +34,7 @@ def test_worker_execute_simple_flow(tmp_path: Path):
             }
         ]
     }
-    flow_file.write_text(json.dumps(flow_content), encoding="utf-8")
+    flow_file.write_text(flow_to_markdown(FlowDefinition(**flow_content)), encoding="utf-8")
 
     runner = WorkerRunner()
     result = runner.execute_flow(str(flow_file), log_dir=str(tmp_path / "logs"))

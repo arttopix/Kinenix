@@ -11,9 +11,8 @@ from typing import Any, Dict, Optional
 import psutil
 from kinenix.engine.interpreter import FlowInterpreter
 from kinenix.engine.logger import ExecutionLogger
-from kinenix.engine.markdown import FlowSync, markdown_issues, markdown_to_flow, sync_flow_json
+from kinenix.engine.markdown import load_flow, markdown_issues
 from kinenix.engine.validation import validate_flow, validate_subflows
-from kinenix.models.flow import FlowDefinition
 
 from .hub_client import HubClient
 
@@ -59,10 +58,10 @@ class WorkerRunner:
             if found:
                 target_path = found
         if target_path.is_dir():
-            if (target_path / "flow.json").is_file():
-                target_path = target_path / "flow.json"
-            elif (target_path / "flow.md").is_file():
-                target_path = target_path / "flow.md"
+            for name in ("flow.md", "flow.json"):  # a lone flow.json is reported with how to convert it
+                if (target_path / name).is_file():
+                    target_path = target_path / name
+                    break
 
         if not target_path.is_file():
             raise FileNotFoundError(f"Flow file not found at: {flow_path_or_alias}")
@@ -78,23 +77,9 @@ class WorkerRunner:
             work_dir = sandbox_dir
             target_path = sandbox_dir / target_path.name
 
-        # A bundle's flow.md is the source; flow.json is its build output and is what runs
-        flow_sync = FlowSync.NO_MARKDOWN
-        if target_path.name in ("flow.md", "flow.json") and (work_dir / "flow.md").is_file():
-            flow_sync = sync_flow_json(work_dir / "flow.md")
-            if flow_sync == FlowSync.JSON_NEWER:
-                logger.warning(f"{work_dir / 'flow.json'} differs from flow.md and was edited after it; running flow.json. "
-                               f"Run 'kinenix compile' or 'kinenix export-md' on the bundle to bring them back in line.")
-            target_path = work_dir / "flow.json"
-
-        if target_path.suffix.lower() == ".md":
-            flow_def = markdown_to_flow(target_path.read_text(encoding="utf-8-sig"))
-        else:
-            flow_data = json.loads(target_path.read_text(encoding="utf-8-sig"))
-            flow_def = FlowDefinition(**flow_data)
-        issues = validate_flow(flow_def) + validate_subflows(flow_def, work_dir)
-        if (work_dir / "flow.md").is_file():
-            issues = markdown_issues((work_dir / "flow.md").read_text(encoding="utf-8-sig")) + issues
+        flow_def = load_flow(target_path)
+        issues = (markdown_issues(target_path.read_text(encoding="utf-8-sig"))
+                  + validate_flow(flow_def) + validate_subflows(flow_def, work_dir))
         for issue in issues:
             logger.warning(issue)
 
@@ -145,7 +130,6 @@ class WorkerRunner:
             "steps_executed": len({r.step_id for r in ctx.step_results} & {s.id for s in flow_def.steps}),
             "has_error": ctx.has_error,
             "error": self._error_summary(ctx),
-            "flow_sync": flow_sync,
             "worker_system": system_info
         }
 

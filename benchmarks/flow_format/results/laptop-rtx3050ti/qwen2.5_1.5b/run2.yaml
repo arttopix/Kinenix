@@ -1,0 +1,492 @@
+name: Collect Bank of Thailand Transfer Rates
+description: A flow to collect Bank of Thailand buying transfer rates for several currencies over one month and send the report as a CSV file.
+
+variables:
+  config: {}
+  url: 'https://bankofthailand.co.th/transaction/transfer-rate'
+  currencies: ['THB', 'USD', 'EUR', 'JPY']
+  month: {}
+  month.date: 'today'
+  month.add_months: -1
+  output_path: 'report/transfer-rates.csv'
+  headless: false
+  email.to: 'recipient@example.com'
+  email.subject: 'Bank of Thailand Transfer Rates Report'
+  email.body: 'Please find the Bank of Thailand transfer rates report attached.'
+  email.dry_run: false
+
+steps:
+  - name: Get Report Month
+    action: logic.append
+    with:
+      target: config
+      item: ${config.month.date}
+      extend: true
+
+  - name: Set Initial URL
+    action: logic.set_variable
+    with:
+      name: config.url
+      value: ${url}
+
+  - name: Open Cookie Banner
+    action: logic.set_variable
+    with:
+      name: config.url
+      value: ${config.url}
+    on_error: retry
+    max_retries: 2
+    steps:
+      - name: Open Cookie Banner (Retry)
+        action: ai.prompt
+        with:
+          base_url: ${config.url}
+          instructions: 'Accept recommended cookies.'
+          model: 'gpt-3.5-turbo'
+          system: 'Please open the cookie banner and accept it.'
+          temperature: 0
+          timeout: 10
+
+  - name: Add Months to URL
+    action: logic.set_variable
+    with:
+      name: config.url
+      value: ${config.url}+?add_months=${config.month.add_months}
+
+  - name: Add Currencies to URL
+    action: logic.set_variable
+    with:
+      name: config.url
+      value: ${config.url}+?currencies=${config.currencies}
+
+  - name: Open Page
+    action: logic.set_variable
+    with:
+      name: config.url
+      value: ${config.url}
+
+  - name: Check URL
+    action: web.check
+    with:
+      selector: '[data-testid="currency-filter"]'
+      label: 'Accept recommended cookies.'
+      timeout: 5
+
+  - name: Navigate to Currency Filter
+    action: logic.set_variable
+    with:
+      name: config.url
+      value: ${config.url}
+
+  - name: Select Currencies
+    action: logic.set_variable
+    with:
+      name: config.url
+      value: ${config.url}
+    steps:
+      - name: Select Currency (Retry)
+        action: logic.set_variable
+        with:
+          name: config.url
+          value: ${config.url}
+        on_error: retry
+        max_retries: 2
+
+  - name: Pick Start and End Dates
+    action: logic.set_variable
+    with:
+      name: config.url
+      value: ${config.url}
+    steps:
+      - name: Select Year
+        action: logic.set_variable
+        with:
+          name: config.url
+          value: ${config.url}
+      - name: Select Month
+        action: logic.set_variable
+        with:
+          name: config.url
+          value: ${config.url}
+      - name: Select Day
+        action: logic.set_variable
+        with:
+          name: config.url
+          value: ${config.url}
+
+  - name: Click 'button.historical-btn'
+    action: logic.set_variable
+    with:
+      name: config.url
+      value: ${config.url}
+    steps:
+      - name: Click 'button.historical-btn' (Retry)
+        action: logic.set_variable
+        with:
+          name: config.url
+          value: ${config.url}
+        on_error: retry
+        max_retries: 2
+
+  - name: Collect Data
+    action: logic.set_variable
+    with:
+      name: config.url
+      value: ${config.url}
+    steps:
+      - name: Read Table (Retry)
+        action: logic.set_variable
+        with:
+          name: config.url
+          value: ${config.url}
+        steps:
+          - name: Check Table (Retry)
+            action: logic.set_variable
+            with:
+              name: config.url
+              value: ${config.url}
+          - name: Extract Data (Retry)
+            action: logic.set_variable
+            with:
+              name: config.url
+              value: ${config.url}
+          - name: Write to CSV (Retry)
+            action: logic.set_variable
+            with:
+              name: config.url
+              value: ${config.url}
+          - name: Close Browser (Retry)
+            action: logic.set_variable
+            with:
+              name: config.url
+              value: ${config.url}
+          - name: Check Screenshot (Retry)
+            action: logic.set_variable
+            with:
+              name: config.url
+              value: ${config.url}
+          - name: Email Report
+            action: logic.set_variable
+            with:
+              name: config.url
+              value: ${config.url}
+          - name: Check Email (Retry)
+            action: logic.set_variable
+            with:
+              name: config.url
+              value: ${config.url}
+          - name: Close Browser (Retry)
+            action: logic.set_variable
+            with:
+              name: config.url
+              value: ${config.url}
+
+  - name: Set Output Path
+    action: logic.set_variable
+    with:
+      name: config.output_path
+      value: ${output_path}
+
+  - name: Send Report
+    action: logic.set_variable
+    with:
+      name: config.output_path
+      value: ${output_path}
+    steps:
+      - name: Open Browser (Retry)
+        action: logic.set_variable
+        with:
+          name: config.output_path
+          value: ${output_path}
+        on_error: retry
+        max_retries: 2
+
+  - name: Open Browser (Retry)
+    action: logic.set_variable
+    with:
+      name: config.output_path
+      value: ${output_path}
+    steps:
+      - name: Email Report (Retry)
+        action: logic.set_variable
+        with:
+          name: config.output_path
+          value: ${output_path}
+        on_error: retry
+        max_retries: 2
+
+  - name: Close Browser (Retry)
+    action: logic.set_variable
+    with:
+      name: config.output_path
+      value: ${output_path}
+    steps:
+      - name: Check Screenshot (Retry)
+        action: logic.set_variable
+        with:
+          name: config.output_path
+          value: ${output_path}
+        on_error: retry
+        max_retries: 2
+
+  - name: Check Screenshot (Retry)
+    action: logic.set_variable
+    with:
+      name: config.output_path
+      value: ${output_path}
+    steps:
+      - name: Email Report (Retry)
+        action: logic.set_variable
+        with:
+          name: config.output_path
+          value: ${output_path}
+        on_error: retry
+        max_retries: 2
+
+  - name: Check Screenshot (Retry)
+    action: logic.set_variable
+    with:
+      name: config.output_path
+      value: ${output_path}
+    steps:
+      - name: Email Report (Retry)
+        action: logic.set_variable
+        with:
+          name: config.output_path
+          value: ${output_path}
+        on_error: retry
+        max_retries: 2
+
+  - name: Check Screenshot (Retry)
+    action: logic.set_variable
+    with:
+      name: config.output_path
+      value: ${output_path}
+    steps:
+      - name: Email Report (Retry)
+        action: logic.set_variable
+        with:
+          name: config.output_path
+          value: ${output_path}
+        on_error: retry
+        max_retries: 2
+
+  - name: Check Screenshot (Retry)
+    action: logic.set_variable
+    with:
+      name: config.output_path
+      value: ${output_path}
+    steps:
+      - name: Email Report (Retry)
+        action: logic.set_variable
+        with:
+          name: config.output_path
+          value: ${output_path}
+        on_error: retry
+        max_retries: 2
+
+  - name: Check Screenshot (Retry)
+    action: logic.set_variable
+    with:
+      name: config.output_path
+      value: ${output_path}
+    steps:
+      - name: Email Report (Retry)
+        action: logic.set_variable
+        with:
+          name: config.output_path
+          value: ${output_path}
+        on_error: retry
+        max_retries: 2
+
+  - name: Check Screenshot (Retry)
+    action: logic.set_variable
+    with:
+      name: config.output_path
+      value: ${output_path}
+    steps:
+      - name: Email Report (Retry)
+        action: logic.set_variable
+        with:
+          name: config.output_path
+          value: ${output_path}
+        on_error: retry
+        max_retries: 2
+
+  - name: Check Screenshot (Retry)
+    action: logic.set_variable
+    with:
+      name: config.output_path
+      value: ${output_path}
+    steps:
+      - name: Email Report (Retry)
+        action: logic.set_variable
+        with:
+          name: config.output_path
+          value: ${output_path}
+        on_error: retry
+        max_retries: 2
+
+  - name: Check Screenshot (Retry)
+    action: logic.set_variable
+    with:
+      name: config.output_path
+      value: ${output_path}
+    steps:
+      - name: Email Report (Retry)
+        action: logic.set_variable
+        with:
+          name: config.output_path
+          value: ${output_path}
+        on_error: retry
+        max_retries: 2
+
+  - name: Check Screenshot (Retry)
+    action: logic.set_variable
+    with:
+      name: config.output_path
+      value: ${output_path}
+    steps:
+      - name: Email Report (Retry)
+        action: logic.set_variable
+        with:
+          name: config.output_path
+          value: ${output_path}
+        on_error: retry
+        max_retries: 2
+
+  - name: Check Screenshot (Retry)
+    action: logic.set_variable
+    with:
+      name: config.output_path
+      value: ${output_path}
+    steps:
+      - name: Email Report (Retry)
+        action: logic.set_variable
+        with:
+          name: config.output_path
+          value: ${output_path}
+        on_error: retry
+        max_retries: 2
+
+  - name: Check Screenshot (Retry)
+    action: logic.set_variable
+    with:
+      name: config.output_path
+      value: ${output_path}
+    steps:
+      - name: Email Report (Retry)
+        action: logic.set_variable
+        with:
+          name: config.output_path
+          value: ${output_path}
+        on_error: retry
+        max_retries: 2
+
+  - name: Check Screenshot (Retry)
+    action: logic.set_variable
+    with:
+      name: config.output_path
+      value: ${output_path}
+    steps:
+      - name: Email Report (Retry)
+        action: logic.set_variable
+        with:
+          name: config.output_path
+          value: ${output_path}
+        on_error: retry
+        max_retries: 2
+
+  - name: Check Screenshot (Retry)
+    action: logic.set_variable
+    with:
+      name: config.output_path
+      value: ${output_path}
+    steps:
+      - name: Email Report (Retry)
+        action: logic.set_variable
+        with:
+          name: config.output_path
+          value: ${output_path}
+        on_error: retry
+        max_retries: 2
+
+  - name: Check Screenshot (Retry)
+    action: logic.set_variable
+    with:
+      name: config.output_path
+      value: ${output_path}
+    steps:
+      - name: Email Report (Retry)
+        action: logic.set_variable
+        with:
+          name: config.output_path
+          value: ${output_path}
+        on_error: retry
+        max_retries: 2
+
+  - name: Check Screenshot (Retry)
+    action: logic.set_variable
+    with:
+      name: config.output_path
+      value: ${output_path}
+    steps:
+      - name: Email Report (Retry)
+        action: logic.set_variable
+        with:
+          name: config.output_path
+          value: ${output_path}
+        on_error: retry
+        max_retries: 2
+
+  - name: Check Screenshot (Retry)
+    action: logic.set_variable
+    with:
+      name: config.output_path
+      value: ${output_path}
+    steps:
+      - name: Email Report (Retry)
+        action: logic.set_variable
+        with:
+          name: config.output_path
+          value: ${output_path}
+        on_error: retry
+        max_retries: 2
+
+  - name: Check Screenshot (Retry)
+    action: logic.set_variable
+    with:
+      name: config.output_path
+      value: ${output_path}
+    steps:
+      - name: Email Report (Retry)
+        action: logic.set_variable
+        with:
+          name: config.output_path
+          value: ${output_path}
+        on_error: retry
+        max_retries: 2
+
+  - name: Check Screenshot (Retry)
+    action: logic.set_variable
+    with:
+      name: config.output_path
+      value: ${output_path}
+    steps:
+      - name: Email Report (Retry)
+        action: logic.set_variable
+        with:
+          name: config.output_path
+          value: ${output_path}
+        on_error: retry
+        max_retries: 2
+
+  - name: Check Screenshot (Retry)
+    action: logic.set_variable
+    with:
+      name: config.output_path
+      value: ${output_path}
+    steps:
+      - name: Email Report (Retry)
+        action: logic.set_variable
+       

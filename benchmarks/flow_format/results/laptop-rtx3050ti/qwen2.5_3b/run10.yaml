@@ -1,0 +1,402 @@
+```yaml
+name: Collect Bank of Thailand Buy Transfer Rates
+description: Collect Bank of Thailand buy transfer rates for several currencies over one month and email them as a CSV file.
+variables:
+  config_url: ""
+  currencies: ["THB", "USD", "EUR", "JPY"]
+  month_date: ""
+  month_add_months: -1
+  output_path: ""
+  email_to: ""
+  email_subject: ""
+  email_body: ""
+  email_dry_run: False
+steps:
+  - name: Work out the first and last day of the report month
+    action: date.calc
+    with:
+      date: ${config.month_date}
+      input_format: "%Y-%m-%d"
+      add_months: ${config.month_add_months}
+      add_days: 0
+      add_weeks: 0
+      add_years: 0
+      snap: False
+      format: "%Y-%m-%d"
+    output_var: first_day_of_month
+    on_error: continue
+    max_retries: 2
+    steps:
+      - name: Work out the first and last day of the report month (retry)
+        action: date.calc
+        with:
+          date: ${config.month_date}
+          input_format: "%Y-%m-%d"
+          add_months: ${config.month_add_months}
+          add_days: 0
+          add_weeks: 0
+          add_years: 0
+          snap: False
+          format: "%Y-%m-%d"
+        output_var: first_day_of_month
+  - name: Work out the first and last day of the report month (retry again)
+    action: date.calc
+    with:
+      date: ${first_day_of_month}
+      input_format: "%Y-%m-%d"
+      add_months: ${config.month_add_months}
+      add_days: 0
+      add_weeks: 0
+      add_years: 0
+      snap: True
+      format: "%Y-%m-%d"
+    output_var: last_day_of_month
+    on_error: continue
+    max_retries: 2
+    steps:
+      - name: Work out the first and last day of the report month (retry again)
+        action: date.calc
+        with:
+          date: ${first_day_of_month}
+          input_format: "%Y-%m-%d"
+          add_months: ${config.month_add_months}
+          add_days: 0
+          add_weeks: 0
+          add_years: 0
+          snap: True
+          format: "%Y-%m-%d"
+        output_var: last_day_of_month
+  - name: Open the page
+    action: web.open
+    with:
+      url: ${config_url}
+      headless: ${config_headless}
+      timeout: 30
+    output_var: browser
+    on_error: retry
+    max_retries: 2
+    steps:
+      - name: Accept cookie banner
+        action: web.click
+        with:
+          selector: ".react-cookie-banner button:contains('Accept recommended cookies')"
+          label: "Accept recommended cookies"
+          timeout: 10
+        output_var: acceptance_banner
+        on_error: continue
+  - name: Open the currency filter
+    action: web.select_option
+    with:
+      selector: "#dropdownCurrency"
+      label: "Dropdown Currency"
+      value: ""
+      text: ""
+      label_text: ""
+      index: ""
+      ai_match: False
+      base_url: ""
+      systemone_url: ""
+      fallback_to_ollama: False
+      timeout: 10
+    output_var: currency_filter
+    on_error: continue
+    max_retries: 2
+    steps:
+      - name: Open the currency filter (retry)
+        action: web.select_option
+        with:
+          selector: "#dropdownCurrency"
+          label: "Dropdown Currency"
+          value: ""
+          text: ""
+          label_text: ""
+          index: ""
+          ai_match: False
+          base_url: ""
+          systemone_url: ""
+          fallback_to_ollama: False
+          timeout: 10
+        output_var: currency_filter
+      - name: Open the currency filter (retry again)
+        action: web.select_option
+        with:
+          selector: "#dropdownCurrency"
+          label: "Dropdown Currency"
+          value: ""
+          text: ""
+          label_text: ""
+          index: ""
+          ai_match: False
+          base_url: ""
+          systemone_url: ""
+          fallback_to_ollama: False
+          timeout: 10
+        output_var: currency_filter
+  - name: Select currencies
+    action: logic.loop
+    with:
+      items: ${currencies}
+      item_var: currency
+    steps:
+      - name: Select currency
+        action: web.select_option
+        with:
+          selector: "#dropdownCurrency .currency-filter input[name='currencyCheck'][value='${currency}']"
+          label: ""
+          value: ""
+          text: "${currency}"
+          label_text: ""
+          index: ""
+          ai_match: False
+          base_url: ""
+          systemone_url: ""
+          fallback_to_ollama: False
+          timeout: 10
+        output_var: currency_select
+  - name: Pick the start and end dates
+    action: web.select_option
+    with:
+      selector: ".react-datepicker select >> nth=1"
+      label: "Year"
+      value: "${first_day_of_month.split('-')[0]}"
+      text: "${first_day_of_month.split('-')[0]}"
+      label_text: "Year"
+      index: 0
+      ai_match: False
+      base_url: ""
+      systemone_url: ""
+      fallback_to_ollama: False
+      timeout: 10
+    output_var: start_year_select
+    on_error: continue
+    max_retries: 2
+    steps:
+      - name: Pick the start and end dates (retry)
+        action: web.select_option
+        with:
+          selector: ".react-datepicker select >> nth=1"
+          label: "Year"
+          value: "${first_day_of_month.split('-')[0]}"
+          text: "${first_day_of_month.split('-')[0]}"
+          label_text: "Year"
+          index: 0
+          ai_match: False
+          base_url: ""
+          systemone_url: ""
+          fallback_to_ollama: False
+          timeout: 10
+        output_var: start_year_select
+      - name: Pick the start and end dates (retry again)
+        action: web.select_option
+        with:
+          selector: ".react-datepicker select >> nth=1"
+          label: "Year"
+          value: "${first_day_of_month.split('-')[0]}"
+          text: "${first_day_of_month.split('-')[0]}"
+          label_text: "Year"
+          index: 0
+          ai_match: False
+          base_url: ""
+          systemone_url: ""
+          fallback_to_ollama: False
+          timeout: 10
+        output_var: start_year_select
+  - name: Pick the start and end dates
+    action: web.select_option
+    with:
+      selector: ".react-datepicker select >> nth=0"
+      label: "Month"
+      value: "${first_day_of_month.split('-')[1]}"
+      text: "${first_day_of_month.split('-')[1]}"
+      label_text: "Month"
+      index: 0
+      ai_match: False
+      base_url: ""
+      systemone_url: ""
+      fallback_to_ollama: False
+      timeout: 10
+    output_var: start_month_select
+    on_error: continue
+    max_retries: 2
+    steps:
+      - name: Pick the start and end dates (retry)
+        action: web.select_option
+        with:
+          selector: ".react-datepicker select >> nth=0"
+          label: "Month"
+          value: "${first_day_of_month.split('-')[1]}"
+          text: "${first_day_of_month.split('-')[1]}"
+          label_text: "Month"
+          index: 0
+          ai_match: False
+          base_url: ""
+          systemone_url: ""
+          fallback_to_ollama: False
+          timeout: 10
+        output_var: start_month_select
+      - name: Pick the start and end dates (retry again)
+        action: web.select_option
+        with:
+          selector: ".react-datepicker select >> nth=0"
+          label: "Month"
+          value: "${first_day_of_month.split('-')[1]}"
+          text: "${first_day_of_month.split('-')[1]}"
+          label_text: "Month"
+          index: 0
+          ai_match: False
+          base_url: ""
+          systemone_url: ""
+          fallback_to_ollama: False
+          timeout: 10
+        output_var: start_month_select
+  - name: Pick the start and end dates
+    action: web.select_option
+    with:
+      selector: ".react-datepicker input"
+      label: ""
+      value: "${first_day_of_month.split('-')[2]}"
+      text: "${first_day_of_month.split('-')[2]}"
+      label_text: ""
+      index: ""
+      ai_match: False
+      base_url: ""
+      systemone_url: ""
+      fallback_to_ollama: False
+      timeout: 10
+    output_var: start_day_select
+    on_error: continue
+    max_retries: 2
+    steps:
+      - name: Pick the start and end dates (retry)
+        action: web.select_option
+        with:
+          selector: ".react-datepicker input"
+          label: ""
+          value: "${first_day_of_month.split('-')[2]}"
+          text: "${first_day_of_month.split('-')[2]}"
+          label_text: ""
+          index: ""
+          ai_match: False
+          base_url: ""
+          systemone_url: ""
+          fallback_to_ollama: False
+          timeout: 10
+        output_var: start_day_select
+      - name: Pick the start and end dates (retry again)
+        action: web.select_option
+        with:
+          selector: ".react-datepicker input"
+          label: ""
+          value: "${first_day_of_month.split('-')[2]}"
+          text: "${first_day_of_month.split('-')[2]}"
+          label_text: ""
+          index: ""
+          ai_match: False
+          base_url: ""
+          systemone_url: ""
+          fallback_to_ollama: False
+          timeout: 10
+        output_var: start_day_select
+  - name: Pick the end date
+    action: web.select_option
+    with:
+      selector: ".react-datepicker select >> nth=1"
+      label: "Year"
+      value: "${last_day_of_month.split('-')[0]}"
+      text: "${last_day_of_month.split('-')[0]}"
+      label_text: "Year"
+      index: 0
+      ai_match: False
+      base_url: ""
+      systemone_url: ""
+      fallback_to_ollama: False
+      timeout: 10
+    output_var: end_year_select
+    on_error: continue
+    max_retries: 2
+    steps:
+      - name: Pick the end date (retry)
+        action: web.select_option
+        with:
+          selector: ".react-datepicker select >> nth=1"
+          label: "Year"
+          value: "${last_day_of_month.split('-')[0]}"
+          text: "${last_day_of_month.split('-')[0]}"
+          label_text: "Year"
+          index: 0
+          ai_match: False
+          base_url: ""
+          systemone_url: ""
+          fallback_to_ollama: False
+          timeout: 10
+        output_var: end_year_select
+      - name: Pick the end date (retry again)
+        action: web.select_option
+        with:
+          selector: ".react-datepicker select >> nth=1"
+          label: "Year"
+          value: "${last_day_of_month.split('-')[0]}"
+          text: "${last_day_of_month.split('-')[0]}"
+          label_text: "Year"
+          index: 0
+          ai_match: False
+          base_url: ""
+          systemone_url: ""
+          fallback_to_ollama: False
+          timeout: 10
+        output_var: end_year_select
+  - name: Pick the end date
+    action: web.select_option
+    with:
+      selector: ".react-datepicker select >> nth=0"
+      label: "Month"
+      value: "${last_day_of_month.split('-')[1]}"
+      text: "${last_day_of_month.split('-')[1]}"
+      label_text: "Month"
+      index: 0
+      ai_match: False
+      base_url: ""
+      systemone_url: ""
+      fallback_to_ollama: False
+      timeout: 10
+    output_var: end_month_select
+    on_error: continue
+    max_retries: 2
+    steps:
+      - name: Pick the end date (retry)
+        action: web.select_option
+        with:
+          selector: ".react-datepicker select >> nth=0"
+          label: "Month"
+          value: "${last_day_of_month.split('-')[1]}"
+          text: "${last_day_of_month.split('-')[1]}"
+          label_text: "Month"
+          index: 0
+          ai_match: False
+          base_url: ""
+          systemone_url: ""
+          fallback_to_ollama: False
+          timeout: 10
+        output_var: end_month_select
+      - name: Pick the end date (retry again)
+        action: web.select_option
+        with:
+          selector: ".react-datepicker select >> nth=0"
+          label: "Month"
+          value: "${last_day_of_month.split('-')[1]}"
+          text: "${last_day_of_month.split('-')[1]}"
+          label_text: "Month"
+          index: 0
+          ai_match: False
+          base_url: ""
+          systemone_url: ""
+          fallback_to_ollama: False
+          timeout: 10
+        output_var: end_month_select
+  - name: Pick the end date
+    action: web.select_option
+    with:
+      selector: ".react-datepicker input"
+      label: ""
+      value: "${last_day_of_month.split('-')[2]}"
+      text: "${last_day_of_month

@@ -1,0 +1,153 @@
+name: Collect Bank of Thailand Transfer Rates
+description: Collect Bank of Thailand buying transfer rates for several currencies over one month and email them as a CSV file.
+
+variables:
+  config_url: "https://kinenix.com"
+  config_currencies: ["THB", "USD", "EUR", "JPY"]
+  config_month: {"date": "today", "add_months": -1}
+  config_output_path: "./output/transfer_rates.csv"
+  config_email_to: "example@example.com"
+  config_email_subject: "Bank of Thailand Transfer Rates - ${config_month.date}"
+  config_email_body: "Transfer rates for ${config_month.date} have been collected."
+  config_email_dry_run: False
+
+steps:
+  - name: Work out the start and end date
+    action: date.calc
+    with:
+      date: "${config_month.date}"
+      add_months: "${config_month.add_months}"
+    output_var: config_month
+  - name: Open the URL and accept cookies
+    action: web.open
+    with:
+      url: "${config_url}"
+      headless: True
+    output_var: config_browser
+  - name: Open the currency filter and select currencies
+    action: logic.loop
+    with:
+      items: ${config_currencies}
+      item_var: currency
+    steps:
+      - name: Click currency filter
+        action: web.select_option
+        with:
+          selector: ".currency-filter"
+          value: "${currency}"
+        output_var: config_browser
+      - name: Check the currency checkbox
+        action: web.uncheck
+        with:
+          selector: ".currency-filter input[name='currencyCheck'][value='${currency}']"
+          label: "Uncheck"
+        output_var: config_browser
+  - name: Pick the start and end dates
+    action: web.select_option
+    with:
+      selector: ".react-datepicker select >> nth=1"
+      value: "${config_month.date.year}"
+    output_var: config_browser
+    on_error: retry
+    max_retries: 2
+  - name: Select the month
+    action: web.select_option
+    with:
+      selector: ".react-datepicker select >> nth=0"
+      value: "${config_month.date.month}"
+    output_var: config_browser
+    on_error: retry
+    max_retries: 2
+  - name: Select the day
+    action: web.select_option
+    with:
+      selector: ".react-datepicker select >> nth=0"
+      value: "${config_month.date.day}"
+    output_var: config_browser
+    on_error: retry
+    max_retries: 2
+  - name: Click historical button
+    action: web.click
+    with:
+      selector: ".historical-btn"
+      label: "Historical"
+    output_var: config_browser
+    on_error: retry
+    max_retries: 2
+  - name: Get the table
+    action: web.get_table
+    with:
+      selector: ".table"
+      label: "table"
+      columns: ["Period", "Buying Rates Transfer"]
+      numeric_columns: ["Buying Rates Transfer"]
+      add_columns: ["Currency"]
+      min_rows: 1
+    output_var: config_table
+    on_error: retry
+    max_retries: 2
+  - name: Collect the table data
+    action: logic.loop
+    with:
+      items: ${config_table.data}
+      item_var: row
+    steps:
+      - name: Collect currency
+        action: web.get_text
+        with:
+          selector: ".currency"
+          label: "currency"
+        output_var: row.Currency
+      - name: Collect date
+        action: web.get_text
+        with:
+          selector: ".Period"
+          label: "Period"
+        output_var: row.Date
+      - name: Collect buying transfer rate
+        action: web.get_text
+        with:
+          selector: ".Buying Rates Transfer"
+          label: "Buying Rates Transfer"
+        output_var: row.Buying_Transfer_Rate
+    output_var: config_table_data
+    on_error: retry
+    max_retries: 2
+  - name: Write CSV file
+    action: csv.write
+    with:
+      file_path: "${config_output_path}"
+      data: ${config_table_data}
+      columns: ["Currency", "Date", "Buying Transfer Rate"]
+      encoding: "utf-8"
+    output_var: config_csv_file
+    on_error: retry
+    max_retries: 2
+  - name: Close browser
+    action: web.close
+    with:
+      selector: ".react-datepicker"
+      label: "Close"
+    output_var: config_browser
+    on_error: retry
+    max_retries: 2
+  - name: Email CSV file
+    action: email.send
+    with:
+      to: "${config_email_to}"
+      subject: "${config_email_subject}"
+      body: "${config_email_body}"
+      attachments: ["${config_csv_file}"]
+      smtp_host: "smtp.example.com"
+      smtp_port: 587
+      smtp_user: "user@example.com"
+      smtp_password: "password"
+      use_tls: True
+      dry_run: "${config_email_dry_run}"
+    output_var: config_email_result
+    on_error: retry
+    max_retries: 2
+  - name: Log email result
+    action: flow.return
+    with:
+      value: "${config_email_result}"

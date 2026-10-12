@@ -1,0 +1,90 @@
+```yaml
+name: Monthly Bank of Thailand Buying Transfer Rates
+description: Collects Bank of Thailand buying transfer rates for several currencies over one month and emails them as a CSV file.
+variables:
+  config:
+    url: "https://www.bot.or.th/bot/bot"
+    currencies: "USD,BGN,KRW,THB,IDR,THC,MYR,PHP,CNY,COP,EUR,GBP"
+    month_date: "today"
+    month_add_months: -1
+    output_path: "./output/bank_of_thailand_rates.csv"
+    headless: true
+    email:
+      to: "example@example.com"
+      subject: "Monthly Bank of Thailand Buying Transfer Rates"
+      body: "Attached is the monthly Bank of Thailand buying transfer rates for several currencies."
+  output_var:
+    data: data
+  on_error: retry
+  max_retries: 2
+steps:
+  - name: Calculate First and Last Day of Report Month
+    action: date.calc
+    with:
+      date: ${config.month.date}
+      input_format: "dd-mm-yyyy"
+      add_months: ${config.month.add_months}
+      snap: "dd-mm-yyyy"
+    output_var: config.month.date
+  - name: Open Browser and Accept Cookie Banner
+    action: web.open
+    with:
+      url: ${config.url}
+      headless: ${config.headless}
+    output_var: session
+  - name: Navigate to Currency Filter and Select Currencies
+    action: web.check
+    with:
+      selector: ".currency-filter"
+      timeout: 10
+    output_var: currency_filter
+  - name: Click on Each Currency and Extract Rates
+    action: logic.loop
+    with:
+      items: ${config.currencies}
+      item_var: currency
+    steps:
+      - name: Click Currency Tab
+        action: web.click
+        with:
+          selector: "currency-tab-button"
+          timeout: 10
+      - name: Extract Currency Rates Table
+        action: web.get_table
+        with:
+          selector: "currency-table"
+          columns: ["Period", "Buying Rates Transfer"]
+          add_columns: ["Currency"]
+          min_rows: 1
+        output_var: currency_rates
+      - name: Append Currency Rates to Data
+        action: logic.append
+        with:
+          target: output_var.data
+          item: ${currency_rates}
+    on_error: retry
+    max_retries: 2
+  - name: Download and Save Currency Rates Data
+    action: file.write_text
+    with:
+      path: ${config.output_path}
+      content: ${output_var.data}
+    on_error: retry
+    max_retries: 2
+  - name: Close Browser
+    action: web.close
+  - name: Send Email with CSV Attachment
+    action: email.send
+    with:
+      to: ${config.email.to}
+      subject: ${config.email.subject}
+      body: ${config.email.body}
+      attachments: ${config.output_path}
+    on_error: retry
+    max_retries: 2
+  - name: Wait and Retry on Failure
+    action: flow.fail
+    with:
+      message: "Failed to complete the flow"
+      category: failure
+```

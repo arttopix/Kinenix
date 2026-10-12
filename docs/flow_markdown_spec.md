@@ -1,39 +1,20 @@
 # Flow Markdown Specification (`flow.md` Rulebook)
 
-This document establishes the official syntax rules, structural guidelines, and compilation contracts for **`flow.md`** files within **kinenix**.
+This document establishes the official syntax rules and structural guidelines for **`flow.md`**, the file format of every Kinenix flow.
 
 ---
 
 ## 1. Vision & Core Principles
 
-In kinenix, automation workflows maintain a **Dual-Representation Lifecycle**:
+A Kinenix flow is one file, **`flow.md`**: the file people read, the file an AI assistant writes, and the file Kinenix runs.
 
-1. **`flow.md` (Specification & Living Blueprint):**
-   - High-level, human-readable, and AI-native authoring format.
-   - Designed for easy reading by business analysts, developers, and Large Language Models (LLMs).
-   - Clean Git diffs and straightforward pull request reviews.
-2. **`flow.json` (Runtime Execution Contract):**
-   - Strict, deterministic JSON schema validated by Pydantic v2.
-   - Directly executed by `kinenix-core` and `kinenix-worker` with zero runtime parsing overhead.
+- **Readable:** Markdown with headings and bullet points, readable on GitHub, in an editor, or in a pull request diff.
+- **Written well by AI:** the step headings and `- **parameter:** value` bullets are easy for language models to produce. In a comparison on the `bot_fx_rate` requirement, a local 7B model wrote valid `flow.md` more reliably than the same flow in YAML, whose quoting rules clash with `${...}` expressions ([benchmark](benchmarks/flow_format.md)).
+- **Checked before it runs:** `kinenix validate`, `kinenix run`, and the worker parse the file, then report unknown actions and parameters, lines the parser ignores, and step headings without an action, with line numbers and suggestions.
 
-> **Compilation Principle:** `flow.md` is compiled ahead-of-time (AOT) into `flow.json`. The execution runtime (`kinenix-core` and `kinenix-worker`) strictly executes `flow.json` to guarantee sub-millisecond execution speeds, zero hallucination, and pre-flight validation.
+There is no separate JSON file to keep in sync. `kinenix run` and `kinenix-worker run` read `flow.md` directly and compile it in memory on every run; subflows (`flow.call`) work the same way. To inspect the compiled form, run `kinenix compile <bundle>`, which prints it as JSON (validated against [flow.schema.json](../schemas/flow.schema.json)) without writing any file next to `flow.md`.
 
-### Source of Truth
-
-In a bundle that has a `flow.md`, **`flow.md` is the only file you edit**. `flow.json` is its build output: it stays in git so Studio, workers, and schema tools can read it, but it is never edited by hand.
-
-Before every run, `kinenix run` and `kinenix-worker run` compare the two files by content (not by timestamp, because `git checkout` resets timestamps):
-
-| Situation | What happens |
-| :--- | :--- |
-| `flow.json` missing | Compiled from `flow.md`, then run |
-| Same content | Runs `flow.json` |
-| `flow.md` changed after `flow.json` | `flow.json` is recompiled, then run |
-| `flow.json` changed after `flow.md` (e.g. edited in Studio) | A warning is shown and `flow.json` runs unchanged, so the edit is not lost. Keep it with `kinenix export-md <bundle>` (regenerates `flow.md`, losing hand formatting) or discard it with `kinenix compile <bundle>` |
-
-The `kinenix-core` test suite also checks that every committed `flow.json` under `flows/` matches its `flow.md`, so CI fails when a compile was forgotten. Files with a UTF-8 BOM (written by Windows PowerShell 5 and some editors) are read correctly.
-
-Studio currently saves to `flow.json` only, which triggers the warning above until the bundle is exported or recompiled.
+Flows written as `flow.json` by Kinenix 0.2.0b3 or older are not run; `kinenix export-md <bundle>` converts one into `flow.md` once. Files with a UTF-8 BOM (written by Windows PowerShell 5 and some editors) are read correctly.
 
 ---
 
@@ -222,7 +203,7 @@ The condition is split into its sides before variables are replaced, so values c
 
 ### Rule 5: Variable Interpolation Syntax
 
-Dynamic variables in both `flow.md` and `flow.json` must strictly use the standard expression format:
+Dynamic variables must use the standard expression format:
 
 - **`${config.property}`**: Accesses configuration values loaded from `config/config.json`.
 - **`${variable_name}`**: Accesses runtime variables initialized in flow or stored by `output_var`.
@@ -286,26 +267,24 @@ Below is the complete `flow.md` specification for the **RPA Challenge Solver** b
 
 ---
 
-## 4. Compilation Contract & Validation
+## 4. Checking and Inspecting a Flow
 
-1. **Compilation Command (CLI):**
-   ```bash
-   kinenix compile flows/examples/rpachallenge/flow.md
-   ```
-2. **Reverse Export Command (CLI):**
-   ```bash
-   kinenix export-md flows/examples/rpachallenge/flow.json
-   ```
-3. **Validation of Actions and Parameters:**
+1. **Validation of actions and parameters:**
    ```bash
    kinenix validate flows/examples/rpachallenge          # exit code 1 when problems are found
-   kinenix compile flows/examples/rpachallenge --strict  # compile, then fail on problems (for CI)
    ```
-   Each action declares the parameters it reads. `kinenix validate`, `kinenix compile`, `kinenix run`, and `kinenix-worker run` report unknown actions and parameters that no action reads, which would otherwise be ignored silently, and suggest the closest name (for example `timout` -> `timeout`). `compile` and `run` only warn. The `kinenix-core` test suite validates every flow under `flows/`.
-4. **Pydantic Validation Guarantee:**
-   During compilation, the resulting dictionary is validated against `kinenix.models.flow.FlowDefinition`.
-   - If validation succeeds, `flow.json` is generated or overwritten atomically.
-   - If validation fails, exact error line numbers and missing fields are reported, and existing `flow.json` is left untouched.
+   Each action declares the parameters it reads. `kinenix validate`, `kinenix run`, and `kinenix-worker run` report unknown actions, parameters that no action reads (which would otherwise be ignored silently), lines the parser ignores, step headings without an action, and a flow without steps, and suggest the closest name (for example `timout` -> `timeout`). They also follow `flow.call` targets into subflows. `run` only warns, except that a flow without steps does not run. The `kinenix-core` test suite validates every flow under `flows/` and every example in `docs/`.
+2. **Compiled form (for inspection):**
+   ```bash
+   kinenix compile flows/examples/rpachallenge                     # print the compiled flow as JSON
+   kinenix compile flows/examples/rpachallenge -o /tmp/flow.json   # or write it to a file
+   kinenix compile flows/examples/rpachallenge --strict            # also exit 1 when validation finds problems
+   ```
+   The result is validated against `kinenix.models.flow.FlowDefinition`; parsing errors name the line.
+3. **Converting an old JSON flow (once):**
+   ```bash
+   kinenix export-md path/to/old_bundle      # writes flow.md next to the old flow.json
+   ```
 
 ---
 

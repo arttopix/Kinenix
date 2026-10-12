@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from kinenix.engine.interpreter import FlowInterpreter
+from kinenix.engine.markdown import flow_to_markdown
 from kinenix.models.flow import FlowDefinition, Step
 
 
@@ -119,8 +120,8 @@ def test_subflow_does_not_prematurely_close_parent_browser(tmp_path):
             ).model_dump()
         ]
     }
-    subflow_path = parent_bundle / "subflow.json"
-    subflow_path.write_text(json.dumps(subflow_data), encoding="utf-8")
+    subflow_path = parent_bundle / "subflow.md"
+    subflow_path.write_text(flow_to_markdown(FlowDefinition(**subflow_data)), encoding="utf-8")
 
     mock_browser = MagicMock()
     mock_browser.is_connected.return_value = True

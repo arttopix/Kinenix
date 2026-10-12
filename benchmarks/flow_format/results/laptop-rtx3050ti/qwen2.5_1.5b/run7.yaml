@@ -1,0 +1,102 @@
+name: Collect and Email Bank of Thailand Transfer Rates
+description: Automate the process of collecting Bank of Thailand buying transfer rates for several currencies over one month and sending it as a CSV file via email.
+variables:
+  url: "https://api.bankofthailand.go.th"
+  currencies: ["THB", "USD", "JPY"]
+  month: {"date": "today", "add_months": -1}
+  output_path: "/path/to/output/currency_rates.csv"
+  email.to: "recipient@example.com"
+  email.subject: "Bank of Thailand Currency Transfer Rates"
+  email.body: "This is a CSV file of Bank of Thailand currency buying transfer rates for your reference."
+
+steps:
+  - name: Set Month and URL
+    action: flow.call
+    with:
+      flow: GetMonthURL
+      inputs:
+        month: ${month}
+        url: ${url}
+      outputs:
+        month: ${month.date}
+        url: ${url}
+
+  - name: Open URL
+    action: flow.call
+    with:
+      flow: OpenURL
+      inputs:
+        url: ${config.url}
+      outputs:
+        url: ${config.url}
+
+  - name: Collect and Format Data
+    action: logic.loop
+    with:
+      items: ${config.currencies}
+      item_var: currency
+    steps:
+      - name: Filter Currency
+        action: flow.call
+        with:
+          flow: FilterCurrency
+          inputs:
+            url: ${config.url}
+            currency: ${currency}
+            month: ${month}
+          outputs:
+            url: ${config.url}
+
+      - name: Open Currency Tab
+        action: flow.call
+        with:
+          flow: OpenCurrencyTab
+          inputs:
+            url: ${config.url}
+            currency: ${currency}
+          outputs:
+            url: ${config.url}
+
+      - name: Read Table
+        action: flow.call
+        with:
+          flow: ReadTable
+          inputs:
+            url: ${config.url}
+            currency: ${currency}
+            month: ${month}
+            item: ${item}
+          outputs:
+            table: ${config.table}
+
+      - name: Extract Data
+        action: logic.append
+        with:
+          target: data
+          item: ${table}
+
+  - name: Write to CSV
+    action: csv.write
+    with:
+      file_path: ${config.output_path}
+      data: ${data}
+      columns:
+        - Currency
+        - Date
+        - Buying Transfer Rate
+      encoding: "utf-8"
+
+  - name: Close Browser and Send Email
+    action: flow.call
+    with:
+      flow: CloseBrowserAndSendEmail
+      inputs:
+        url: ${config.url}
+        month: ${month}
+        output_path: ${config.output_path}
+        email.to: ${email.to}
+        email.subject: ${email.subject}
+        email.body: ${email.body}
+        dry_run: ${dry_run}
+      outputs:
+        result: ${config.result}

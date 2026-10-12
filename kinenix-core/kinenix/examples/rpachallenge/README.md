@@ -26,5 +26,5 @@ A browser window opens (set `headless` in `flow.md` step 1 to `true` to hide it,
 | `website` | The challenge URL |
 | `excel_path` | Input data, relative to this folder |
 | `screenshot_path`, `error_dir` | Result screenshot and automatic failure screenshots |
-| `send_notification` | `true` runs step 7, which needs the shared `@shared/send_email.json` subflow from the Kinenix repository |
+| `send_notification` | `true` runs step 7, which needs the shared `@shared/send_email.md` subflow from the Kinenix repository |
 | `email_to`, `email_subject`, `dry_run` | Email settings for step 7 |

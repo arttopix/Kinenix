@@ -1,0 +1,180 @@
+```yaml
+name: Collect_Bank_of_Thailand_Rates
+description: Collect Bank of Thailand buying transfer rates for several currencies over one month and email them as a CSV file.
+variables:
+  config_url: ""
+  config_currencies: ""
+  config_output_path: ""
+  config_email_to: ""
+  config_email_subject: ""
+  config_email_body: ""
+  config_email_dry_run: ""
+  config_month_date: ""
+  config_month_add_months: ""
+steps:
+  - name: Work_out_report_month
+    action: date.calc
+    with:
+      date: ${config_month_date}
+      add_months: ${config_month_add_months}
+    output_var: config_report_month
+  - name: Open_base_url
+    action: web.open
+    with:
+      url: ${config_url}
+      headless: ${config_headless}
+    output_var: _base_url
+    on_error: retry
+    max_retries: 2
+    steps:
+      - name: Accept_cookie_banner
+        action: web.click
+        with:
+          selector: .react-cookie-consent__accept-all
+          label: "Accept recommended cookies"
+        output_var: _
+        on_error: continue
+  - name: Open_currency_filter
+    action: web.open
+    with:
+      url: ${_base_url}
+      headless: ${config_headless}
+    output_var: _base_url
+    on_error: retry
+    max_retries: 2
+    steps:
+      - name: Select_currency_checkbox
+        action: web.select_option
+        with:
+          selector: .currency-filter input[name='currencyCheck']
+          label: "${item}"
+          value: "${item}"
+          text: ""
+          label_text: ""
+          index: -1
+        output_var: _
+        on_error: continue
+      - name: Loop_currencies
+        action: logic.loop
+        with:
+          items: ${config_currencies}
+          item_var: currency
+        steps:
+          - name: Select_currency
+            action: web.select_option
+            with:
+              selector: .currency-filter input[name='currencyCheck']
+              label: "${currency}"
+              value: "${currency}"
+              text: ""
+              label_text: ""
+              index: -1
+            output_var: _
+            on_error: continue
+  - name: Pick_dates
+    action: web.click
+    with:
+      selector: .react-datepicker select >> nth=1
+      label: "Year"
+      value: "${config_report_month.year}"
+      text: ""
+      label_text: ""
+      index: -1
+    output_var: _
+    on_error: continue
+    action: web.click
+    with:
+      selector: .react-datepicker select >> nth=0
+      label: "${config_report_month.month_name}"
+      value: "${config_report_month.month_name}"
+      text: ""
+      label_text: ""
+      index: -1
+    output_var: _
+    on_error: continue
+    action: web.click
+    with:
+      selector: .react-datepicker input
+      label: "${config_report_month.day}"
+      value: "${config_report_month.day}"
+      text: ""
+      label_text: ""
+      index: -1
+    output_var: _
+    on_error: continue
+  - name: Click_historical_btn
+    action: web.click
+    with:
+      selector: .historical-btn
+      label: "Historical"
+      value: ""
+      text: ""
+      label_text: ""
+      index: -1
+    output_var: _
+    on_error: continue
+  - name: Loop_currencies
+    action: logic.loop
+    with:
+      items: ${config_currencies}
+      item_var: currency
+    steps:
+      - name: Click_currency_tab
+        action: web.click
+        with:
+          selector: ".currency-tab button.text"
+          label: "${currency}"
+          value: ""
+          text: ""
+          label_text: ""
+          index: -1
+        output_var: _
+        on_error: continue
+      - name: Get_table_data
+        action: web.get_table
+        with:
+          selector: ".currency-table table"
+          label: "table"
+          columns: ["Period", "Buying Rates Transfer"]
+          numeric_columns: ["Buying Rates Transfer"]
+          add_columns: ["Currency"]
+          min_rows: 2
+          text: "${item}"
+        output_var: _
+        on_error: continue
+      - name: Append_to_csv
+        action: csv.write
+        with:
+          file_path: ${config_output_path}
+          data: ${_table_data}
+          columns: ["Currency", "Date", "Buying Transfer Rate"]
+          encoding: "utf-8"
+          append: true
+        output_var: _
+        on_error: continue
+  - name: Close_browser
+    action: web.close
+    with:
+      selector: ""
+      label: ""
+      value: ""
+      text: ""
+      label_text: ""
+      index: -1
+    output_var: _
+    on_error: continue
+  - name: Email_csv
+    action: email.send
+    with:
+      to: ${config_email_to}
+      subject: ${config_email_subject}
+      body: ${config_email_body}
+      smtp_host: ""
+      smtp_port: 0
+      smtp_user: ""
+      smtp_password: ""
+      use_tls: false
+      dry_run: ${config_email_dry_run}
+    output_var: _
+    on_error: continue
+```

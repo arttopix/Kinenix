@@ -56,7 +56,6 @@ A project folder holds:
 | File | What it is |
 | :--- | :--- |
 | `flow.md` | The flow, in readable Markdown. **This is the file you edit.** |
-| `flow.json` | Build output of `flow.md`, rebuilt automatically before each run. Do not edit it. |
 | `config/config.json` | Values the flow reads as `${config.*}`: names, paths, URLs, recipients. |
 
 Try these:

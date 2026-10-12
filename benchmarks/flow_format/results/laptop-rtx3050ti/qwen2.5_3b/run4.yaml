@@ -1,0 +1,185 @@
+name: Collect_BankOfThailand_Transfer_Rates
+description: Collect Bank of Thailand buying transfer rates for several currencies over one month and email them as a CSV file.
+
+variables:
+  config_url: "https://www.kinenix.com"
+  config_currencies: ["USD", "EUR", "JPY"]
+  config_month: {"date": "today", "add_months": -1}
+  config_output_path: "./output/transfer_rates.csv"
+  config_email_to: "example@example.com"
+  config_email_subject: "Bank of Thailand Transfer Rates Report"
+  config_email_body: "Please find attached the Bank of Thailand Transfer Rates for the month of ${config_month.date}."
+  config_email_dry_run: false
+
+steps:
+  - name: Work_out_first_and_last_day
+    action: date.calc
+    with:
+      date: "${config_month.date}"
+      add_months: "${config_month.add_months}"
+    output_var: config_month_range
+  - name: Check_first_and_last_day
+    action: web.is_visible
+    with:
+      selector: "#dropdownCurrency"
+      label: "Dropdown Currency"
+    output_var: config_currencies_dropdown_visible
+    on_error: continue
+  - name: Open_Currencies_Dropdown
+    action: web.click
+    with:
+      selector: "#dropdownCurrency"
+      label: "Dropdown Currency"
+    output_var: config_currencies_dropdown_clicked
+    on_error: continue
+  - name: Open_Currencies_Dropdown
+    action: web.select_option
+    with:
+      selector: ".currency-filter input[name='currencyCheck']"
+      label: "${config_currencies}"
+    output_var: config_currencies_dropdown_selected
+    on_error: continue
+  - name: Open_Currencies_Dropdown
+    action: web.click
+    with:
+      selector: "#dropdownCurrency"
+      label: "Dropdown Currency"
+    output_var: config_currencies_dropdown_reopened
+    on_error: continue
+  - name: Open_Currencies_Dropdown
+    action: web.select_option
+    with:
+      selector: ".currency-tab button"
+      label: "${config_currencies}"
+    output_var: config_currencies_dropdown_tab_clicked
+    on_error: continue
+  - name: Open_Date_Picker
+    action: web.click
+    with:
+      selector: ".react-datepicker select >> nth=1"
+      label: "Year"
+    output_var: config_date_picker_year_clicked
+    on_error: continue
+  - name: Open_Date_Picker
+    action: web.select_option
+    with:
+      selector: ".react-datepicker select >> nth=0"
+      label: "${config_month_range.date}"
+    output_var: config_date_picker_month_selected
+    on_error: continue
+  - name: Open_Date_Picker
+    action: web.click
+    with:
+      selector: ".react-datepicker select >> nth=1"
+      label: "Month"
+    output_var: config_date_picker_year_reopened
+    on_error: continue
+  - name: Open_Date_Picker
+    action: web.select_option
+    with:
+      selector: ".react-datepicker select >> nth=1"
+      label: "${config_month_range.add_months}"
+    output_var: config_date_picker_year_selected
+    on_error: continue
+  - name: Open_Date_Picker
+    action: web.click
+    with:
+      selector: ".react-datepicker select >> nth=1"
+      label: "Year"
+    output_var: config_date_picker_month_reopened
+    on_error: continue
+  - name: Open_Date_Picker
+    action: web.select_option
+    with:
+      selector: ".react-datepicker select >> nth=0"
+      label: "${config_month_range.date}"
+    output_var: config_date_picker_month_selected
+    on_error: continue
+  - name: Open_Date_Picker
+    action: web.click
+    with:
+      selector: ".react-datepicker select >> nth=1"
+      label: "Year"
+    output_var: config_date_picker_day_reopened
+    on_error: continue
+  - name: Open_Date_Picker
+    action: web.select_option
+    with:
+      selector: ".react-datepicker select >> nth=0"
+      label: "${config_month_range.add_months}"
+    output_var: config_date_picker_day_selected
+    on_error: continue
+  - name: Click_Historical_Button
+    action: web.click
+    with:
+      selector: ".historical-btn"
+      label: "Historical"
+    output_var: config_historical_button_clicked
+    on_error: continue
+  - name: Get_Raw_Data
+    action: web.get_table
+    with:
+      selector: ".table tbody"
+      label: "table"
+      columns: ["Period", "Buying Rates Transfer"]
+      numeric_columns: ["Buying Rates Transfer"]
+      add_columns: ["Currency"]
+      min_rows: 0
+    output_var: config_raw_data
+    on_error: retry
+  - name: Write_Raw_Data_to_CSV
+    action: csv.write
+    with:
+      file_path: ${config_output_path}
+      data: ${config_raw_data}
+      columns: ["Currency", "Date", "Buying Transfer Rate"]
+      encoding: "utf-8"
+      append: false
+    output_var: config_raw_data_writed_to_csv
+    on_error: retry
+  - name: Email_CSV
+    action: email.send
+    with:
+      to: ${config_email_to}
+      subject: ${config_email_subject}
+      body: ${config_email_body}
+      html: ""
+      attachments: ["${config_output_path}"]
+      smtp_host: "smtp.example.com"
+      smtp_port: 587
+      smtp_user: "user@example.com"
+      smtp_password: "password"
+      use_tls: true
+      dry_run: ${config_email_dry_run}
+    output_var: config_email_sent
+    on_error: retry
+  - name: Close_Browser
+    action: web.close
+    output_var: config_browser_closed
+    on_error: retry
+  - name: Check_CSV_Writing_Status
+    action: csv.read
+    with:
+      file_path: ${config_output_path}
+      delimiter: ","
+      encoding: "utf-8"
+      clean_headers: false
+      as_text: false
+    output_var: config_raw_data_read
+    on_error: retry
+  - name: Check_Email_Status
+    action: email.send
+    with:
+      to: ${config_email_to}
+      subject: ${config_email_subject}
+      body: ${config_email_body}
+      html: ""
+      attachments: ["${config_output_path}"]
+      smtp_host: "smtp.example.com"
+      smtp_port: 587
+      smtp_user: "user@example.com"
+      smtp_password: "password"
+      use_tls: true
+      dry_run: ${config_email_dry_run}
+    output_var: config_email_sent
+    on_error: retry

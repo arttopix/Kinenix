@@ -1,0 +1,142 @@
+```yaml
+name: Collect Bank of Thailand Buying Transfer Rates
+description: Collects Bank of Thailand buying transfer rates for several currencies and emails them as a CSV file.
+variables:
+  start_date: $(date.calc date: today, add_months: -1, format: "%Y-%m-01")
+  end_date: $(date.calc date: today, add_months: 0, format: "%Y-%m-01")
+  config: $(ai.extract base_url: https://www.bangkokthai.com/bank-of-thailand/foreign-exchange-exchange-rates, image_path: ./config.png, instructions: "Extract the config from the website", model: gpt-4, schema: {"url": "string", "currencies": "string", "month": {"date": "string", "add_months": "integer"}, "output_path": "string", "headless": "boolean", "email": {"to": "string", "subject": "string"}}, text: "${config}", timeout: 30)
+steps:
+  - name: Open Page
+    action: web.open
+    with:
+      url: ${config.url}
+      headless: ${config.headless}
+    output_var: page
+    on_error: retry
+    max_retries: 2
+  - name: Accept Cookie Banner
+    action: web.click
+    with:
+      selector: .react-datepicker select >> nth=1
+      label: "Accept recommended cookies"
+    on_error: retry
+    max_retries: 2
+  - name: Open Currency Filter
+    action: web.click
+    with:
+      selector: #dropdownCurrency
+      label: "Open Currency Filter"
+    on_error: retry
+    max_retries: 2
+  - name: Check Currencies
+    action: logic.loop
+    with:
+      items: ${config.currencies.split(',')}
+      item_var: currency
+    steps:
+      - name: Check Currency
+        action: web.click
+        with:
+          selector: .currency-filter input[name='currencyCheck'][value='${currency}']
+          label: "Check ${currency}"
+  - name: Set Start Date
+    action: web.click
+    with:
+      selector: .react-datepicker select >> nth=1
+      label: "Set Start Date"
+  - name: Select Start Month
+    action: web.select_option
+    with:
+      selector: .react-datepicker select >> nth=0
+      label: "Select Start Month"
+      value: $(date.calc date: ${start_date}, format: "%B")
+  - name: Select Start Day
+    action: web.select_option
+    with:
+      selector: .react-datepicker select >> nth=1
+      label: "Select Start Day"
+      text: $(date.calc date: ${start_date}, format: "%d")
+  - name: Set End Date
+    action: web.click
+    with:
+      selector: .react-datepicker select >> nth=1
+      label: "Set End Date"
+  - name: Select End Month
+    action: web.select_option
+    with:
+      selector: .react-datepicker select >> nth=0
+      label: "Select End Month"
+      value: $(date.calc date: ${end_date}, format: "%B")
+  - name: Select End Day
+    action: web.select_option
+    with:
+      selector: .react-datepicker select >> nth=1
+      label: "Select End Day"
+      text: $(date.calc date: ${end_date}, format: "%d")
+  - name: Click Search
+    action: web.click
+    with:
+      selector: button.historical-btn
+      label: "Click Search"
+    on_error: retry
+    max_retries: 2
+  - name: Collect Data
+    action: logic.loop
+    with:
+      items: .currency > button.historical-tab
+      item_var: currency_tab
+    steps:
+      - name: Click Currency Tab
+        action: web.click
+        with:
+          selector: button.historical-tab
+          label: "Click Currency Tab"
+          text: "${currency_tab.text}"
+      - name: Get Data
+        action: web.get_table
+        with:
+          selector: .historical-table
+          label: "Get Data"
+          columns: ["Period", "Buying Rates Transfer"]
+          numeric_columns: ["Buying Rates Transfer"]
+          add_columns: ["Currency"]
+          min_rows: 1
+          timeout: 30
+        output_var: currency_data
+      - name: Append to Output
+        action: logic.append
+        with:
+          target: data
+          item: ${currency_data}
+    on_error: retry
+    max_retries: 2
+  - name: Write CSV
+    action: csv.write
+    with:
+      file_path: ${config.output_path}
+      data: ${data}
+      columns: ["Currency", "Date", "Buying Transfer Rate"]
+      encoding: "utf-8"
+      append: true
+    on_error: retry
+    max_retries: 2
+  - name: Close Browser
+    action: web.close
+    on_error: retry
+    max_retries: 2
+  - name: Send Email
+    action: email.send
+    with:
+      to: ${config.email.to}
+      subject: ${config.email.subject}
+      body: "Please find the attached CSV file with Bank of Thailand buying transfer rates for ${start_date} to ${end_date}."
+      attachments: ["${config.output_path}"]
+      smtp_host: "smtp.example.com"
+      smtp_port: 587
+      smtp_user: "user@example.com"
+      smtp_password: "password"
+      use_tls: true
+      dry_run: ${config.email.dry_run}
+    on_error: retry
+    max_retries: 2
+```

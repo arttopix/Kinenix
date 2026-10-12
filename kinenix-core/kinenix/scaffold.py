@@ -11,7 +11,7 @@ import unicodedata
 from pathlib import Path
 from typing import Iterable, List, Optional, Tuple
 
-from .engine.markdown import markdown_to_flow, sync_flow_json
+from .engine.markdown import markdown_to_flow
 from .models.flow import Step
 
 PACKAGE_DIR = Path(__file__).resolve().parent
@@ -58,7 +58,6 @@ def create_new_project(title: str, target: Optional[Path] = None) -> Path:
             dest.write_text(source.read_text(encoding="utf-8").replace("{{title}}", title), encoding="utf-8")
         else:
             dest.write_bytes(source.read_bytes())
-    sync_flow_json(target / "flow.md")
     return target
 
 
@@ -80,7 +79,7 @@ def available_examples() -> List[Tuple[str, str, bool]]:
 
 
 def create_project(target: Path, example: str = DEFAULT_EXAMPLE) -> Path:
-    """Copy an example into `target` (which must not exist or be empty) and make sure flow.json is built.
+    """Copy an example into `target` (which must not exist or be empty).
 
     Raises ValueError for an unknown example and FileExistsError when `target` already has files.
     """
@@ -91,5 +90,4 @@ def create_project(target: Path, example: str = DEFAULT_EXAMPLE) -> Path:
 
     target = _check_target(target)
     shutil.copytree(source, target, dirs_exist_ok=True, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
-    sync_flow_json(target / "flow.md")
     return target

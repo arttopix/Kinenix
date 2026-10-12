@@ -1,0 +1,163 @@
+name: Collect Bank of Thailand Buying Transfer Rates
+description: Collects Bank of Thailand buying transfer rates for several currencies over one month and emails them as a CSV file.
+variables:
+  url: "https://www.bankofthailand.co.th/en/finance/rates/buying-transfer-rates"
+  currencies: ["USD", "EUR", "JPY", "GBP"]
+  month.date: "today"
+  month.add_months: -1
+  output_path: "./output/bank_of_thailand_buying_transfer_rates.csv"
+  headless: true
+  email.to: "recipient@example.com"
+  email.subject: "Bank of Thailand Buying Transfer Rates"
+  email.body: "Please find the attached CSV file with Bank of Thailand buying transfer rates for the last month."
+  email.dry_run: false
+  config: {}
+steps:
+  - name: Set Month Variables
+    action: date.calc
+    with:
+      date: "${config.month.date}"
+      add_months: "${config.month.add_months}"
+      format: "YYYY-MM-DD"
+    output_var: month_start
+    on_error: retry
+    max_retries: 2
+    steps:
+      - name: Set Month End
+        action: date.calc
+        with:
+          date: "${month_start}"
+          add_days: -1
+          format: "YYYY-MM-DD"
+        output_var: month_end
+        on_error: retry
+        max_retries: 2
+  - name: Open Bank of Thailand Website
+    action: web.open
+    with:
+      url: "${config.url}"
+      headless: "${config.headless}"
+    on_error: retry
+    max_retries: 2
+    output_var: page
+  - name: Accept Cookie Banner
+    action: web.click
+    with:
+      selector: "button.historical-btn"
+      label: "Accept recommended cookies"
+    on_error: retry
+    max_retries: 2
+  - name: Select Currencies
+    action: logic.loop
+    with:
+      items: "${config.currencies}"
+      item_var: currency
+    steps:
+      - name: Tick Currency Checkbox
+        action: web.select_option
+        with:
+          selector: "#dropdownCurrency"
+          label: "Currency"
+          value: "${currency}"
+  - name: Select Date Range
+    action: web.select_option
+    with:
+      selector: ".react-datepicker select >> nth=1"
+      label: "Year"
+      value: "2023"
+    on_error: retry
+    max_retries: 2
+    steps:
+      - name: Select Month
+        action: web.select_option
+        with:
+          selector: ".react-datepicker select >> nth=0"
+          label: "Month"
+          value: "${month_start.split('-')[1]}"
+    on_error: retry
+    max_retries: 2
+    steps:
+      - name: Select Start Day
+        action: web.select_option
+        with:
+          selector: ".react-datepicker select >> nth=1"
+          label: "Day"
+          value: "${month_start.split('-')[2]}"
+    on_error: retry
+    max_retries: 2
+    steps:
+      - name: Select End Day
+        action: web.select_option
+        with:
+          selector: ".react-datepicker select >> nth=1"
+          label: "Day"
+          value: "${month_end.split('-')[2]}"
+    on_error: retry
+    max_retries: 2
+  - name: Search for Rates
+    action: web.click
+    with:
+      selector: "button.historical-btn"
+      label: "Search"
+    on_error: retry
+    max_retries: 2
+  - name: Collect Rates
+    action: logic.loop
+    with:
+      items: "${config.currencies}"
+      item_var: currency
+    steps:
+      - name: Click Currency Tab
+        action: web.click
+        with:
+          selector: "text = ${currency}"
+          label: "${currency}"
+    on_error: retry
+    max_retries: 2
+    steps:
+      - name: Read Table
+        action: web.get_table
+        with:
+          selector: ".historical-rates-table"
+          label: "Rates"
+          columns: ["Period", "Buying Rates Transfer"]
+          numeric_columns: ["Buying Rates Transfer"]
+          min_rows: 1
+        output_var: rates
+        on_error: retry
+        max_retries: 2
+        steps:
+          - name: Add Currency Column
+            action: logic.append
+            with:
+              target: ${rates}
+              var_name: currency
+              list_var: currency
+              item: "${currency}"
+              extend: true
+  - name: Write CSV
+    action: csv.write
+    with:
+      file_path: "${config.output_path}"
+      data: ${rates}
+      columns: ["Currency", "Date", "Buying Transfer Rate"]
+      encoding: "utf-8"
+    on_error: retry
+    max_retries: 2
+  - name: Close Browser
+    action: web.close
+  - name: Email CSV
+    action: email.send
+    with:
+      to: "${config.email.to}"
+      subject: "${config.email.subject}"
+      body: "${config.email.body}"
+      attachments: [${config.output_path}]
+      smtp_host: "smtp.example.com"
+      smtp_port: 587
+      smtp_user: "user@example.com"
+      smtp_password: "password"
+      use_tls: true
+      dry_run: "${config.email.dry_run}"
+    on_error: retry
+    max_retries: 2

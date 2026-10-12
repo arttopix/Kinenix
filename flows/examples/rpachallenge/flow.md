@@ -64,5 +64,5 @@
 ### 7. Send Email Notification via Gmail (`flow.call`)
 - **condition:** `${config.send_notification} == true`
 - **output_var:** `email_notification_result`
-- **flow:** `@shared/send_email.json`
+- **flow:** `@shared/send_email.md`
 - **inputs:** `{"to": "${config.email_to}", "subject": "${config.email_subject}", "body": "Hello,\n\nThe RPA Challenge benchmark automation has completed successfully.\nNon-programmers collected: ${non_programmers}\n\nPlease find attached the result screenshot.", "attachments": ["${config.screenshot_path}"], "dry_run": "${config.dry_run}"}`

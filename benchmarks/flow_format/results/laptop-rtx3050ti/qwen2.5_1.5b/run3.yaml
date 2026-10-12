@@ -1,0 +1,456 @@
+```yaml
+name: Collect Bank of Thailand Transfer Rates
+description: Collects Bank of Thailand buying transfer rates for selected currencies over a month and emails as a CSV file.
+variables:
+  config: {}
+  config.url: "https://bank.go.th/"
+  config.currencies: ["THB", "USD", "EUR", "JPY", "AUD", "CAD", "CHF", "DKK", "HKD", "INR", "ILS", "MYR", "NZD", "SGD", "TWD", "THB", "GBP", "CNY", "MXN", "IDR", "VES", "TND"]
+  config.month: {"date": "today", "add_months": -1}
+  config.output_path: "data/transfer_rates.csv"
+  config.email.to: "example@example.com"
+  config.email.subject: "Bank of Thailand Transfer Rates Report"
+  config.email.body: "Dear [Recipient], this is a notification regarding the latest Bank of Thailand buying transfer rates for selected currencies over the month of [Month]. Please find attached the CSV file containing the transfer rates as per your request. Thank you."
+  config.email.dry_run: false
+  config.headless: true
+  config.dry_run: false
+
+steps:
+  - name: Set Variables
+    action: logic.set_variable
+    with:
+      name: config.url
+      value: ${config.url}
+      on_error: retry
+      max_retries: 2
+      steps:
+        - name: Set Variables
+          action: logic.set_variable
+          with:
+            name: config.currencies
+            value: ${config.currencies}
+            on_error: retry
+            max_retries: 2
+            steps:
+              - name: Set Variables
+                action: logic.set_variable
+                with:
+                  name: config.month.date
+                  value: ${config.month.date}
+                  on_error: retry
+                  max_retries: 2
+                  steps:
+                    - name: Set Variables
+                      action: logic.set_variable
+                      with:
+                        name: config.month.add_months
+                        value: ${config.month.add_months}
+                        on_error: retry
+                        max_retries: 2
+                        steps:
+                          - name: Set Variables
+                            action: logic.set_variable
+                            with:
+                              name: config.output_path
+                              value: ${config.output_path}
+                              on_error: retry
+                              max_retries: 2
+                              steps:
+                                - name: Set Variables
+                                  action: logic.set_variable
+                                  with:
+                                    name: config.email.to
+                                    value: ${config.email.to}
+                                    on_error: retry
+                                    max_retries: 2
+                                    steps:
+                                      - name: Set Variables
+                                        action: logic.set_variable
+                                        with:
+                                          name: config.email.subject
+                                          value: ${config.email.subject}
+                                          on_error: retry
+                                          max_retries: 2
+                                          steps:
+                                            - name: Set Variables
+                                              action: logic.set_variable
+                                              with:
+                                                name: config.email.body
+                                                value: ${config.email.body}
+                                                on_error: retry
+                                                max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.email.dry_run
+                                                    value: ${config.email.dry_run}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.headless
+                                                    value: ${config.headless}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.dry_run
+                                                    value: ${config.dry_run}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.output_path
+                                                    value: ${config.output_path}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.email.to
+                                                    value: ${config.email.to}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.email.subject
+                                                    value: ${config.email.subject}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.email.body
+                                                    value: ${config.email.body}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.email.dry_run
+                                                    value: ${config.email.dry_run}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.headless
+                                                    value: ${config.headless}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.dry_run
+                                                    value: ${config.dry_run}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.output_path
+                                                    value: ${config.output_path}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.email.to
+                                                    value: ${config.email.to}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.email.subject
+                                                    value: ${config.email.subject}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.email.body
+                                                    value: ${config.email.body}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.email.dry_run
+                                                    value: ${config.email.dry_run}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.headless
+                                                    value: ${config.headless}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.dry_run
+                                                    value: ${config.dry_run}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.output_path
+                                                    value: ${config.output_path}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.email.to
+                                                    value: ${config.email.to}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.email.subject
+                                                    value: ${config.email.subject}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.email.body
+                                                    value: ${config.email.body}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.email.dry_run
+                                                    value: ${config.email.dry_run}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.headless
+                                                    value: ${config.headless}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.dry_run
+                                                    value: ${config.dry_run}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.output_path
+                                                    value: ${config.output_path}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.email.to
+                                                    value: ${config.email.to}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.email.subject
+                                                    value: ${config.email.subject}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.email.body
+                                                    value: ${config.email.body}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.email.dry_run
+                                                    value: ${config.email.dry_run}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.headless
+                                                    value: ${config.headless}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.dry_run
+                                                    value: ${config.dry_run}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.output_path
+                                                    value: ${config.output_path}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.email.to
+                                                    value: ${config.email.to}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.email.subject
+                                                    value: ${config.email.subject}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.email.body
+                                                    value: ${config.email.body}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.email.dry_run
+                                                    value: ${config.email.dry_run}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.headless
+                                                    value: ${config.headless}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.dry_run
+                                                    value: ${config.dry_run}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.output_path
+                                                    value: ${config.output_path}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.email.to
+                                                    value: ${config.email.to}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.email.subject
+                                                    value: ${config.email.subject}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.email.body
+                                                    value: ${config.email.body}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.email.dry_run
+                                                    value: ${config.email.dry_run}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.headless
+                                                    value: ${config.headless}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.dry_run
+                                                    value: ${config.dry_run}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.output_path
+                                                    value: ${config.output_path}
+                                                    on_error: retry
+                                                    max_retries: 2
+                                              steps:
+                                                - name: Set Variables
+                                                  action: logic.set_variable
+                                                  with:
+                                                    name: config.email.to
+                                                    value: ${config.email.to}
+                                                    on_error: retry
+                                                    max_retries: 

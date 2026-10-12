@@ -1,0 +1,100 @@
+```yaml
+name: Bank of Thailand Transfer Rates
+description: Collect Bank of Thailand buying transfer rates for several currencies over one month and email them as a CSV file.
+variables:
+  first_day: null
+  last_day: null
+  currencies: []
+  transfer_rates: []
+steps:
+  - name: Calculate Month Dates
+    action: date.calc
+    with:
+      date: ${config.month.date}
+      add_months: ${config.month.add_months}
+      format: "%Y-%m-%d"
+    output_var: first_day
+  - name: Calculate Last Day of Month
+    action: date.calc
+    with:
+      date: ${first_day}
+      add_months: 1
+      subtract_days: 1
+      format: "%Y-%m-%d"
+    output_var: last_day
+  - name: Open Bank of Thailand Website
+    action: web.open
+    with:
+      url: ${config.url}
+      headless: ${config.headless}
+    output_var: browser
+  - name: Accept Cookie Banner
+    action: web.click
+    with:
+      selector: 'button:text("Accept recommended cookies")'
+      optional: true
+  - name: Set Currency Filter
+    action: web.select_option
+    with:
+      selector: '#dropdownCurrency'
+      value: ${currency}
+  - name: Set Start Date
+    action: web.select_option
+    with:
+      selector: '.react-datepicker select >> nth=1'
+      value: ${first_day.split("-")[0]}
+  - name: Set End Date
+    action: web.select_option
+    with:
+      selector: '.react-datepicker select >> nth=0'
+      value: ${last_day.split("-")[1]}
+      text: ${last_day.split("-")[1]}
+  - name: Search Transfer Rates
+    action: web.click
+    with:
+      selector: 'button.historical-btn'
+    output_var: search_results
+  - name: Extract Transfer Rates
+    action: web.get_table
+    with:
+      selector: 'table'
+      columns: ["Period", "Buying Rates Transfer"]
+    output_var: table_data
+  - name: Add Currency Column
+    action: logic.loop
+    with:
+      items: ${table_data}
+      item_var: row
+    steps:
+      - name: Add Currency
+        action: logic.set_variable
+        with:
+          name: row.Currency
+          value: ${currency}
+    output_var: transfer_rates
+  - name: Combine Transfer Rates
+    action: logic.append
+    with:
+      target: transfer_rates
+      item: ${row}
+  - name: Write Transfer Rates to CSV
+    action: csv.write
+    with:
+      file_path: ${config.output_path}
+      data: ${transfer_rates}
+      columns: ["Currency", "Date", "Buying Transfer Rate"]
+    on_error: retry
+    max_retries: 2
+  - name: Close Browser
+    action: web.close
+    with:
+      browser: ${browser}
+  - name: Send Email
+    action: email.send
+    with:
+      to: ${config.email.to}
+      subject: ${config.email.subject}
+      body: ${config.email.body}
+      attachments: [${config.output_path}]
+      dry_run: ${config.email.dry_run}
+```

@@ -31,7 +31,7 @@ GitHub Actions workflow `.github/workflows/ci.yml` runs on pushes and pull reque
 - [x] Runs every pytest suite, including `kinenix-hub/tests`.
 - [x] Builds the Studio frontend with `npm ci` and `npm run build`.
 - [x] CI status badge in the README.
-- [x] Repository rules checked by tests: every `flow.json` matches its `flow.md`, every flow validates, documented action parameters match the code, and no emojis anywhere.
+- [x] Repository rules checked by tests: every flow validates, documented action parameters match the code, and no emojis anywhere.
 - [ ] Formatting, linting, type checking, dependency vulnerability checks, and JSON schema validation of the flows in `flows/`.
 - [~] Publish `kinenix`, `kinenix-hub`, and `kinenix-worker` from a tagged release with Trusted Publishing (`release.yml`, `docs/releasing.md`); CI builds, checks, and installs the packages on every pull request. Waiting for the first release.
 
@@ -80,9 +80,9 @@ Hub -> versioned job bundle -> Worker (WebSocket) -> kinenix-core executes flow
 - [x] Hierarchical structured logging (`logs/<flow>/<date>/<HHMMSS>_<status>.json`)
 - [x] CLI and smart flow resolver (`kinenix list`, `kinenix run <flow>`)
 - [x] Project bundles (`flow.call`, `@shared/`, `config.json`, `.env`)
-- [x] `flow.md` authoring format with compiler to `flow.json`
+- [x] `flow.md` authoring format
 - [x] Local AI actions: `ai.prompt`, `ai.extract` (Ollama), `ai.decide` (OpenThai-SystemOne)
-- [x] `flow.md` as the single source with automatic `flow.json` sync and a CI consistency check
+- [x] `flow.md` is the only flow file: `kinenix run` and the worker read it directly, `kinenix compile` prints the compiled form, `kinenix export-md` converts old JSON flows; step headings without an action and flows without steps are reported (`flow.json` dropped after a comparison with YAML on `bot_fx_rate`)
 - [x] Flow validation (`kinenix validate`): unknown actions and ignored parameters, with suggestions
 - [x] Business exceptions with `flow.fail` (recorded as Business, never retried); `web.click` waits for a response; `web.get_table`
 - [x] `email.send` through any SMTP provider (Gmail, Microsoft 365, company servers), tested with a local fake SMTP server

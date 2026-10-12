@@ -1,0 +1,20 @@
+{"parsed": false, "steps": 0, "problems": 15, "actions_covered": 0, "error": null, "has_loop_substeps": false, "run": 1, "kind": "md", "seconds": 69, "cut_off": false}
+{"parsed": true, "steps": 27, "problems": 55, "actions_covered": 6, "error": null, "has_loop_substeps": false, "run": 1, "kind": "yaml", "seconds": 26, "cut_off": false}
+{"parsed": false, "steps": 0, "problems": 11, "actions_covered": 0, "error": null, "has_loop_substeps": false, "run": 2, "kind": "md", "seconds": 11, "cut_off": false}
+{"parsed": true, "steps": 72, "problems": 1, "actions_covered": 2, "error": null, "has_loop_substeps": false, "run": 2, "kind": "yaml", "seconds": 26, "cut_off": false}
+{"parsed": false, "steps": 0, "problems": 23, "actions_covered": 0, "error": null, "has_loop_substeps": false, "run": 3, "kind": "md", "seconds": 26, "cut_off": false}
+{"parsed": false, "steps": 0, "problems": null, "actions_covered": 0, "error": "ScannerError: while scanning for the next token\nfound character '`' that cannot start any token\n  in \"<unicode string>\", line 1, column 1:\n    ```yaml\n    ^", "run": 3, "kind": "yaml", "seconds": 26, "cut_off": false}
+{"parsed": true, "steps": 7, "problems": 2, "actions_covered": 3, "error": null, "has_loop_substeps": false, "run": 4, "kind": "md", "seconds": 6, "cut_off": false}
+{"parsed": true, "steps": 15, "problems": 0, "actions_covered": 1, "error": null, "has_loop_substeps": false, "run": 4, "kind": "yaml", "seconds": 7, "cut_off": false}
+{"parsed": true, "steps": 16, "problems": 8, "actions_covered": 7, "error": null, "has_loop_substeps": false, "run": 5, "kind": "md", "seconds": 8, "cut_off": false}
+{"parsed": true, "steps": 10, "problems": 1, "actions_covered": 4, "error": null, "has_loop_substeps": false, "run": 5, "kind": "yaml", "seconds": 6, "cut_off": false}
+{"parsed": true, "steps": 15, "problems": 19, "actions_covered": 8, "error": null, "has_loop_substeps": false, "run": 6, "kind": "md", "seconds": 10, "cut_off": false}
+{"parsed": true, "steps": 9, "problems": 5, "actions_covered": 4, "error": null, "has_loop_substeps": false, "run": 6, "kind": "yaml", "seconds": 9, "cut_off": false}
+{"parsed": false, "steps": 0, "problems": 9, "actions_covered": 0, "error": null, "has_loop_substeps": false, "run": 7, "kind": "md", "seconds": 10, "cut_off": false}
+{"parsed": true, "steps": 9, "problems": 0, "actions_covered": 3, "error": null, "has_loop_substeps": true, "run": 7, "kind": "yaml", "seconds": 5, "cut_off": false}
+{"parsed": false, "steps": 0, "problems": 13, "actions_covered": 0, "error": null, "has_loop_substeps": false, "run": 8, "kind": "md", "seconds": 10, "cut_off": false}
+{"parsed": true, "steps": 10, "problems": 4, "actions_covered": 4, "error": null, "has_loop_substeps": false, "run": 8, "kind": "yaml", "seconds": 6, "cut_off": false}
+{"parsed": true, "steps": 29, "problems": 1, "actions_covered": 8, "error": null, "has_loop_substeps": false, "run": 9, "kind": "md", "seconds": 13, "cut_off": false}
+{"parsed": false, "steps": 0, "problems": null, "actions_covered": 0, "error": "ScannerError: mapping values are not allowed here\n  in \"<unicode string>\", line 64, column 21:\n            input_format: 'YYYY-MM-DD',\n                        ^", "run": 9, "kind": "yaml", "seconds": 8, "cut_off": false}
+{"parsed": true, "steps": 19, "problems": 4, "actions_covered": 6, "error": null, "has_loop_substeps": false, "run": 10, "kind": "md", "seconds": 10, "cut_off": false}
+{"parsed": false, "steps": 0, "problems": null, "actions_covered": 0, "error": "ScannerError: while scanning for the next token\nfound character '`' that cannot start any token\n  in \"<unicode string>\", line 1, column 1:\n    ```yaml\n    ^", "run": 10, "kind": "yaml", "seconds": 26, "cut_off": false}

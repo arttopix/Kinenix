@@ -65,6 +65,8 @@ output/
 logs/
 .env
 __pycache__/
+# Written by Kinenix 0.2.0b3 and older; flows are flow.md files
+flow.json
 """
 
 FLOWS_README = """# Kinenix flows
