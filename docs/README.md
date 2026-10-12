@@ -8,6 +8,7 @@ Each topic has one owning document. Other files link here instead of repeating t
 | :--- | :--- |
 | [architecture.md](architecture.md) | Principles, modules (current vs. target), execution pipeline, AI integration, planned protocol |
 | [roadmap.md](roadmap.md) | Delivery status by phase and next priorities |
+| [design/phase-2.md](design/phase-2.md) | Phase 2 design: On Error and Finally, subflow context, run records for AI questions, Hub tables and views, redaction (proposal) |
 
 ## Build Flows
 
