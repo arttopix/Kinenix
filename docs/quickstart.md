@@ -65,6 +65,7 @@ Try these:
 2. **Change the flow:** in `flow.md` step 1, add a field to the row, for example `"Team": "Kinenix"`, and add `"Team"` to `columns` in step 3. Run again.
 3. **Catch mistakes before running:** misspell a parameter in `flow.md` (for example `colums` in step 3), then run `kinenix validate my-bot`. It names the step and suggests `columns`.
 4. **See error handling:** set `"names": []`. Step 2 stops the flow with a clear business message instead of writing an empty file.
+5. **See a subflow:** step 1 calls `subflows/make_greeting.md` once per name with `flow.call`. A subflow is written like `flow.md`, gets values through `inputs`, sees the bundle's `${config.*}`, and returns a value with `flow.return` (see [Project bundles](project_bundles.md#2-calling-subflows-flowcall)).
 
 The syntax is in the [Flow Markdown specification](flow_markdown_spec.md); every action is in the [actions reference](actions_reference.md), and `kinenix actions` lists the parameters each one accepts.
 

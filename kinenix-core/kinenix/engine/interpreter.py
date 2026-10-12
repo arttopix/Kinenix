@@ -8,10 +8,92 @@ from typing import Any, Dict, List, Optional
 from .conditions import resolve_condition
 from .evaluator import VariableEvaluator
 from .logger import ExecutionLogger
+from .markdown import markdown_to_flow
 from ..actions.registry import ActionRegistry
 from ..actions.flow_control import SubflowExecutionError, is_business_error
 from ..models.context import ExecutionContext, StepResult, FailureDetails, local_now
 from ..models.flow import FlowDefinition, Step
+
+
+def _flow_file(path: Path) -> Optional[Path]:
+    """The flow file at path, or path + .md, or path + .json (a .md source wins over a .json build)."""
+    if path.is_file():
+        return path.resolve()
+    for suffix in (".md", ".json"):
+        candidate = path.with_name(path.name + suffix)
+        if candidate.is_file():
+            return candidate.resolve()
+    return None
+
+
+def load_subflow(path: Path) -> FlowDefinition:
+    if path.suffix.lower() == ".md":
+        return markdown_to_flow(path.read_text(encoding="utf-8-sig"))
+    return FlowDefinition.model_validate(json.loads(path.read_text(encoding="utf-8-sig")))
+
+
+def is_shared_subflow(flow_target: Any, resolved_path: Path, context: Any) -> bool:
+    """@shared/ components, and flow files outside the caller's bundle, keep their own folder and config."""
+    if str(flow_target).strip().startswith("@shared/"):
+        return True
+    bundle_dir = context.get_variable("__flow_dir__") if context is not None else None
+    if not bundle_dir:
+        return True
+    bundle = Path(bundle_dir).resolve()
+    return bundle != resolved_path.parent and bundle not in resolved_path.parents
+
+
+def _is_true(value: Any) -> bool:
+    if isinstance(value, str):
+        return value.strip().lower() in ("true", "yes", "1", "on")
+    return bool(value)
+
+
+def resolve_subflow_path(flow_target: str, context: Any) -> Path:
+    """Finds the file of a flow.call target; context only needs get_variable (used by validation too)."""
+    target_str = str(flow_target).strip()
+
+    # 1. Namespace @shared/
+    if target_str.startswith("@shared/"):
+        rel_shared = target_str[8:]
+        flow_dir_str = context.get_variable("__flow_dir__")
+        candidates = []
+        if flow_dir_str:
+            p = Path(flow_dir_str).resolve()
+            for parent in [p] + list(p.parents):
+                candidates.append(parent / "flows" / "@shared" / rel_shared)
+                candidates.append(parent / "@shared" / rel_shared)
+        candidates.append(Path.cwd() / "flows" / "@shared" / rel_shared)
+        candidates.append(Path.home() / ".kinenix" / "flows" / "@shared" / rel_shared)
+        for c in candidates:
+            found = _flow_file(c)
+            if found:
+                return found
+
+    # 2. Relative to the bundle folder, then to the folder of the calling flow file
+    #    (a subflow that calls a sibling file by a path relative to itself)
+    for base_var in ("__flow_dir__", "__flow_file_dir__"):
+        base_str = context.get_variable(base_var)
+        if base_str:
+            found = _flow_file((Path(base_str) / target_str).resolve())
+            if found:
+                return found
+
+    # 3. Direct path or relative to current working directory
+    found = _flow_file(Path(target_str).resolve())
+    if found:
+        return found
+
+    # 4. Fallback to CLI search
+    try:
+        from ..cli import resolve_flow_path
+        resolved = resolve_flow_path(target_str)
+        if resolved and resolved.is_file():
+            return resolved.resolve()
+    except Exception:
+        pass
+
+    raise FileNotFoundError(f"Subflow file not found: '{flow_target}'")
 
 
 class FlowInterpreter:
@@ -168,14 +250,19 @@ class FlowInterpreter:
                 context.set_variable(k, v)
 
         # 3. Auto-load project configuration (config.json & .env) from flow bundle directory
+        # A subflow of the same bundle receives the caller's config instead of reading the files again
         flow_dir_str = context.get_variable("__flow_dir__")
-        if flow_dir_str:
+        if flow_dir_str and not context.get_variable("__bundle_config_from_caller__"):
             self._load_bundle_configs(Path(flow_dir_str), context)
 
-        # 4. Caller explicit initial_vars take highest priority
+        # 4. Caller explicit initial_vars take highest priority. A `config` from the caller (a local
+        # subflow's bundle config, inherit_config, or inputs) is merged over the loaded config, key by key
         if initial_vars:
             for k, v in initial_vars.items():
-                context.set_variable(k, v)
+                if k == "config" and isinstance(v, dict):
+                    self._apply_config_data(dict(v), context)
+                else:
+                    context.set_variable(k, v)
 
         # Build step map and validate any fallback_step_id upfront
         self._step_map = self._build_step_map(flow_def.steps)
@@ -537,55 +624,7 @@ class FlowInterpreter:
                 os.environ[k] = v
 
     def _resolve_subflow_path(self, flow_target: str, context: ExecutionContext) -> Path:
-        target_str = str(flow_target).strip()
-
-        # 1. Namespace @shared/
-        if target_str.startswith("@shared/"):
-            rel_shared = target_str[8:]
-            flow_dir_str = context.get_variable("__flow_dir__")
-            candidates = []
-            if flow_dir_str:
-                p = Path(flow_dir_str).resolve()
-                for parent in [p] + list(p.parents):
-                    candidates.append(parent / "flows" / "@shared" / rel_shared)
-                    candidates.append(parent / "@shared" / rel_shared)
-            candidates.append(Path.cwd() / "flows" / "@shared" / rel_shared)
-            candidates.append(Path.home() / ".kinenix" / "flows" / "@shared" / rel_shared)
-            for c in candidates:
-                if c.is_file():
-                    return c.resolve()
-                if c.with_suffix(".json").is_file():
-                    return c.with_suffix(".json").resolve()
-
-        # 2. Relative to parent flow directory
-        flow_dir_str = context.get_variable("__flow_dir__")
-        if flow_dir_str:
-            parent_dir = Path(flow_dir_str).resolve()
-            candidates = [
-                (parent_dir / target_str).resolve(),
-                (parent_dir / f"{target_str}.json").resolve(),
-            ]
-            for c in candidates:
-                if c.is_file():
-                    return c
-
-        # 3. Direct path or relative to current working directory
-        direct = Path(target_str).resolve()
-        if direct.is_file():
-            return direct
-        if Path(f"{target_str}.json").is_file():
-            return Path(f"{target_str}.json").resolve()
-
-        # 4. Fallback to CLI search
-        try:
-            from ..cli import resolve_flow_path
-            resolved = resolve_flow_path(target_str)
-            if resolved and resolved.is_file():
-                return resolved.resolve()
-        except Exception:
-            pass
-
-        raise FileNotFoundError(f"Subflow file not found: '{flow_target}'")
+        return resolve_subflow_path(flow_target, context)
 
     def _handle_flow_call_step(self, step: Step, evaluated_params: Dict[str, Any], context: ExecutionContext, start_time: datetime) -> None:
         flow_target = evaluated_params.get("flow")
@@ -611,29 +650,43 @@ class FlowInterpreter:
                 failed_step_id=step.id
             )
 
-        # 3. Load child FlowDefinition
+        # 3. Load child FlowDefinition; a .md subflow is compiled in memory on every run, so no
+        #    flow.json next to it can go stale
         try:
-            data = json.loads(resolved_path.read_text(encoding="utf-8-sig"))
-            subflow_def = FlowDefinition.model_validate(data)
+            subflow_def = load_subflow(resolved_path)
         except Exception as e:
             raise RuntimeError(f"Failed to load subflow definition from '{resolved_path}': {str(e)}") from e
+        shared = is_shared_subflow(flow_target, resolved_path, context)
 
         # 4. Variable Priority Order:
         # 4.1 Subflow defaults
         child_vars = dict(subflow_def.variables) if subflow_def.variables else {}
 
-        # 4.2 Inputs from parent flow (overrides defaults)
+        # 4.2 Config: a subflow of this bundle works with the bundle's config; a shared subflow
+        #     (@shared/ or outside the bundle) keeps its own unless inherit_config is set
+        parent_config = context.get_variable("config")
+        if isinstance(parent_config, dict) and (not shared or _is_true(evaluated_params.get("inherit_config"))):
+            child_vars["config"] = dict(parent_config)
+
+        # 4.3 Inputs from parent flow (override defaults; an inputs "config" is merged over the config)
         inputs = evaluated_params.get("inputs", {})
         if isinstance(inputs, dict):
             for k, v in inputs.items():
-                child_vars[k] = v
+                if k == "config" and isinstance(v, dict) and isinstance(child_vars.get("config"), dict):
+                    child_vars["config"] = {**child_vars["config"], **v}
+                else:
+                    child_vars[k] = v
 
-        # 4.3 System variables
-        child_vars["__flow_dir__"] = str(resolved_path.parent)
+        # 4.4 System variables. Relative paths in a bundle subflow resolve against the bundle root
+        #     (output/, assets/, config/), like the main flow; a shared subflow keeps its own folder
+        bundle_dir = context.get_variable("__flow_dir__")
+        child_vars["__flow_dir__"] = str(resolved_path.parent) if shared or not bundle_dir else str(bundle_dir)
+        child_vars["__flow_file_dir__"] = str(resolved_path.parent)
+        child_vars["__bundle_config_from_caller__"] = not shared
         child_vars["__parent_flow__"] = context.flow_name
         child_vars["__is_subflow__"] = True
 
-        # 4.4 Safeguard & Browser Session Propagation
+        # 4.5 Safeguard & Browser Session Propagation
         if evaluated_params.get("propagate_sessions", True):
             pw = context.get_variable("__playwright_pw__")
             browser = context.get_variable("__playwright_browser__")

@@ -89,6 +89,7 @@ Hub -> versioned job bundle -> Worker (WebSocket) -> kinenix-core executes flow
 - [x] Example flow `bot_fx_rate`: Bank of Thailand transfer rates to CSV and email, verified against the BOT data
 - [x] `file.zip` and `file.unzip`: pack a run's output for an email attachment; extraction refuses entries that point outside the destination
 - [x] `file.list` (loop over the files in a folder, newest first), `file.read_text` and `file.write_text` (text, lines, JSON, append, Thai legacy encodings), `file.create_folder`; boolean parameters given as text in config ("false") are read correctly by all file actions
+- [x] Subflows written as `.md` (compiled when called), sharing the bundle's config and folder; `@shared` components keep their own unless `inherit_config: true`; `kinenix validate` follows subflows and checks `inputs` names; the `hello` example calls a subflow
 - [x] `date.calc`: today or a given date, shifted by days, weeks, months, or years and snapped to the start or end of a week, month, or year; `bot_fx_rate` reports the previous month by default instead of fixed dates
 
 ### Phase 2: Studio (`kinenix-studio`) - Paused

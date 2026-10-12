@@ -58,7 +58,7 @@ class FlowCallAction(BaseAction):
     Executes an external child flow (subflow) within an isolated context.
     Main execution logic is handled by FlowInterpreter._handle_flow_call_step.
     """
-    accepted_parameters = ('flow', 'inputs', 'outputs', 'propagate_sessions')
+    accepted_parameters = ('flow', 'inputs', 'outputs', 'propagate_sessions', 'inherit_config')
 
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         return {"action": "flow.call"}

@@ -12,7 +12,7 @@ import psutil
 from kinenix.engine.interpreter import FlowInterpreter
 from kinenix.engine.logger import ExecutionLogger
 from kinenix.engine.markdown import FlowSync, markdown_issues, markdown_to_flow, sync_flow_json
-from kinenix.engine.validation import validate_flow
+from kinenix.engine.validation import validate_flow, validate_subflows
 from kinenix.models.flow import FlowDefinition
 
 from .hub_client import HubClient
@@ -92,7 +92,7 @@ class WorkerRunner:
         else:
             flow_data = json.loads(target_path.read_text(encoding="utf-8-sig"))
             flow_def = FlowDefinition(**flow_data)
-        issues = validate_flow(flow_def)
+        issues = validate_flow(flow_def) + validate_subflows(flow_def, work_dir)
         if (work_dir / "flow.md").is_file():
             issues = markdown_issues((work_dir / "flow.md").read_text(encoding="utf-8-sig")) + issues
         for issue in issues:
