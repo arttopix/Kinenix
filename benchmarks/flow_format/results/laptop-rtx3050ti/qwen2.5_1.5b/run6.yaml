@@ -1,0 +1,154 @@
+name: CollectBankOfThailandTransferRates
+description: Automation flow to collect Bank of Thailand buying transfer rates for several currencies over one month and email them as a CSV file.
+variables:
+  month: {"date": "today", "add_months": -1}
+  config.url: "https://example.com"
+  config.currencies: ["USD", "EUR", "JPY"]
+  config.month.date: "2023-03-01"
+  config.month.add_months: 1
+  config.output_path: "/path/to/output"
+  config.email.to: "user@example.com"
+  config.email.subject: "Bank of Thailand Transfer Rates"
+  config.email.body: "Please find attached the Bank of Thailand transfer rates for the month of March."
+  config.email.dry_run: false
+
+steps:
+  - name: Open URL
+    action: http.request
+    with:
+      url: ${config.url}
+      method: GET
+      headers:
+        'Cookie': 'example_cookie=12345'
+      payload: {}
+      timeout: 10
+
+  - name: Open Currency Filter
+    action: web.open
+    with:
+      url: ${config.url}
+      headless: true
+      timeout: 10
+
+  - name: Select Currencies
+    action: logic.loop
+    with:
+      items: ${config.currencies}
+      item_var: currency
+      steps:
+        - name: Click Currency Tab
+          action: web.click
+          with:
+            selector: 'div.currency-filter span[data-currency="${currency}"]'
+            label: 'Currency'
+            timeout: 10
+
+  - name: Set Start and End Dates
+    action: date.calc
+    with:
+      date: ${config.month.date}
+      input_format: "%Y-%m-%d"
+      add_days: 1
+      add_weeks: 0
+      add_months: 1
+      add_years: 0
+      snap: true
+      format: "%Y-%m-%d"
+
+  - name: Search for Transfer Rates
+    action: logic.loop
+    with:
+      items: ${config.currencies}
+      item_var: currency
+      steps:
+        - name: Open Date Picker
+          action: web.open
+          with:
+            url: ${config.url}
+            headless: true
+            timeout: 10
+
+        - name: Select Start Date
+          action: web.type
+          with:
+            selector: '#react-datepicker-days-02-01-2023'
+            text: "2023-03-01"
+
+        - name: Select End Date
+          action: web.type
+          with:
+            selector: '#react-datepicker-days-02-01-2023'
+            text: "2023-03-02"
+
+        - name: Click Search Button
+          action: web.click
+          with:
+            selector: '.react-datepicker button[type="submit"]'
+            label: 'Search'
+            timeout: 10
+
+  - name: Read Table Data
+    action: logic.loop
+    with:
+      items: ${config.currencies}
+      item_var: currency
+      steps:
+        - name: Open Table
+          action: web.open
+          with:
+            url: ${config.url}
+            headless: true
+            timeout: 10
+
+        - name: Select Currency Tab
+          action: web.click
+          with:
+            selector: 'div.currency-filter span[data-currency="${currency}"]'
+            label: 'Currency'
+            timeout: 10
+
+        - name: Read Table Data
+          action: web.get_table
+          with:
+            selector: 'tbody'
+            columns: ["Period", "Buying Rates Transfer"]
+            numeric_columns: ["Buying Rates Transfer"]
+            add_columns: ["Currency"]
+            min_rows: 100
+            timeout: 10
+
+  - name: Write CSV
+    action: csv.write
+    with:
+      file_path: ${config.output_path}
+      data: ${data}
+      columns: ["Currency", "Date", "Buying Transfer Rate"]
+      encoding: "utf-8"
+      append: true
+      max_retries: 2
+      retry_interval: 3
+
+  - name: Close Browser and Email
+    action: flow.call
+    with:
+      flow: email.send
+      inputs:
+        to: ${config.email.to}
+        cc: []
+        bcc: []
+        subject: ${config.email.subject}
+        body: ${config.email.body}
+        html: false
+        attachments: []
+        smtp_host: "smtp.example.com"
+        smtp_port: 587
+        smtp_user: "user@example.com"
+        smtp_password: "password"
+        use_tls: true
+        dry_run: ${config.email.dry_run}
+
+  - name: Error Handling
+    action: flow.fail
+    with:
+      message: "Failed to collect Bank of Thailand transfer rates for some currencies."
+      category: "error"

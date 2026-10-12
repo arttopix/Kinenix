@@ -1,0 +1,217 @@
+```yaml
+name: Collect Bank of Thailand Transfer Rates
+description: Collect Bank of Thailand buying transfer rates for several currencies over one month and email them as a CSV file.
+variables:
+  url: ${config.url}
+  currencies: ${config.currencies}
+  month_date: ${config.month.date}
+  month_add_months: ${config.month.add_months}
+  output_path: ${config.output_path}
+  headless: ${config.headless}
+  email_to: ${config.email.to}
+  email_subject: ${config.email.subject}
+  email_body: ${config.email.body}
+  email_dry_run: ${config.email.dry_run}
+steps:
+  - name: Work out the first and last day of the report month
+    action: date.calc
+    with:
+      date: ${month_date}
+      input_format: "%Y-%m-%d"
+      add_months: ${month_add_months}
+      add_days: 0
+    output_var: first_day
+    steps:
+      - name: Format first day
+        action: date.format
+        with:
+          date: ${first_day}
+          format: "%Y-%m-%d"
+          output_var: first_day
+  - name: Work out the first and last day of the report month
+    action: date.calc
+    with:
+      date: ${first_day}
+      add_days: 1
+      add_months: -1
+      input_format: "%Y-%m-%d"
+    output_var: last_day
+    steps:
+      - name: Format last day
+        action: date.format
+        with:
+          date: ${last_day}
+          format: "%Y-%m-%d"
+          output_var: last_day
+  - name: Open the page
+    action: web.open
+    with:
+      url: ${url}
+      headless: ${headless}
+    output_var: browser_handle
+    steps:
+      - name: Accept cookie banner
+        action: web.click
+        with:
+          selector: #accept-recommended-cookies
+          label: "Accept recommended cookies"
+        output_var: browser_handle
+  - name: Open currency filter
+    action: web.click
+    with:
+      selector: #dropdownCurrency
+      label: "Currency"
+    output_var: browser_handle
+  - name: Check currencies
+    action: logic.loop
+    with:
+      items: ${currencies}
+      item_var: currency
+    steps:
+      - name: Check currency
+        action: web.select_option
+        with:
+          selector: .currency-filter input[name='currencyCheck'][value='${currency}']
+          label: "${currency}"
+        output_var: browser_handle
+  - name: Pick start and end dates
+    action: web.select_option
+    with:
+      selector: '.react-datepicker select >> nth=1'
+      label: "2023-10-01"
+    output_var: browser_handle
+    steps:
+      - name: Pick start date
+        action: web.select_option
+        with:
+          selector: '.react-datepicker select >> nth=0'
+          label: "October"
+        output_var: browser_handle
+      - name: Pick end date
+        action: web.select_option
+        with:
+          selector: '.react-datepicker select >> nth=0'
+          label: "October"
+        output_var: browser_handle
+      - name: Type month
+        action: web.type
+        with:
+          selector: '.react-datepicker input'
+          label: "2023-10-31"
+        output_var: browser_handle
+  - name: Click historical button
+    action: web.click
+    with:
+      selector: 'button.historical-btn'
+      label: 'Historical'
+    output_var: browser_handle
+  - name: Read table data
+    action: web.get_table
+    with:
+      selector: '.table tbody tr'
+      label: 'table'
+      columns: ['Date', 'Buying Rates Transfer']
+      numeric_columns: ['Buying Rates Transfer']
+      add_columns: ['Currency']
+      min_rows: 1
+    output_var: table_data
+    steps:
+      - name: Parse table data
+        action: logic.loop
+        with:
+          items: ${table_data}
+          item_var: row
+        steps:
+          - name: Format date
+            action: date.format
+            with:
+              date: ${row.Date}
+              format: "%Y-%m-%d"
+              output_var: row.Date
+          - name: Format buying rates
+            action: web.get_attribute
+            with:
+              selector: '.table-data'
+              label: 'Buying Rates Transfer'
+              attribute: text
+            output_var: row.Buying_Transfer_Rate
+          - name: Format currency
+            action: web.get_text
+            with:
+              selector: '.table-data .currency'
+              label: 'Currency'
+            output_var: row.Currency
+          - name: Append row
+            action: logic.append
+            with:
+              target: ${config.output_path}
+              item: {"Date": "${row.Date}", "Buying Transfer Rate": "${row.Buying_Transfer_Rate}", "Currency": "${row.Currency}"}
+  - name: Write CSV
+    action: csv.write
+    with:
+      file_path: ${config.output_path}
+      data: ${config.output_path}
+      columns: ["Date", "Buying Transfer Rate", "Currency"]
+      encoding: "utf-8"
+    output_var: csv_path
+    steps:
+      - name: Email CSV
+        action: email.send
+        with:
+          to: ${email_to}
+          subject: ${email_subject}
+          body: ${email_body}
+          attachments: ${csv_path}
+          smtp_host: "smtp.example.com"
+          smtp_port: 587
+          smtp_user: "user@example.com"
+          smtp_password: "password"
+          use_tls: true
+          dry_run: ${email_dry_run}
+  - name: Close browser
+    action: web.close
+    output_var: browser_handle
+    steps:
+      - name: Screenshot
+        action: web.screenshot
+        with:
+          path: ./screenshot.png
+  - name: Retry operations
+    action: logic.if
+    with:
+      condition: ${csv_path}
+      left: ${csv_path}
+      operator: not_equal
+      right: ""
+    output_var: success
+    steps:
+      - name: Retry opening page
+        action: web.open
+        with:
+          url: ${url}
+          headless: ${headless}
+        output_var: browser_handle
+      - name: Retry writing CSV
+        action: csv.write
+        with:
+          file_path: ${config.output_path}
+          data: ${config.output_path}
+          columns: ["Date", "Buying Transfer Rate", "Currency"]
+          encoding: "utf-8"
+      - name: Retry email CSV
+        action: email.send
+        with:
+          to: ${email_to}
+          subject: ${email_subject}
+          body: ${email_body}
+          attachments: ${csv_path}
+          smtp_host: "smtp.example.com"
+          smtp_port: 587
+          smtp_user: "user@example.com"
+          smtp_password: "password"
+          use_tls: true
+          dry_run: ${email_dry_run}
+    on_error: continue
+    max_retries: 2
+    retry_interval: 10
+```

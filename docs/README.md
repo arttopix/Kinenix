@@ -8,13 +8,14 @@ Each topic has one owning document. Other files link here instead of repeating t
 | :--- | :--- |
 | [architecture.md](architecture.md) | Principles, modules (current vs. target), execution pipeline, AI integration, planned protocol |
 | [roadmap.md](roadmap.md) | Delivery status by phase and next priorities |
+| [benchmarks/flow_format.md](benchmarks/flow_format.md) | Benchmark: local AI models writing flows in `flow.md` vs YAML, and why Kinenix keeps `flow.md` |
 | [design/phase-2.md](design/phase-2.md) | Phase 2 design: On Error and Finally, subflow context, run records for AI questions, Hub tables and views, redaction (proposal) |
 
 ## Build Flows
 
 | Document | Covers |
 | :--- | :--- |
-| [flow_markdown_spec.md](flow_markdown_spec.md) | `flow.md` syntax and compilation to `flow.json` |
+| [flow_markdown_spec.md](flow_markdown_spec.md) | `flow.md` syntax, validation, and the compiled form (`kinenix compile`) |
 | [actions_reference.md](actions_reference.md) | Every built-in action with parameters and examples |
 | [project_bundles.md](project_bundles.md) | Bundle layout, `config.json`, `.env`, subflows (`flow.call`), deployment lifecycle |
 

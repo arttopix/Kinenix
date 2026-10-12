@@ -1,0 +1,238 @@
+name: Collect_BankOfThailand_Transfer_Rates
+description: Collect Bank of Thailand buying transfer rates for several currencies over one month and email them as a CSV file.
+
+variables:
+  config:
+    month: {"date": "today", "add_months": -1}
+    url: "https://example.com"  # Replace with actual URL
+    currencies: ["THB", "USD", "EUR", "JPY"]  # Replace with actual currencies
+    output_path: "./output/transfer_rates.csv"
+    email:
+      to: "recipient@example.com"
+      subject: "Bank of Thailand Transfer Rates"
+      body: "Transfer rates for selected currencies over the past month."
+    headless: true
+    dry_run: false
+
+steps:
+  - name: Work_out_Report_Month
+    action: date.calc
+    with:
+      date: ${config.month.date}
+      input_format: "%Y-%m-%d"
+      add_months: ${config.month.add_months}
+      format: "%Y-%m-%d"
+    output_var: ${config.month.date}
+    on_error: retry
+    max_retries: 2
+
+  - name: Open_Page
+    action: web.open
+    with:
+      url: ${config.url}
+      headless: ${config.headless}
+      timeout: 60
+    output_var: browser
+    on_error: retry
+    max_retries: 2
+
+  - name: Accept_Cookie_Banner
+    action: web.click
+    with:
+      selector: '.react-accept-recommended-cookies'
+    output_var: browser
+    on_error: retry
+    max_retries: 2
+
+  - name: Open_Currency_Filter
+    action: web.open
+    with:
+      url: ${config.url}
+      headless: ${config.headless}
+      timeout: 60
+    output_var: browser
+    on_error: retry
+    max_retries: 2
+
+  - name: Select_Currencies
+    action: logic.loop
+    with:
+      items: ${config.currencies}
+      item_var: currency
+    steps:
+      - name: Select_Currency
+        action: web.select_option
+        with:
+          selector: '#dropdownCurrency'
+          value: ${currency}
+          index: 0
+        output_var: browser
+        on_error: retry
+        max_retries: 2
+
+  - name: Pick_Start_End_Dates
+    action: web.click
+    with:
+      selector: '.historical-btn'
+    output_var: browser
+    on_error: retry
+        max_retries: 2
+
+  - name: Read_Table
+    action: web.get_table
+    with:
+      selector: '.table'
+      columns: ['Period', 'Buying Rates Transfer']
+      numeric_columns: ['Buying Rates Transfer']
+      min_rows: 1
+      timeout: 60
+    output_var: table_data
+    on_error: retry
+    max_retries: 2
+
+  - name: Prepare_Data
+    action: logic.loop
+    with:
+      items: ${table_data}
+      item_var: row
+    steps:
+      - name: Prepare_Date
+        action: date.calc
+        with:
+          date: ${row.Period}
+          input_format: "%Y-%m-%d"
+          format: "%Y-%m-%d"
+        output_var: row.Date
+      - name: Prepare_Currency
+        action: logic.append
+        with:
+          target: row
+          item: {"Currency": "${currency}"}
+      - name: Prepare_Buying_Transfer_Rate
+        action: logic.append
+        with:
+          target: row
+          item: {"Buying Transfer Rate": "${row.Buying Rates Transfer}"}
+      - name: Append_To_List
+        action: logic.append
+        with:
+          target: ${config.output_path}
+          item: ${row}
+    on_error: retry
+    max_retries: 2
+
+  - name: Write_CSV
+    action: csv.write
+    with:
+      file_path: ${config.output_path}
+      data: ${config.output_path}
+      columns: ["Currency", "Date", "Buying Transfer Rate"]
+      encoding: "utf-8"
+    output_var: csv_writing_result
+    on_error: retry
+    max_retries: 2
+
+  - name: Close_Browser
+    action: web.close
+    with:
+      selector: '.react-accept-recommended-cookies'
+    output_var: browser
+    on_error: retry
+    max_retries: 2
+
+  - name: Email_CSV
+    action: email.send
+    with:
+      to: ${config.email.to}
+      subject: ${config.email.subject}
+      body: ${config.email.body}
+      smtp_host: "smtp.example.com"
+      smtp_port: 587
+      smtp_user: "user@example.com"
+      smtp_password: "password"
+      use_tls: true
+      dry_run: ${config.dry_run}
+    output_var: email_result
+    on_error: retry
+    max_retries: 2
+
+  - name: Handle_Failures
+    action: web.screenshot
+    with:
+      path: ./screenshots/failure.png
+    output_var: browser
+    on_error: continue
+    max_retries: 2
+
+  - name: Retry_Open_Page
+    action: web.open
+    with:
+      url: ${config.url}
+      headless: ${config.headless}
+      timeout: 60
+    output_var: browser
+    on_error: continue
+    max_retries: 2
+
+  - name: Retry_Select_Currencies
+    action: logic.loop
+    with:
+      items: ${config.currencies}
+      item_var: currency
+    steps:
+      - name: Retry_Select_Currency
+        action: web.select_option
+        with:
+          selector: '#dropdownCurrency'
+          value: ${currency}
+          index: 0
+        output_var: browser
+        on_error: continue
+        max_retries: 2
+
+  - name: Retry_Read_Table
+    action: web.get_table
+    with:
+      selector: '.table'
+      columns: ['Period', 'Buying Rates Transfer']
+      numeric_columns: ['Buying Rates Transfer']
+      min_rows: 1
+      timeout: 60
+    output_var: table_data
+    on_error: continue
+    max_retries: 2
+
+  - name: Retry_Write_CSV
+    action: csv.write
+    with:
+      file_path: ${config.output_path}
+      data: ${config.output_path}
+      columns: ["Currency", "Date", "Buying Transfer Rate"]
+      encoding: "utf-8"
+    output_var: csv_writing_result
+    on_error: continue
+    max_retries: 2
+
+  - name: Retry_Email_CSV
+    action: email.send
+    with:
+      to: ${config.email.to}
+      subject: ${config.email.subject}
+      body: ${config.email.body}
+      smtp_host: "smtp.example.com"
+      smtp_port: 587
+      smtp_user: "user@example.com"
+      smtp_password: "password"
+      use_tls: true
+      dry_run: ${config.dry_run}
+    output_var: email_result
+    on_error: continue
+    max_retries: 2
+
+  - name: Handle_Failures_Log
+    action: web.screenshot
+    with:
+      path: ./screenshots/failures.log
+    output_var: browser
+    on_error: continue
+    max_retries: 2

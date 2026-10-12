@@ -1,0 +1,48 @@
+ai.decide           base_url, fallback_to_ollama, question, questions, state, timeout
+ai.extract          base_url, image_path, instructions, model, schema, text, timeout
+ai.prompt           base_url, format, image_path, model, prompt, system, temperature, timeout
+csv.read            file_path, delimiter, encoding, clean_headers, as_text
+csv.write           file_path, data, columns, encoding, append
+date.calc           date, input_format, add_days, add_weeks, add_months, add_years, snap, format
+email.send          to, cc, bcc, subject, body, html, attachments, smtp_host, smtp_port, smtp_user, smtp_password, use_tls, dry_run
+excel.read          file_path, sheet_name, clean_headers, as_text
+excel.write         file_path, data, sheet_name, columns
+file.copy           source, destination, overwrite
+file.create_folder  path
+file.delete         path, missing_ok
+file.exists         path
+file.list           path, pattern, recursive, type, sort_by, descending, limit
+file.move           source, destination, overwrite
+file.read_text      path, encoding, format
+file.unzip          source, destination, overwrite
+file.write_text     path, content, append, encoding
+file.zip            source, destination, overwrite
+flow.call           flow, inputs, outputs, propagate_sessions, inherit_config
+flow.fail           message, category
+flow.return         value
+http.download       url, target_path, timeout
+http.request        url, method, headers, payload, timeout
+logic.append        target, var_name, list_var, item, extend
+logic.delay         seconds
+logic.if            condition, left, operator, right
+logic.loop          items, item_var
+logic.set_variable  name, value
+web.check           selector, label, timeout
+web.click           selector, label, optional, timeout, wait_for_response, response_timeout
+web.close           (none)
+web.download        selector, label, target_path, timeout
+web.get_attribute   selector, label, attribute, name
+web.get_table       selector, label, columns, numeric_columns, add_columns, min_rows, timeout
+web.get_text        selector, label
+web.hover           selector, label, timeout
+web.is_visible      selector, label, timeout
+web.open            url, headless, timeout
+web.press           selector, label, key
+web.screenshot      path, full_page
+web.scroll          selector, label, direction, amount
+web.select_option   selector, label, value, text, label_text, index, ai_match, base_url, systemone_url, fallback_to_ollama, timeout
+web.switch_tab      index, title, url_pattern
+web.type            selector, label, text
+web.uncheck         selector, label, timeout
+web.upload_file     selector, label, file_path, path
+web.wait_for        selector, label, state, timeout

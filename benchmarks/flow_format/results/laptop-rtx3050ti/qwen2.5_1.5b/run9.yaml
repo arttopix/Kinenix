@@ -1,0 +1,133 @@
+```yaml
+name: Collect BT Buying Transfer Rates
+description: Collects Bank of Thailand buying transfer rates for several currencies over one month and emails them as a CSV file.
+variables:
+  config: {}
+  url: 'https://example.com/bank-of-thailand'
+  currencies: ['THB', 'USD', 'JPY']
+  month: {}
+  month.date: {}
+  month.add_months: 1
+  output_path: './reports/bot_transfer_rates.csv'
+  headless: false
+  email.to: 'example@example.com'
+  email.subject: 'Bank of Thailand Buying Transfer Rates Report'
+  email.body: 'This is a test email body.'
+  email.dry_run: false
+steps:
+  - name: Setup Variables
+    action: flow.call
+    with:
+      flow: get_month
+      inputs: {}
+      outputs: [config]
+      propagate_sessions: false
+      inherit_config: false
+  - name: Get First and Last Day of Month
+    action: logic.append
+    with:
+      target: config
+      item_var: 'month'
+      item: {'date': 'today', 'add_months': -1}
+      extend: true
+  - name: Accept Cookie Banner
+    action: flow.call
+    with:
+      flow: accept_cookie_banner
+      inputs: {}
+      outputs: [config]
+      propagate_sessions: false
+      inherit_config: false
+  - name: Open URL
+    action: http.request
+    with:
+      url: ${config.url}
+      method: GET
+      headers: {}
+      payload: {}
+      timeout: 30
+      on_error: retry
+      max_retries: 2
+      steps: []
+  - name: Filter Currency
+    action: logic.append
+    with:
+      target: config
+      item_var: 'currencies'
+      item: ${config.currencies}
+      extend: true
+  - name: Select Dates
+    action: logic.append
+    with:
+      target: config
+      item_var: 'dates'
+      item: ${date.calc({
+        input_format: 'YYYY-MM-DD',
+        year: '${config.month.date}',
+        add_months: '${config.month.add_months}',
+        snap: true
+      })}
+      extend: true
+  - name: Click Search Button
+    action: logic.append
+    with:
+      target: config
+      item_var: 'button'
+      item: {'label': 'Search', 'text': 'Search'}
+      extend: true
+  - name: Read Table
+    action: logic.append
+    with:
+      target: config
+      item_var: 'table'
+      item: {'label': 'Buying Transfer Rate'}
+      extend: true
+  - name: Write to CSV
+    action: logic.append
+    with:
+      target: config
+      item_var: 'csv'
+      item: {'columns': ['Currency', 'Date', 'Buying Transfer Rate']}
+      extend: true
+  - name: Open Browser
+    action: flow.call
+    with:
+      flow: open_browser
+      inputs: {}
+      outputs: [config]
+      propagate_sessions: false
+      inherit_config: false
+  - name: Write CSV to File
+    action: logic.append
+    with:
+      target: config
+      item_var: 'output'
+      item: ${config.output_path}
+      extend: true
+  - name: Close Browser
+    action: logic.append
+    with:
+      target: config
+      item_var: 'close'
+      item: {'label': 'Close', 'text': 'Close'}
+      extend: true
+  - name: Send Email
+    action: email.send
+    with:
+      to: ${config.email.to}
+      cc: []
+      bcc: []
+      subject: ${config.email.subject}
+      body: ${config.email.body}
+      html: []
+      attachments: []
+      smtp_host: 'smtp.example.com'
+      smtp_port: 587
+      smtp_user: 'user@example.com'
+      smtp_password: 'password'
+      use_tls: true
+      dry_run: false
+      on_error: retry
+      max_retries: 2
+      steps: []
+```

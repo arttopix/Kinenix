@@ -1,0 +1,127 @@
+```yaml
+name: Bank of Thailand Transfer Rates
+description: Collect and email Bank of Thailand buying transfer rates for several currencies over one month.
+variables:
+  config: {}
+  first_day: ""
+  last_day: ""
+  currency_table: []
+  csv_data: []
+steps:
+  - name: Set Config
+    action: logic.set_variable
+    with:
+      name: config
+      value: ${config}
+  - name: Calculate First and Last Day
+    action: date.calc
+    with:
+      date: ${config.month.date}
+      add_months: ${config.month.add_months}
+    output_var: first_day
+    on_error: retry
+    max_retries: 2
+  - name: Calculate Last Day
+    action: date.calc
+    with:
+      date: ${first_day}
+      add_months: 1
+      add_days: -1
+    output_var: last_day
+    on_error: retry
+    max_retries: 2
+  - name: Open Bank of Thailand Website
+    action: web.open
+    with:
+      url: ${config.url}
+      headless: ${config.headless}
+    on_error: retry
+    max_retries: 2
+  - name: Accept Cookie Banner
+    action: web.click
+    with:
+      selector: 'button[aria-label="Accept recommended cookies"]'
+    on_error: continue
+  - name: Select Currency Filter
+    action: web.click
+    with:
+      selector: '#dropdownCurrency'
+    on_error: retry
+    max_retries: 2
+  - name: Select Currencies
+    action: logic.loop
+    with:
+      items: ${config.currencies}
+      item_var: currency
+    steps:
+      - name: Select Currency
+        action: web.click
+        with:
+          selector: '.currency-filter input[name="currencyCheck"][value="<currency>"]'
+    on_error: retry
+    max_retries: 2
+  - name: Set Date Range
+    action: web.click
+    with:
+      selector: '.react-datepicker__current-month'
+    on_error: retry
+    max_retries: 2
+  - name: Select Start Date
+    action: web.click
+    with:
+      selector: '.react-datepicker__day--0${date.calc(date=first_day, format="d").output_var}'
+    on_error: retry
+    max_retries: 2
+  - name: Select End Date
+    action: web.click
+    with:
+      selector: '.react-datepicker__day--${date.calc(date=last_day, format="d").output_var}'
+    on_error: retry
+    max_retries: 2
+  - name: Search for Rates
+    action: web.click
+    with:
+      selector: 'button.historical-btn'
+    on_error: retry
+    max_retries: 2
+  - name: Collect Currency Tables
+    action: logic.loop
+    with:
+      items: ${config.currencies}
+      item_var: currency
+    steps:
+      - name: Select Currency Tab
+        action: web.click
+        with:
+          selector: '${currency}'
+    - name: Get Table Data
+      action: web.get_table
+      with:
+        selector: '.table-container'
+        columns: ['Period', 'Buying Rates Transfer']
+        add_columns: [{'name': 'Currency', 'value': '${currency}'}]
+      output_var: currency_table
+    - name: Append Table Data to CSV Data
+      action: logic.append
+      with:
+        target: csv_data
+        list_var: currency_table
+  - name: Write CSV Data
+    action: csv.write
+    with:
+      file_path: ${config.output_path}
+      data: ${csv_data}
+      columns: ['Currency', 'Date', 'Buying Transfer Rate']
+    on_error: retry
+    max_retries: 2
+  - name: Close Browser
+    action: web.close
+  - name: Send Email
+    action: email.send
+    with:
+      to: ${config.email.to}
+      subject: ${config.email.subject}
+      body: ${config.email.body}
+      attachments: ${config.output_path}
+      dry_run: ${config.email.dry_run}
+```
