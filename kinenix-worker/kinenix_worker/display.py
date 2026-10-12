@@ -12,13 +12,6 @@ from rich.text import Text
 from .hub_client import HubClient
 
 
-FLOW_SYNC_NOTES = {
-    "created": Text("compiled from flow.md", style="cyan"),
-    "compiled": Text("recompiled: flow.md had changes", style="cyan"),
-    "json_newer": Text("edited after flow.md; ran flow.json as is", style="yellow"),
-}
-
-
 def _yes_no(value: bool) -> Text:
     return Text("yes", style="green") if value else Text("no", style="bold red")
 
@@ -77,9 +70,6 @@ def print_run_result(console: Console, res: Dict[str, Any]) -> None:
     grid.add_row("Job ID", res["job_id"])
     if failed:
         grid.add_row("Error", Text(str(res["error"]), style="red"))
-    note = FLOW_SYNC_NOTES.get(res.get("flow_sync"))
-    if note:
-        grid.add_row("flow.json", note)
 
     console.print(Panel(
         grid,

@@ -8,6 +8,7 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
 from kinenix.actions import ActionRegistry
+from kinenix.engine.markdown import flow_to_markdown, load_flow
 from kinenix.models.flow import FlowDefinition
 
 app = FastAPI(
@@ -120,10 +121,17 @@ def list_actions():
     return {"actions": action_list}
 
 
+def _flow_md(target_path: Path) -> Path:
+    """Flows are flow.md files: a bundle folder means its flow.md, and an old flow.json path its flow.md."""
+    if target_path.is_dir() or target_path.name == "flow.json":
+        return (target_path if target_path.is_dir() else target_path.parent) / "flow.md"
+    return target_path
+
+
 @app.get("/api/flows", response_model=List[FlowSummary])
 def list_flows():
     """
-    Scans the workspace for all available flow.json files.
+    Scans the workspace for all available flow.md files.
     """
     root = get_workspace_root()
     flows_dir = root / "flows"
@@ -131,10 +139,9 @@ def list_flows():
         return []
 
     summaries = []
-    for flow_path in sorted(flows_dir.glob("**/flow.json")):
+    for flow_path in sorted(flows_dir.glob("**/flow.md")):
         try:
-            content = flow_path.read_text(encoding="utf-8")
-            data = json.loads(content)
+            data = load_flow(flow_path).model_dump(exclude_none=True)
             rel_path = str(flow_path.relative_to(root)).replace("\\", "/")
             bundle_dir = str(flow_path.parent.relative_to(root)).replace("\\", "/")
             has_cfg = (
@@ -159,31 +166,24 @@ def list_flows():
 
 
 @app.get("/api/flow")
-def get_flow(path: str = Query(..., description="Relative or absolute path to flow.json")):
+def get_flow(path: str = Query(..., description="Relative or absolute path to flow.md or its bundle folder")):
     """
     Loads and parses a flow definition and its configuration.
     """
     root = get_workspace_root()
     target_path = _resolve_safe_flow_path(path)
 
-    if target_path.is_dir():
-        target_path = target_path / "flow.json"
+    target_path = _flow_md(target_path)
 
     if not target_path.is_file():
         raise HTTPException(status_code=404, detail=f"Flow file not found: {path}")
 
-    try:
-        raw_text = target_path.read_text(encoding="utf-8")
-        flow_data = json.loads(raw_text)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to read flow JSON: {e}")
-
-    # Validate against Pydantic schema
+    # flow.md is parsed into the same structure the editor works with
     validation_error = None
     try:
-        FlowDefinition(**flow_data)
+        flow_data = load_flow(target_path).model_dump(exclude_none=True)
     except Exception as e:
-        validation_error = str(e)
+        raise HTTPException(status_code=400, detail=f"Failed to read flow.md: {e}")
 
     # Auto-load associated configuration if available
     config_data = {}
@@ -216,31 +216,17 @@ def save_flow(req: SaveFlowRequest):
     root = get_workspace_root()
     target_path = _resolve_safe_flow_path(req.path)
 
-    if target_path.is_dir():
-        target_path = target_path / "flow.json"
+    target_path = _flow_md(target_path)
 
     # Schema validation before saving
     try:
-        flow_def = FlowDefinition(**req.flow)
+        flow_def = FlowDefinition(**{k: v for k, v in req.flow.items() if k != "$schema"})
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Schema Validation Error: {e}")
 
-    # Preserve schema reference if present in target file
-    schema_ref = None
-    if target_path.is_file():
-        try:
-            old_data = json.loads(target_path.read_text(encoding="utf-8"))
-            schema_ref = old_data.get("$schema")
-        except Exception:
-            pass
-
-    save_payload = req.flow.copy()
-    if schema_ref and "$schema" not in save_payload:
-        save_payload = {"$schema": schema_ref, **save_payload}
-
     try:
         target_path.parent.mkdir(parents=True, exist_ok=True)
-        target_path.write_text(json.dumps(save_payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        target_path.write_text(flow_to_markdown(flow_def), encoding="utf-8")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to write file to disk: {e}")
 
@@ -277,13 +263,12 @@ def update_single_step(req: UpdateStepRequest):
     root = get_workspace_root()
     target_path = _resolve_safe_flow_path(req.path)
 
-    if target_path.is_dir():
-        target_path = target_path / "flow.json"
+    target_path = _flow_md(target_path)
 
     if not target_path.is_file():
         raise HTTPException(status_code=404, detail=f"Flow file not found: {req.path}")
 
-    flow_data = json.loads(target_path.read_text(encoding="utf-8"))
+    flow_data = load_flow(target_path).model_dump(exclude_none=True)
     steps = flow_data.get("steps", [])
 
     updated = _update_step_in_list(steps, req.step_id, req.step)
@@ -292,11 +277,11 @@ def update_single_step(req: UpdateStepRequest):
 
     # Validate updated flow structure
     try:
-        FlowDefinition(**flow_data)
+        flow_def = FlowDefinition(**flow_data)
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Step update resulted in invalid flow: {e}")
 
-    target_path.write_text(json.dumps(flow_data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    target_path.write_text(flow_to_markdown(flow_def), encoding="utf-8")
 
     return {
         "status": "success",
@@ -315,15 +300,12 @@ def run_flow_endpoint(req: RunFlowRequest):
     """
     Executes a flow from Studio within safe containment and returns execution telemetry.
     """
-    target_path = _resolve_safe_flow_path(req.path)
-    if target_path.is_dir():
-        target_path = target_path / "flow.json"
+    target_path = _flow_md(_resolve_safe_flow_path(req.path))
 
     if not target_path.is_file():
         raise HTTPException(status_code=404, detail=f"Flow file not found: {req.path}")
 
     from kinenix.engine.interpreter import FlowInterpreter
-    from kinenix.engine.markdown import load_flow
 
     try:
         flow_def = load_flow(target_path)

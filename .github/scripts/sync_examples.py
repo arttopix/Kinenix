@@ -5,7 +5,7 @@ Usage:
     python .github/scripts/sync_examples.py --check   report differences without writing (exit 1 when out of date)
 
 flows/examples/ is the source. The package holds a copy because pip installs only what is inside the package.
-Per example, the copy contains flow.md, flow.json, README.md, the config template as config/config.json,
+Per example, the copy contains flow.md, README.md, the config template as config/config.json,
 subflows/*.md, and input data in assets/ (screenshots and other outputs are left out).
 """
 import sys
@@ -24,7 +24,6 @@ def expected_files(name: str) -> Dict[str, Path]:
     src = SOURCE / name
     files = {
         "flow.md": src / "flow.md",
-        "flow.json": src / "flow.json",
         "README.md": src / "README.md",
         "config/config.json": src / "config" / "config.template.json",
     }

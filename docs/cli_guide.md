@@ -60,7 +60,7 @@ kinenix init "Get stock data" --dir C:\bots\stocks     # choose the folder yours
 | :--- | :--- |
 | `requirements.md` | The requirements (RQ), with sections to fill in: goal, steps, changeable settings, secrets, output, errors, schedule |
 | `AGENTS.md`, `CLAUDE.md` | Instructions for the AI assistant that turns `requirements.md` into `flow.md`: spec links, `kinenix actions`, config and secret rules, and `kinenix validate` before handing back |
-| `flow.md`, `flow.json` | A one-step placeholder flow named after the task, so `validate` and `run` work from the start |
+| `flow.md` | A one-step placeholder flow named after the task, so `validate` and `run` work from the start |
 | `config/config.json` | Empty settings (`{}`) |
 | `.env.example`, `.gitignore` | Where secrets go, and keeping `.env`, `output/`, and `logs/` out of git |
 | `README.md` | The workflow: requirements, AI assistant, validate, run |
@@ -119,7 +119,7 @@ kinenix run rpachallenge
 kinenix run examples/rpachallenge
 
 # Run by direct file path
-kinenix run flows/examples/rpachallenge/flow.json
+kinenix run flows/examples/rpachallenge
 ```
 
 ---
@@ -159,7 +159,7 @@ See the [Kinenix Hub Guide](hub.md#2-worker-authentication) for setup details.
 When running `kinenix run <input>`, the resolver searches candidate paths in the following priority order:
 
 1. **Exact File Path:** Resolves directly if `<input>` is an existing file path.
-2. **Project Bundle Directory:** If `<input>` is a directory containing `flow.json`, executes `<input>/flow.json`.
+2. **Project Bundle Directory:** If `<input>` is a directory containing `flow.md`, executes `<input>/flow.md`.
 3. **Appended `.json`:** Checks if `<input>.json` exists.
 4. **Discovered Flow Alias:** Matches aliases discovered by `kinenix list`.
 5. **Project Search Directories:** Searches candidate subdirectories (`flows/`, `examples/`, `~/.kinenix/flows/`).

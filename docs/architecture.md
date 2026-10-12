@@ -64,7 +64,7 @@ sequenceDiagram
     participant Target as External Target (Web / Excel / AI)
     participant Log as Structured JSON Log
 
-    CLI->>Engine: Load flow.json (compiling flow.md if needed) and config.json
+    CLI->>Engine: Load flow.md and config.json
     Engine->>Context: Initialize variables (${config.*}, ${env.*}, --vars)
 
     loop Each step
@@ -138,7 +138,7 @@ Today, workers send telemetry to the Hub over HTTP (`POST /api/v1/telemetry`); s
 ## 6. GitOps Deployment (Planned)
 
 1. **Author:** Build and tune flows locally with the CLI or `kinenix-studio`.
-2. **Version:** Commit `flow.json`, `flow.md`, `config/`, and assets to Git.
+2. **Version:** Commit `flow.md`, `subflows/`, `config/`, and assets to Git.
 3. **Validate:** CI runs `pytest` and flow schema validation on every pull request.
 4. **Release:** Hub and workers pull approved, versioned bundles via Git tags, release branches, or webhooks.
 

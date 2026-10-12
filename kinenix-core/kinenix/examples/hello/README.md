@@ -18,7 +18,7 @@ Alex,"Hello, Alex!"
 ## Try changing it
 
 - **Change the data:** edit `names` or `greeting` in `config/config.json` and run again. The flow itself does not change.
-- **Change the flow:** edit `flow.md` (the source; `flow.json` is rebuilt from it on the next run), for example add a column to the row in step 1.
+- **Change the flow:** edit `flow.md`, for example add a column to the row in step 1.
 - **Change the subflow:** `subflows/make_greeting.md` builds one row. Add a field to its `value`, and add the column to `columns` in step 3 of `flow.md`.
 - **See an error handled:** set `"names": []`. Step 2 stops the flow with a clear business message instead of writing an empty file.
 
@@ -27,7 +27,6 @@ Alex,"Hello, Alex!"
 | File | Purpose |
 | :--- | :--- |
 | `flow.md` | The flow, written in Markdown. This is the file you edit. |
-| `flow.json` | Build output of `flow.md`; do not edit it by hand. |
 | `config/config.json` | Values the flow reads as `${config.*}`. |
 | `subflows/make_greeting.md` | A subflow: `flow.md` calls it for each name with `flow.call`. |
 | `output/` | Created when the flow runs. |

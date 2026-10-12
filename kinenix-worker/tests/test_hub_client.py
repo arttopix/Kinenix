@@ -1,4 +1,3 @@
-import json
 import logging
 import socket
 from pathlib import Path
@@ -7,6 +6,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 
+from kinenix.engine.markdown import flow_to_markdown
+from kinenix.models.flow import FlowDefinition
 from kinenix_worker.hub_client import HubClient, resolve_worker_id
 from kinenix_worker.runner import WorkerRunner
 
@@ -79,8 +80,8 @@ def test_ping_success_and_unreachable():
 
 
 def _write_flow(tmp_path: Path, steps) -> Path:
-    flow_file = tmp_path / "flow.json"
-    flow_file.write_text(json.dumps({"name": "Heartbeat Test Flow", "steps": steps}), encoding="utf-8")
+    flow_file = tmp_path / "flow.md"
+    flow_file.write_text(flow_to_markdown(FlowDefinition(name="Heartbeat Test Flow", steps=steps)), encoding="utf-8")
     return flow_file
 
 

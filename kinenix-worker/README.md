@@ -87,12 +87,12 @@ Kinenix Worker System Information:
 
 ### C. Run RPA Challenge Example Flow
 ```bash
-kinenix-worker run flows/examples/rpachallenge/flow.json
+kinenix-worker run flows/examples/rpachallenge
 ```
 
 To run inside an isolated sandbox directory:
 ```bash
-kinenix-worker run flows/examples/rpachallenge/flow.json --sandbox
+kinenix-worker run flows/examples/rpachallenge --sandbox
 ```
 
 ### D. Connect to the Hub
@@ -201,7 +201,7 @@ options:
 ```
 
 ### `kinenix-worker run` Options
-- `flow_path`: Path to `flow.json` or project bundle directory.
+- `flow_path`: Flow name, project bundle directory, or path to a `flow.md`.
 - `--sandbox`: Execute inside an isolated temporary sandbox (`~/.kinenix/workspaces/<job_id>`).
 - `--vars`: JSON string of variables to override.
 - `--log-dir`: Also write a local JSON execution log to this directory. Telemetry to the Hub does not depend on it.

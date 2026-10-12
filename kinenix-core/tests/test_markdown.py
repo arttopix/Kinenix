@@ -7,7 +7,7 @@ from kinenix.engine.markdown import (
     flow_to_markdown,
     markdown_to_flow,
     load_flow,
-    compile_markdown_to_json,
+    flow_to_json_text,
     export_json_to_markdown,
 )
 
@@ -177,10 +177,10 @@ def test_compile_and_export_cli_functions(tmp_path):
     md_file = tmp_path / "flow.md"
     md_file.write_text(sample_md, encoding="utf-8")
 
-    # Compile to JSON
-    json_out = compile_markdown_to_json(md_file)
-    assert json_out.exists()
-    assert json_out.name == "flow.json"
+    # The compiled form, as `kinenix compile` shows it
+    json_out = tmp_path / "compiled.json"
+    json_out.write_text(flow_to_json_text(load_flow(md_file)), encoding="utf-8")
+    assert not (tmp_path / "flow.json").exists()
 
     data = json.loads(json_out.read_text(encoding="utf-8"))
     assert data["name"] == "CLI Test"

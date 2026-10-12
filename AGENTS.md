@@ -10,7 +10,7 @@ Entry point for AI coding assistants (any vendor) working on **Kinenix**, a loca
 | `kinenix-worker/` | Unattended runner with schedule and file-watch triggers | Implemented |
 | `kinenix-studio/` | FastAPI server + React/Vite web UI for viewing and editing flows | Paused: kept and tested, no new features (`docs/roadmap.md`) |
 | `kinenix-hub/` | FastAPI + SQLAlchemy telemetry receiver and dashboard | Early (HTTP push, SQLite default) |
-| `flows/` | Project bundles (`flow.json`, `flow.md`, `config/`, `assets/`, `subflows/`); `@shared/` holds reusable subflows | |
+| `flows/` | Project bundles (`flow.md`, `config/`, `assets/`, `subflows/`); `@shared/` holds reusable subflows | |
 | `schemas/` | JSON schemas for flows and execution logs | |
 | `docs/` | Human and AI reference documentation | |
 | `.agents/rules/` | Detailed engineering rules | |
@@ -18,7 +18,7 @@ Entry point for AI coding assistants (any vendor) working on **Kinenix**, a loca
 Key code locations:
 - Interpreter and retry/fallback logic: `kinenix-core/kinenix/engine/interpreter.py`
 - `${var}` expression resolution (no `eval`): `kinenix-core/kinenix/engine/evaluator.py`
-- `flow.md` to `flow.json` compiler: `kinenix-core/kinenix/engine/markdown.py`
+- `flow.md` parser (compiles to the in-memory `FlowDefinition` on every run): `kinenix-core/kinenix/engine/markdown.py`
 - Action base class and registry: `kinenix-core/kinenix/actions/base.py`, `registry.py`
 - Hub auth (worker API key, dashboard Basic Auth): `kinenix-hub/kinenix_hub/security.py`
 
@@ -54,6 +54,8 @@ CLI output in `kinenix-worker` and `kinenix hub` is rendered with `rich` (`kinen
 
 Run the test suites for every module you touch before reporting work as done. GitHub Actions (`.github/workflows/ci.yml`) runs the same commands on every push and pull request to `main` and `dev`; keep the workflow in sync when these commands change.
 
+A flow is one `flow.md` file; there is no `flow.json` (the runner and the worker read `flow.md` directly, `kinenix compile` prints the compiled form, and `kinenix export-md` converts old JSON flows). Do not create `flow.json` files.
+
 Users keep their own flows in a flows folder outside this repository (`workspace.py`, default `~/kinenix-flows`). `flows/` here holds only the examples shipped with Kinenix and shared subflows; do not add user or business flows to it.
 
 After editing `flows/examples/hello`, `bot_fx_rate`, or `rpachallenge`, run `python .github/scripts/sync_examples.py`: the package ships copies of them for `kinenix init --example`, and a test fails when the copies differ. The new-project template (`requirements.md`, an `AGENTS.md` for the user's AI assistant, and the rest) lives in `kinenix-core/kinenix/templates/new_project/`.
@@ -83,9 +85,9 @@ Read the matching file before working in that area:
 
 1. **Never commit or push without an explicit instruction from the user.** Finish the work, summarize it, and wait. (`collaboration.md`, `git_workflow.md`)
 2. **Present a plan before large changes.** (`collaboration.md`)
-3. **No secrets in code, `flow.json`, or `config.json`.** Read them from environment variables. (`security.md`)
+3. **No secrets in code, `flow.md`, or `config.json`.** Read them from environment variables. (`security.md`)
 4. **No `eval()` or arbitrary code execution** when evaluating flow expressions.
-5. **Update `docs/actions_reference.md` in the same change** whenever an action is added or modified, with both `flow.md` and `flow.json` examples.
+5. **Update `docs/actions_reference.md` in the same change** whenever an action is added or modified, with a `flow.md` example.
 6. **No emojis anywhere:** code, comments, UI text, commits, pull requests, issues, release notes, and documentation.
 7. **Keep business data local.** Do not send flow data to third-party cloud APIs unless an action is explicitly designed for it.
 8. **Use Conventional Commits** (`feat:`, `fix:`, `docs:`, `test:`, ...).

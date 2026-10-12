@@ -5,7 +5,7 @@ This folder is a Kinenix flow project. Kinenix runs automation flows written in 
 ## Workflow
 
 1. Read `requirements.md`. If something needed to build the flow is missing or ambiguous, ask the user before writing it.
-2. Write `flow.md` following the Flow Markdown specification. Do not edit `flow.json`: it is built from `flow.md` automatically.
+2. Write `flow.md` following the Flow Markdown specification. `flow.md` is the only flow file; do not create a `flow.json`.
 3. Put every value the requirements say must be changeable (URLs, lists, dates, paths, recipients) in `config/config.json` and read it as `${config.name}`.
 4. Put secrets (passwords, API keys, tokens) only in `.env` (see `.env.example`) and read them as `${env.NAME}`. Never write a secret in `flow.md` or `config/config.json`.
 5. Run `kinenix validate .` and fix every reported problem.
@@ -30,3 +30,16 @@ This folder is a Kinenix flow project. Kinenix runs automation flows written in 
 - **Results:** write outputs under `output/`, which is not committed.
 - **Keep data local:** do not send flow data to third-party services unless the requirements ask for it.
 - Keep `flow.md` readable: one action per step, descriptive step names.
+
+## Mistakes to avoid
+
+These are the mistakes AI assistants make most often in `flow.md`; `kinenix validate` reports each of them.
+
+- **The action goes in the step heading**, in backticks and parentheses: `### 3. Open Page (`web.open`)`. A heading without it is not a step.
+- **Sub-steps** of `logic.loop` and `logic.if` are bullets under `- **Sub-steps:**`, each with its action, and their parameters are indented below:
+  ```markdown
+  - **Sub-steps:**
+    - Tick Currency (`web.check`):
+      - **selector:** `input[value='${currency}']`
+  ```
+- **Only the parameters an action accepts** (`kinenix actions <prefix>` lists them); `on_error`, `max_retries`, `retry_interval`, `output_var`, and `condition` belong to every step.

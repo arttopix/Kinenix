@@ -14,12 +14,11 @@ Enterprise automation workflows often contain multiple sub-processes, data files
 flows/
 ├── @shared/                                # Cross-project reusable library
 │   ├── web_login_sso.json                  # SSO login component
-│   └── send_email.json                     # Reusable Gmail/SMTP component
+│   └── send_email.md                       # Reusable Gmail/SMTP component
 │
 └── accounting/                             # Department / Business Domain
     └── invoice_tax_filing/                 # 1 Self-Contained Project Bundle
         ├── flow.md                         # Main flow, the file you edit (source of truth)
-        ├── flow.json                       # Build output of flow.md; do not edit by hand
         ├── config.json                     # Project-specific configuration (Auto-loaded)
         ├── .env                            # Optional local secrets (Git-ignored)
         ├── subflows/                       # Project-specific subflows
@@ -119,12 +118,12 @@ The project bundle structure directly enables a robust deployment pipeline to un
 - Prior to execution, the worker unpacks the project bundle into an isolated, per-job workspace directory:
   ```text
   ~/.kinenix/workspaces/job_20260911_001/
-  ├── flow.json
+  ├── flow.md
   ├── subflows/
   └── assets/
   ```
 - This ensures complete filesystem isolation, eliminates cross-job file locking or corruption, and allows clean workspace disposal after job completion.
 
 ### Phase 5: Execution & Telemetry
-- Worker executes the bundle: `kinenix run .../flow.json`.
+- Worker executes the bundle: `kinenix-worker run <bundle>`.
 - Step results, business metrics, and failure screenshots are streamed in real time to the Hub dashboard.

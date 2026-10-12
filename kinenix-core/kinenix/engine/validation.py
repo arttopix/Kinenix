@@ -11,7 +11,7 @@ from .. import actions  # noqa: F401  (imports every action module so the regist
 from ..actions.registry import ActionRegistry
 from ..models.flow import FlowDefinition, Step
 
-# Keys that belong to the step itself; seeing them in parameters means the flow.json was written by hand
+# Keys that belong to the step itself; seeing them in parameters means a converted flow or a typo put them there
 STEP_LEVEL_KEYS = {
     "on_error": "error_handler",
     "max_retries": "error_handler",

@@ -154,10 +154,12 @@ Every step result and failure inside the loop records `loop.index`, `loop.of`, a
 
 Kinenix 0.2.0b3 and older do not know `## On Error` and `## Finally`. Their parser treats the steps under these headings as ordinary steps, so an old worker would, for example, send the error email on every successful run.
 
-- From 0.2.0b4, a flow may declare the version it needs: `> Requires: kinenix>=0.2.0b4`. Versions from 0.2.0b4 refuse to run a flow that needs a newer version, with a clear message. `kinenix compile` adds the line automatically when the flow uses On Error, Finally, `item_label`, `inherit_config`, or a `.md` subflow.
+- From 0.2.0b4, a flow may declare the version it needs: `> Requires: kinenix>=0.2.0b4`. Versions from 0.2.0b4 refuse to run a flow that needs a newer version, with a clear message. `kinenix validate` reports a flow that uses On Error, Finally, `item_label`, or `inherit_config` without this line.
 - 0.2.0b3 and older cannot be changed. The release notes and `docs/releasing.md` say: **upgrade every worker before deploying a flow that uses On Error or Finally.** The Hub dashboard shows each worker's Kinenix version (from heartbeats) to make this visible.
 
-## 4. `flow.json` changes
+## 4. Compiled form changes
+
+Flows exist only as `flow.md` (decided after this design was first written); the structure below is the compiled form that `kinenix compile` prints and that the runner builds in memory.
 
 ```json
 {
