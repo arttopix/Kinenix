@@ -111,6 +111,7 @@ Paused on 2026-10-08. Flows are written as `flow.md` from a `requirements.md` wi
 - [x] Web dashboard for workers and executions, with per-execution step details
 - [x] Command line: first-run setup saved to `~/.kinenix/hub.env`, `kinenix hub status`, `logs`, `setup`, `show-key`, and `rich` output
 - [x] Default database in `~/.kinenix/hub.db`, outside the source tree
+- [x] Schema migrations applied at start (built-in runner, `schema_version` table, no extra dependency) and SQLite WAL mode, so existing databases upgrade in place and readers do not block workers
 - [x] AI failure classification with rule-based fallback
 - [x] Worker API key authentication
 - [x] Dashboard authentication (HTTP Basic Auth)
