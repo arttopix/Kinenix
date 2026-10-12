@@ -1,0 +1,125 @@
+```yaml
+name: Bank of Thailand Buying Transfer Rates Report
+description: Collect Bank of Thailand buying transfer rates for several currencies over one month and email them as a CSV file.
+variables:
+  headless: true
+  month: {"date": "today", "add_months": -1}
+  start_date: date.calc(${config.month.date}, input_format="MM/dd/yyyy", add_months=-1)
+  end_date: date.calc(${config.month.date}, input_format="MM/dd/yyyy")
+  url: "https://www.bot.or.th/"
+  currencies: ["USD", "EUR", "JPY", "GBP", "AUD", "CAD"]
+  output_path: "./output/bank_of_thailand_rates.csv"
+  email.to: "example@example.com"
+  email.subject: "Monthly Bank of Thailand Buying Transfer Rates Report"
+  email.body: "Please find attached the monthly Bank of Thailand Buying Transfer Rates Report."
+  email.dry_run: false
+  retry_interval: 5
+steps:
+  - name: Open Browser and Accept Cookie
+    action: web.open
+    with: 
+      url: ${url}
+      headless: ${headless}
+    output_var: browser
+    on_error: retry
+    max_retries: 2
+
+  - name: Filter Currencies
+    action: logic.loop
+    with:
+      items: ${config.currencies}
+      item_var: currency
+    steps:
+      - name: Check Currency Filter
+        action: web.click
+        with: 
+          selector: "#dropdownCurrency"
+          label: "Filter Currencies"
+      - name: Select Currency
+        action: web.select_option
+        with: 
+          selector: ".currency-filter input"
+          label: "currencyCheck"
+          value: ${currency}
+          item_var: currency_value
+
+  - name: Set Start and End Dates
+    action: logic.loop
+    with:
+      items: ["start_date", "end_date"]
+      item_var: date
+    steps:
+      - name: Set Date Picker Value
+        action: web.type
+        with: 
+          selector: ".react-datepicker select >> nth=1"
+          label: "Year"
+          text: ${date.year}
+      - name: Set Month Picker Value
+        action: web.type
+        with: 
+          selector: ".react-datepicker select >> nth=0"
+          label: "Month"
+          text: ${date.month_name}
+      - name: Set Day Picker Value
+        action: web.type
+        with: 
+          selector: "day cell text"
+          label: "Day"
+          text: ${date.day}
+
+  - name: Search Rates
+    action: web.click
+    with: 
+      selector: ".button.historical-btn"
+    output_var: search_button_pressed
+    on_error: retry
+    max_retries: 2
+
+  - name: Extract Rates for Each Currency
+    action: logic.loop
+    with:
+      items: ${config.currencies}
+      item_var: currency
+    steps:
+      - name: Click Currency Tab
+        action: web.click
+        with: 
+          selector: ".currency-tab-button"
+          label: "${currency}"
+      - name: Extract Table
+        action: web.get_table
+        with: 
+          selector: ".currency-table"
+          columns: ["Period", "Buying Rates Transfer"]
+          add_columns: ["Currency"]
+          item_var: currency_data
+      - name: Write Rates to CSV
+        action: csv.write
+        with: 
+          file_path: ${output_path}
+          data: ${currency_data}
+          columns: ["Currency", "Date", "Buying Transfer Rate"]
+        on_error: retry
+        max_retries: 2
+
+  - name: Close Browser
+    action: web.close
+    output_var: browser_closed
+
+  - name: Email CSV File
+    action: email.send
+    with: 
+      to: ${email.to}
+      subject: ${email.subject}
+      body: ${email.body}
+      attachments: [${output_path}]
+      smtp_host: "smtp.example.com"
+      smtp_port: 587
+      smtp_user: "user@example.com"
+      smtp_password: "password"
+      use_tls: true
+      dry_run: ${email.dry_run}
+    on_error: retry
+    max_retries: 2
+```

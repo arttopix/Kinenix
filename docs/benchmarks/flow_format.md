@@ -4,23 +4,39 @@ Date: 2026-10-12. Kinenix 0.2.0b3 (development branch). Scripts and every genera
 
 ## Summary
 
-Kinenix flows are written by AI assistants from a requirement. We compared two formats for that file, Kinenix's `flow.md` and a YAML equivalent, by asking small local models to write the same flow in both formats.
+Kinenix flows are written by AI assistants from a requirement. We compared two formats for that file, Kinenix's `flow.md` and a YAML equivalent, by asking five small local models, from two model families and on two machines, to write the same flow in both formats.
 
-- With the model size that is practical on a laptop (7B), **`flow.md` was clearly better**: 5 of 5 flows parsed and used 9.2 of the 11 needed actions on average, against 2 of 5 for YAML.
+- **`flow.md` was better for every model of 3B or more, on both machines.** For example, `qwen2.5-coder:7b` parsed 5 of 5 `flow.md` flows (9.2 of the 11 needed actions on average) against 2 of 5 in YAML, and `phi4-mini` parsed 9 of 10 against 3 of 10.
+- Code-trained models write flows much better than general models of the same size: `qwen2.5-coder:3b` used 9.0 of the 11 actions, `qwen2.5:3b` 6.2.
 - YAML broke on syntax, not on understanding: Kinenix's `${...}` expressions inside `[ ]`, unquoted `:` in selectors, and `#` at the start of a value.
 - `flow.md` failures were silent before this test (a step heading without its action produced an empty flow with no warning). Kinenix now reports them.
 
 Decision: Kinenix keeps `flow.md` as its only flow format, and drops `flow.json`.
 
+For a small machine, `phi4-mini` (MIT license) is the best candidate found so far; `qwen2.5-coder:3b` scored higher but its license allows research use only (see [Models and licenses](#models-and-licenses)).
+
 ## Setup
 
-| Item | Value |
-| :--- | :--- |
-| Machine | Laptop, Intel Core i5-12500H, 16 GB RAM, NVIDIA RTX 3050 Ti Laptop GPU (4 GB VRAM), Windows 11 |
-| Runtime | Ollama 0.40.3 |
-| Models | `qwen2.5:1.5b` (1.5B, Q4_K_M), `qwen2.5:3b` (3.1B, Q4_K_M), `qwen2.5-coder:7b` (7.6B, Q4_K_M) |
-| Settings | temperature 0.7, context 8192 tokens, up to 3000 output tokens |
-| Runs | 10 per format for 1.5B and 3B; 5 per format for 7B (about 115 seconds per flow, because the model does not fit in 4 GB of VRAM) |
+| Machine | Hardware | Runtime | Models |
+| :--- | :--- | :--- | :--- |
+| `laptop-rtx3050ti` | Laptop, Intel Core i5-12500H, 16 GB RAM, NVIDIA RTX 3050 Ti Laptop GPU (4 GB VRAM), Windows 11 | Ollama 0.40.3 (CUDA) | `qwen2.5:1.5b`, `qwen2.5:3b`, `qwen2.5-coder:7b` |
+| `ubuntu-rx550` | Desktop, Intel Core i5-3570 (2012, no AVX2), 7.7 GB RAM, AMD Radeon 540/550 (Lexa, about 4 GB VRAM), Ubuntu 24.04 | Ollama 0.34.2 (Vulkan) | `qwen2.5-coder:3b`, `phi4-mini` |
+
+All models are Ollama's default Q4_K_M quantization of the instruct (chat) variant. Settings: temperature 0.7, context 8192 tokens, up to 3000 output tokens. Runs: 10 per format, except 5 per format for `qwen2.5-coder:7b`, which does not fit in 4 GB of VRAM and took about 115 seconds per flow.
+
+Generation speed depends on the machine and on whether the model fits in GPU memory; accuracy does not. `phi4-mini` with an 8192-token context needed 3.7 GB and ran 14% on the CPU (`ollama ps`), so its time per flow is slower than the model itself.
+
+### Models and licenses
+
+| Model | Family | Parameters | License |
+| :--- | :--- | ---: | :--- |
+| `qwen2.5:1.5b` | Qwen (Alibaba) | 1.5B | Apache 2.0 |
+| `qwen2.5:3b` | Qwen (Alibaba) | 3.1B | Qwen Research License (non-commercial) |
+| `qwen2.5-coder:3b` | Qwen (Alibaba) | 3.1B | Qwen Research License (non-commercial) |
+| `phi4-mini` | Phi (Microsoft) | 3.8B | MIT |
+| `qwen2.5-coder:7b` | Qwen (Alibaba) | 7.6B | Apache 2.0 |
+
+Licenses differ by size within one family; check the model card before using a model in production.
 
 ## Task
 
@@ -52,16 +68,20 @@ Before asking any model, `bot_fx_rate` was written by hand in YAML and read with
 
 ## Results
 
-Results of the laptop above (`results/laptop-rtx3050ti/`):
+| Machine | Model | Format | Runs | Parsed | Clean | Loop with sub-steps | Actions (of 11) | Seconds per flow |
+| :--- | :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
+| laptop | qwen2.5 1.5B | flow.md | 10 | 5 | 0 | 0 | 3.2 | 17 |
+| laptop | qwen2.5 1.5B | YAML | 10 | **7** | **2** | **1** | 2.4 | 14 |
+| laptop | qwen2.5 3B | flow.md | 10 | **10** | 1 | 2 | **6.2** | 23 |
+| laptop | qwen2.5 3B | YAML | 10 | 6 | **3** | **4** | 5.3 | 21 |
+| ubuntu | qwen2.5-coder 3B | flow.md | 10 | **10** | 2 | **9** | **9.0** | 63 |
+| ubuntu | qwen2.5-coder 3B | YAML | 10 | 2 | 2 | 2 | 1.9 | 57 |
+| ubuntu | phi4-mini (3.8B) | flow.md | 10 | **9** | **4** | **9** | **7.3** | 110 |
+| ubuntu | phi4-mini (3.8B) | YAML | 10 | 3 | 2 | 3 | 2.5 | 85 |
+| laptop | qwen2.5-coder 7B | flow.md | 5 | **5** | 2 | **4** | **9.2** | 117 |
+| laptop | qwen2.5-coder 7B | YAML | 5 | 2 | 2 | 2 | 3.8 | 112 |
 
-| Model | Format | Runs | Parsed | Clean | Loop with sub-steps | Actions (of 11) | Seconds per flow |
-| :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
-| qwen2.5 1.5B | flow.md | 10 | 5 | 0 | 0 | 3.2 | 17 |
-| qwen2.5 1.5B | YAML | 10 | 7 | 2 | 1 | 2.4 | 14 |
-| qwen2.5 3B | flow.md | 10 | **10** | 1 | 2 | **6.2** | 23 |
-| qwen2.5 3B | YAML | 10 | 6 | **3** | **4** | 5.3 | 21 |
-| qwen2.5-coder 7B | flow.md | 5 | **5** | **2** | **4** | **9.2** | 117 |
-| qwen2.5-coder 7B | YAML | 5 | 2 | 2 | 2 | 3.8 | 112 |
+The better format for each model and measure is in bold. Raw flows and per-run scores: `benchmarks/flow_format/results/<machine>/<model>/`.
 
 ## What went wrong
 
@@ -82,10 +102,12 @@ Every model also invented things the requirement did not say (URLs, config value
 
 ## Conclusions
 
-1. **At a usable size (7B), `flow.md` is the better format for AI authoring.** YAML's advantage on the smallest model came from `flow.md` failing silently, which is now fixed.
+1. **From 3B up, `flow.md` is the better format for AI authoring**, for both model families and on both machines. YAML's advantage on the smallest model came from `flow.md` failing silently, which is now fixed.
 2. **Kinenix's `${...}` syntax and YAML conflict.** Moving to YAML would also mean changing the expression syntax.
 3. **Clear errors matter more than the format.** The 7B model's `flow.md` problems were all of a kind that `kinenix validate` reports with a fix, so an assistant can correct them in one more round.
-4. **1.5B models are too small to write flows** in either format; 3B is borderline; 7B is the practical minimum on a laptop.
+4. **Code-trained models matter more than size.** At the same 3B size, the coder model used 9.0 of the 11 actions and attached loop sub-steps in 9 of 10 runs; the general model used 6.2 and did so in 2 of 10. `qwen2.5-coder:3b` came close to `qwen2.5-coder:7b` (9.2).
+5. **Model size:** 1.5B is too small to write flows in either format; a code-trained 3-4B model is usable as a first draft that `kinenix validate` then corrects; 7B is better when the machine allows it.
+6. **License:** the best small model in this test, `qwen2.5-coder:3b`, is licensed for research only. `phi4-mini` (MIT) had the most clean flows (4 of 10) and is the first candidate for a default model on small machines.
 
 ## Changes made in Kinenix
 
@@ -96,7 +118,8 @@ Every model also invented things the requirement did not say (URLs, config value
 
 ## Limitations
 
-- One task, one model family, and small samples (5 runs per format for 7B). The results show a direction, not exact rates.
+- One task, two model families, and small samples (5 to 10 runs per format). The results show a direction, not exact rates.
+- The two machines ran different Ollama versions (0.40.3 and 0.34.2); generation speed is not comparable across machines.
 - Scores check the file, not a successful run against the site.
 - The prompt was written by the Kinenix authors, who know `flow.md` well; a different prompt could change the numbers.
 
@@ -120,6 +143,6 @@ Planned, to cover what this one did not:
 | More tasks | Do the results hold for `hello`, `rpachallenge`, and a long real requirement (insurance quotes with subflows)? |
 | Run success | Does the generated flow actually run, against the example sites and the test sites listed in [roadmap.md](../roadmap.md)? |
 | Repair rounds | Given the `kinenix validate` output, how many rounds does each model need to reach a clean flow? |
-| More models | Other families (Gemma, Llama, Typhoon for Thai requirements), and larger models on a GPU machine |
+| More models | `qwen3:4b`, Gemma, Granite (IBM), Llama, Typhoon for Thai requirements, and larger models on a GPU machine; Apache 2.0 and MIT models first |
 | Thai requirements | The same tasks with the requirement written in Thai |
 | Error explanation | For the Phase 2 run records: does a local model explain a recorded failure correctly the next morning? |

@@ -150,12 +150,19 @@ def _ask(model, prompt):
     started = time.time()
     r = requests.post("http://127.0.0.1:11434/api/generate", json={
         "model": model, "prompt": prompt, "stream": False,
-        "options": {"temperature": 0.7, "num_ctx": 8192, "num_predict": 3000}}, timeout=900)
+        "options": {"temperature": 0.7, "num_ctx": 8192, "num_predict": 3000}}, timeout=3600)
     r.raise_for_status()
-    return r.json()["response"], time.time() - started
+    body = r.json()
+    # done_reason "length": the answer reached num_predict and was cut off
+    return body["response"], time.time() - started, body.get("done_reason") == "length"
+
+
+THINK = re.compile(r"<think>.*?(</think>|$)", re.S)
 
 
 def strip_fence(text):
+    """The flow in an answer: reasoning models' <think> drafts are dropped, then the first code block is used."""
+    text = THINK.sub("", text)
     m = re.search(r"```[a-zA-Z]*\n(.*?)```", text, re.S)
     return m.group(1) if m else text
 
@@ -198,10 +205,10 @@ def generate(model, runs, machine):
     scores = []
     for run in range(1, runs + 1):
         for kind, fmt in (("md", MD_FORMAT), ("yaml", YAML_FORMAT)):
-            text, seconds = ask(model, common + fmt + "\nNow write the flow for the requirement.")
+            text, seconds, cut_off = ask(model, common + fmt + "\nNow write the flow for the requirement.")
             (out / f"run{run}.{kind}").write_text(text, encoding="utf-8")
             res = score(kind, text)
-            res.update(run=run, kind=kind, seconds=round(seconds))
+            res.update(run=run, kind=kind, seconds=round(seconds), cut_off=cut_off)
             scores.append(res)
             print(json.dumps(res, ensure_ascii=False), flush=True)
     (out / "scores.jsonl").write_text("".join(json.dumps(r) + "\n" for r in scores), encoding="utf-8")
@@ -214,14 +221,14 @@ def rescore():
         new = []
         for (run, kind), previous in sorted(old.items()):
             res = score(kind, (scores_file.parent / f"run{run}.{kind}").read_text(encoding="utf-8"))
-            res.update(run=run, kind=kind, seconds=previous["seconds"])
+            res.update(run=run, kind=kind, seconds=previous["seconds"], cut_off=previous.get("cut_off", False))
             new.append(res)
         scores_file.write_text("".join(json.dumps(r) + "\n" for r in new), encoding="utf-8")
 
 
 def table():
-    print("| Machine | Model | Format | Runs | Parsed | Clean | Loop with sub-steps | Actions (of 11) | Seconds per flow |")
-    print("| :--- | :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: |")
+    print("| Machine | Model | Format | Runs | Parsed | Clean | Loop with sub-steps | Actions (of 11) | Seconds per flow | Cut off |")
+    print("| :--- | :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |")
     for scores_file in sorted(RESULTS.glob("*/*/scores.jsonl")):
         rows = [json.loads(line) for line in scores_file.read_text(encoding="utf-8").splitlines()]
         machine, model = scores_file.parent.parent.name, scores_file.parent.name
@@ -230,7 +237,8 @@ def table():
             parsed = [x for x in r if x["parsed"]]
             print(f"| {machine} | {model} | {label} | {len(r)} | {len(parsed)} | "
                   f"{sum(1 for x in parsed if x['problems'] == 0)} | {sum(1 for x in parsed if x.get('has_loop_substeps'))} | "
-                  f"{statistics.mean(x['actions_covered'] for x in r):.1f} | {statistics.mean(x['seconds'] for x in r):.0f} |")
+                  f"{statistics.mean(x['actions_covered'] for x in r):.1f} | {statistics.mean(x['seconds'] for x in r):.0f} | "
+                  f"{sum(1 for x in r if x.get('cut_off'))} |")
 
 
 def main():

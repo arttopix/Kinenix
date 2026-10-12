@@ -1,0 +1,161 @@
+```yaml
+name: Collect Bank of Thailand Buying Transfer Rates
+description: Collect monthly buying transfer rates for several currencies and email as a CSV file.
+variables:
+  config:
+    url: "https://www.bangkok.com/banktransfer"
+    currencies: "USD,EUR,JPY,CNH"
+    month.date: "start-of-month"
+    month.add_months: 1
+    output_path: "./data/transfer_rates.csv"
+    headless: true
+    email.to: "recipient@example.com"
+    email.subject: "Monthly Buying Transfer Rates"
+    email.body: "Attached is the monthly buying transfer rates for selected currencies."
+    email.dry_run: false
+    fallback_to_ollama: true
+  current_date: datetime.now()
+  start_of_month: date_calc.calculate_date
+    input_format: "YYYY-MM-DD"
+    add_months: -1
+  end_of_month: date_calc.calculate_date
+    input_format: "YYYY-MM-DD"
+    add_months: 0
+  currencies_checked: []
+  transfer_rates: []
+steps:
+  - name: Determine report period
+    action: ai.decide
+    with: base_url: config.url
+    question: What is the first and last day of the report month?
+    questions: [first_day, last_day]
+    state: report_period
+    timeout: 60
+    on_error: retry
+    max_retries: 2
+  - name: Open website
+    action: web.open
+    with: url: config.url
+    headless: config.headless
+    timeout: 60
+    on_error: retry
+    max_retries: 2
+  - name: Accept cookie banner
+    action: web.click
+    with: selector: ".accept-cookies-button"
+    timeout: 10
+    on_error: retry
+    max_retries: 2
+  - name: Filter currencies
+    action: logic.loop
+    with:
+      items: config.currencies
+      item_var: currency
+    steps:
+      - name: Check currency
+        action: web.check
+        with: selector: "#dropdownCurrency"
+        label: "is ${currency} a valid currency?"
+      - name: Check currency
+        action: web.uncheck
+        with: selector: ".currency-filter input[name='currencyCheck'][value='${currency}']"
+        timeout: 5
+        on_error: retry
+        max_retries: 2
+  - name: Set date picker
+    action: web.get_text
+    with: selector: ".react-datepicker select >> nth=1"
+    label: "Year"
+    output_var: year
+    on_error: retry
+    max_retries: 2
+  - name: Set start month
+    action: web.get_text
+    with: selector: ".react-datepicker select >> nth=0"
+    label: "Month"
+    output_var: month
+    on_error: retry
+    max_retries: 2
+  - name: Set start day
+    action: web.get_text
+    with: selector: ".react-datepicker select >> nth=0"
+    label: "Day"
+    output_var: start_day
+    on_error: retry
+    max_retries: 2
+  - name: Set end day
+    action: web.get_text
+    with: selector: ".react-datepicker select >> nth=0"
+    label: "End Day"
+    output_var: end_day
+    on_error: retry
+    max_retries: 2
+  - name: Set start date
+    action: date.calc
+    with: date: start_of_month
+    input_format: "YYYY-MM-DD"
+    add_months: 0
+    output_var: start_date
+    on_error: retry
+    max_retries: 2
+  - name: Set end date
+    action: date.calc
+    with: date: end_of_month
+    input_format: "YYYY-MM-DD"
+    add_months: 0
+    output_var: end_date
+    on_error: retry
+    max_retries: 2
+  - name: Click search button
+    action: web.click
+    with: selector: ".button.historical-btn"
+    timeout: 10
+    on_error: retry
+    max_retries: 2
+  - name: Click currency tab
+    action: web.click
+    with: selector: ".currency-tab-button"
+    label: "is ${currency} selected?"
+    output_var: currency_selected
+    on_error: retry
+    max_retries: 2
+  - name: Read table
+    action: web.get_table
+    with: selector: ".table"
+    columns: ["Period", "Buying Rates Transfer"]
+    add_columns: ["Currency"]
+    min_rows: 1
+    output_var: table_data
+    on_error: retry
+    max_retries: 2
+  - name: Write transfer rates
+    action: csv.write
+    with: file_path: config.output_path
+      data: transfer_rates
+      columns: ["Currency", "Date", "Buying Transfer Rate"]
+      append: true
+    on_error: retry
+    max_retries: 2
+  - name: Close browser
+    action: web.close
+  - name: Send email with CSV attachment
+    action: email.send
+    with: to: config.email.to
+      cc: ""
+      bcc: ""
+      subject: config.email.subject
+      body: config.email.body
+      attachments: [config.output_path]
+      html: false
+      smtp_host: ""
+      smtp_port: 0
+      smtp_user: ""
+      smtp_password: ""
+      use_tls: false
+    on_error: retry
+    max_retries: 2
+  - name: Wait for completed
+    action: logic.delay
+    with: seconds: 0
+```
+Note: This flow is a simplified version and may require additional steps or modifications to work with the actual website and its elements. The selectors, labels, and actions are based on the provided configuration and requirements. It assumes the use of an AI model capable of understanding and interacting with web pages, such as Microsoft Phi. Adjust the flow as needed to fit the specific implementation and website structure.

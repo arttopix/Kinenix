@@ -1,10 +1,10 @@
-{"parsed": true, "steps": 20, "problems": 3, "actions_covered": 10, "error": null, "has_loop_substeps": true, "run": 1, "kind": "md", "seconds": 139}
-{"parsed": true, "steps": 20, "problems": 0, "actions_covered": 9, "error": null, "has_loop_substeps": true, "run": 1, "kind": "yaml", "seconds": 145}
-{"parsed": true, "steps": 10, "problems": 15, "actions_covered": 8, "error": null, "has_loop_substeps": false, "run": 2, "kind": "md", "seconds": 115}
-{"parsed": true, "steps": 16, "problems": 0, "actions_covered": 10, "error": null, "has_loop_substeps": true, "run": 2, "kind": "yaml", "seconds": 95}
-{"parsed": true, "steps": 17, "problems": 0, "actions_covered": 10, "error": null, "has_loop_substeps": true, "run": 3, "kind": "md", "seconds": 108}
-{"parsed": false, "steps": 0, "problems": null, "actions_covered": 0, "error": "ParserError: while parsing a block mapping\n  in \"<unicode string>\", line 86, column 5:\n      - name: Collect Currency Tables\n        ^\nexpected <block end>, but found '-'\n  ", "run": 3, "kind": "yaml", "seconds": 119}
-{"parsed": true, "steps": 14, "problems": 0, "actions_covered": 9, "error": null, "has_loop_substeps": true, "run": 4, "kind": "md", "seconds": 104}
-{"parsed": false, "steps": 0, "problems": null, "actions_covered": 0, "error": "ParserError: while parsing a flow sequence\n  in \"<unicode string>\", line 97, column 20:\n          attachments: [${config.output_path}]\n                       ^\nexpected ',' ", "run": 4, "kind": "yaml", "seconds": 94}
-{"parsed": true, "steps": 20, "problems": 5, "actions_covered": 9, "error": null, "has_loop_substeps": true, "run": 5, "kind": "md", "seconds": 120}
-{"parsed": false, "steps": 0, "problems": null, "actions_covered": 0, "error": "ParserError: while parsing a flow sequence\n  in \"<unicode string>\", line 119, column 24:\n              attachments: [${config.output_path}]\n                           ^\nexpe", "run": 5, "kind": "yaml", "seconds": 109}
+{"parsed": true, "steps": 20, "problems": 3, "actions_covered": 10, "error": null, "has_loop_substeps": true, "run": 1, "kind": "md", "seconds": 139, "cut_off": false}
+{"parsed": true, "steps": 20, "problems": 0, "actions_covered": 9, "error": null, "has_loop_substeps": true, "run": 1, "kind": "yaml", "seconds": 145, "cut_off": false}
+{"parsed": true, "steps": 10, "problems": 15, "actions_covered": 8, "error": null, "has_loop_substeps": false, "run": 2, "kind": "md", "seconds": 115, "cut_off": false}
+{"parsed": true, "steps": 16, "problems": 0, "actions_covered": 10, "error": null, "has_loop_substeps": true, "run": 2, "kind": "yaml", "seconds": 95, "cut_off": false}
+{"parsed": true, "steps": 17, "problems": 0, "actions_covered": 10, "error": null, "has_loop_substeps": true, "run": 3, "kind": "md", "seconds": 108, "cut_off": false}
+{"parsed": false, "steps": 0, "problems": null, "actions_covered": 0, "error": "ParserError: while parsing a block mapping\n  in \"<unicode string>\", line 86, column 5:\n      - name: Collect Currency Tables\n        ^\nexpected <block end>, but found '-'\n  ", "run": 3, "kind": "yaml", "seconds": 119, "cut_off": false}
+{"parsed": true, "steps": 14, "problems": 0, "actions_covered": 9, "error": null, "has_loop_substeps": true, "run": 4, "kind": "md", "seconds": 104, "cut_off": false}
+{"parsed": false, "steps": 0, "problems": null, "actions_covered": 0, "error": "ParserError: while parsing a flow sequence\n  in \"<unicode string>\", line 97, column 20:\n          attachments: [${config.output_path}]\n                       ^\nexpected ',' ", "run": 4, "kind": "yaml", "seconds": 94, "cut_off": false}
+{"parsed": true, "steps": 20, "problems": 5, "actions_covered": 9, "error": null, "has_loop_substeps": true, "run": 5, "kind": "md", "seconds": 120, "cut_off": false}
+{"parsed": false, "steps": 0, "problems": null, "actions_covered": 0, "error": "ParserError: while parsing a flow sequence\n  in \"<unicode string>\", line 119, column 24:\n              attachments: [${config.output_path}]\n                           ^\nexpe", "run": 5, "kind": "yaml", "seconds": 109, "cut_off": false}

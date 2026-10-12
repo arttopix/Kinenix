@@ -1,0 +1,118 @@
+```yaml
+name: Collect Bank of Thailand Buying Transfer Rates
+description: Collect buying transfer rates for several currencies over one month and email them as a CSV file
+variables:
+  config: {}
+steps:
+  - name: Determine Report Month
+    action: date.calc
+    with:
+      date: {{config.month.date}}
+      input_format: yyyy-MM-dd
+      add_months: {{config.month.add_months}}
+      snap: end_of_month
+      format: yyyy-MM-dd
+    output_var: report_month_start
+    on_error: retry
+    max_retries: 2
+  - name: Open Bank of Thailand Website
+    action: web.open
+    with:
+      url: {{config.url}}
+      headless: {{config.headless}}
+    output_var: browser
+    on_error: retry
+    max_retries: 2
+  - name: Accept Cookie Banner
+    action: web.click
+    with:
+      selector: Accept recommended cookies
+    output_var: cookie_accepted
+    on_error: retry
+    max_retries: 2
+  - name: Filter Currencies
+    action: logic.loop
+    with:
+      items: {{config.currencies}}
+      item_var: currency
+    steps:
+      - name: Check Currency Filter
+        action: web.uncheck
+        with:
+          selector: .currency-filter input[name='currencyCheck'][value='{{currency}}']
+        output_var: currency_checked
+        on_error: retry
+        max_retries: 2
+  - name: Set Start and End Dates
+    action: logic.loop
+    with:
+      items: report_month_start
+      item_var: start_date
+    steps:
+      - name: Set Start Date
+        action: web.get_text
+        with:
+          selector: .react-datepicker select >> nth=1
+        output_var: start_date
+        on_error: retry
+        max_retries: 2
+      - name: Set End Date
+        action: web.get_text
+        with:
+          selector: .react-datepicker select >> nth=0
+        output_var: end_date
+        on_error: retry
+        max_retries: 2
+  - name: Search for Rates
+    action: web.click
+    with:
+      selector: button.historical-btn
+    output_var: search_clicked
+    on_error: retry
+    max_retries: 2
+  - name: Collect Rates
+    action: logic.loop
+    with:
+      items: {{config.currencies}}
+      item_var: currency
+    steps:
+      - name: Open Currency Tab
+        action: web.click
+        with:
+          selector: text={{currency}}
+        output_var: currency_tab
+        on_error: retry
+        max_retries: 2
+      - name: Extract Rates Table
+        action: web.get_table
+        with:
+          selector: text=Buying Transfer Rates
+          columns: Date, Buying Rates Transfer
+          add_columns: Currency
+        output_var: rates_table
+        on_error: retry
+        max_retries: 2
+      - name: Write Rates to CSV
+        action: csv.write
+        with:
+          file_path: {{config.output_path}}
+          data: {{rates_table}}
+          columns: Currency, Date, Buying Transfer Rate
+        on_error: retry
+        max_retries: 2
+  - name: Close Browser
+    action: web.close
+    output_var: browser_closed
+    on_error: retry
+    max_retries: 2
+  - name: Send Email with CSV
+    action: email.send
+    with:
+      to: {{config.email.to}}
+      subject: {{config.email.subject}}
+      body: {{config.email.body}}
+      attachments: {{config.output_path}}
+      dry_run: {{config.email.dry_run}}
+    on_error: retry
+    max_retries: 2
+```

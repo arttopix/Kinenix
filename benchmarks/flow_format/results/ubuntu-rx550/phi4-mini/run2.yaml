@@ -1,0 +1,133 @@
+```yaml
+name: Bank of Thailand Buying Transfer Rates
+description: Collect Bank of Thailand buying transfer rates for several currencies over one month and email them as a CSV file.
+variables:
+  config:
+    url: "https://www.bot.or.th/bot/btcc/botccmenu"
+    currencies: "USD, EUR, GBP, JPY, THB"
+    month.date: "today"
+    month.add_months: -1
+    output_path: "rates.csv"
+    headless: true
+    email.to: "recipient@example.com"
+    email.subject: "Monthly Buying Transfer Rates"
+    email.body: "Attached is the monthly buying transfer rates."
+  month: date: "{{ now | date 'YYYY-MM-DD' }}"
+  month.add_months: -1
+  day: nth=0
+  month: nth=1
+  year: nth=0
+steps:
+  - name: Calculate First and Last Day of Report Month
+    action: date.calc
+    with:
+      date: "{{ now }}"
+      input_format: "YYYY-MM-DD"
+      add_months: -1
+    output_var: config.month.date
+  - name: Open Bank of Thailand Website
+    action: web.open
+    with:
+      url: "{{ config.url }}"
+      headless: true
+    output_var: bot_website
+  - name: Accept Cookie Banner
+    action: web.click
+    with:
+      selector: "button.text('Accept recommended cookies')"
+    output_var: cookie_accepted
+  - name: Open Currency Filter
+    action: web.uncheck
+    with:
+      selector: "#dropdownCurrency"
+    output_var: currency_filter_open
+  - name: Select Currencies
+    action: web.select_option
+    with:
+      selector: ".currency-filter input[name='currencyCheck']"
+      value: "{{ item }}"
+    output_var: selected_currency
+    on_error: retry
+    max_retries: 2
+    items: "{{ config.currencies }}"
+  - name: Pick Start Date
+    action: logic.delay
+    with:
+      seconds: 0
+  - name: Pick End Date
+    action: logic.delay
+    with:
+      seconds: 0
+  - name: Click Historical Button
+    action: web.click
+    with:
+      selector: ".button.historical-btn"
+    output_var: search_confirmed
+  - name: Read Currency Rates
+    action: web.get_table
+    with:
+      selector: ".currency-table"
+      columns: ["Period", "Buying Rates Transfer"]
+      add_columns: ["Currency"]
+    output_var: currency_rates
+  - name: Write Rates to CSV
+    action: csv.write
+    with:
+      file_path: "{{ config.output_path }}"
+      data: "{{ currency_rates }}"
+      columns: ["Currency", "Date", "Buying Transfer Rate"]
+    on_error: retry
+    max_retries: 2
+  - name: Close Browser
+    action: web.close
+    output_var: closed_browser
+  - name: Check if Email Step Should Run
+    action: logic.if
+      condition: "{{ not config.dry_run }}"
+      left: "{{ email.send }}"
+      right: ""
+  - name: Send Email with Attachment
+    action: email.send
+    with:
+      to: "{{ config.email.to }}"
+      cc: 
+      bcc: 
+      subject: "{{ config.email.subject }}"
+      body: "{{ config.email.body }}"
+      attachments: "{{ config.output_path }}"
+      smtp_host: "smtp.example.com"
+      smtp_port: 587
+      smtp_user: "your_email@example.com"
+      smtp_password: "your_password"
+      use_tls: true
+    on_error: retry
+    max_retries: 2
+    steps: |
+      - name: Wait for Browser to Close
+        action: logic.delay
+        with:
+          seconds: 5
+      - name: Open Email Client
+        action: web.open
+        with:
+          url: "https://www.example.com/mail"
+          headless: true
+      - name: Log in to Email
+        action: web.type
+        with:
+          selector: "input[type='email']"
+          text: "your_email@example.com"
+          wait_for_response: true
+      - name: Send Email
+        action: web.type
+        with:
+          selector: "input[type='submit']"
+          text: "Send"
+    on_error: continue
+    max_retries: 2
+    steps: |
+      - name: Close Email Client
+        action: web.close
+      - name: Close Browser
+        action: web.close
+```

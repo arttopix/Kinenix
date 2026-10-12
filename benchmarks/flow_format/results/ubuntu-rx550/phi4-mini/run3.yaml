@@ -1,0 +1,143 @@
+```yaml
+name: Collect Bank of Thailand Transfer Rates
+description: Collect Bank of Thailand buying transfer rates for several currencies over one month and email them as a CSV file.
+variables:
+  config:
+    url: https://www.bot.or.th/eng/bot/bot.html
+    currencies: "USD,EUR,JPY,CNY,BGN,GBP,RUB"
+    month.date: ""
+    month.add_months: -1
+    output_path: ./output/bothangai_rates.csv
+    headless: true
+    email.to: recipient@example.com
+    email.subject: Bank of Thailand Transfer Rates
+    email.body: Please find attached the latest Bank of Thailand transfer rates.
+    email.dry_run: false
+steps:
+  - name: Set Report Month
+    action: date.calc
+    with:
+      date: "{{config.month.date}}"
+      input_format: "YYYY-MM-DD"
+      add_months: "{{config.month.add_months}}"
+    output_var: config.month.date
+    on_error: retry
+    max_retries: 2
+
+  - name: Open Bot Website
+    action: web.open
+    with:
+      url: "{{config.url}}"
+      headless: "{{config.headless}}"
+    output_var: bot_browser
+    on_error: retry
+    max_retries: 2
+
+  - name: Accept Cookie Banner
+    action: web.click
+    with:
+      selector: ".cookie-banner .accept"
+    output_var: banner_accepted
+    on_error: retry
+    max_retries: 2
+
+  - name: Select Currencies
+    action: logic.loop
+      items:
+        - currency: "USD"
+        - currency: "EUR"
+        - currency: "JPY"
+        - currency: "CNY"
+        - currency: "BGN"
+        - currency: "GBP"
+        - currency: "RUB"
+    steps:
+      - name: Select Currency
+        action: web.select_option
+        with:
+          selector: "#dropdownCurrency"
+          label: "{{item.currency}}"
+          value: "{{item.currency}}"
+          output_var: currency_selected
+        on_error: retry
+        max_retries: 2
+
+  - name: Set Search Dates
+    action: logic.loop
+      items:
+        - start_date: "01"
+          end_date: "31"
+    steps:
+      - name: Set Start Date
+        action: web.get_text
+        with:
+          selector: ".react-datepicker .month"
+          label: "01"
+          output_var: start_date
+        on_error: retry
+        max_retries: 2
+      - name: Set End Date
+        action: web.get_text
+        with:
+          selector: ".react-datepicker .day"
+          label: "31"
+          output_var: end_date
+        on_error: retry
+        max_retries: 2
+
+  - name: Search Rates
+    action: flow.call
+      flow: search_rates
+      inputs:
+        currency_selected: "{{currency_selected}}"
+        start_date: "{{start_date}}"
+        end_date: "{{end_date}}"
+      outputs:
+        rates: "rates"
+      propagate_sessions: true
+      fallback_step_id: open_bot
+      on_error: retry
+      max_retries: 2
+
+  - name: Extract Rates
+    action: ai.extract
+      base_url: "{{bot_browser.screenshot.file_path}}"
+      image_path: "{{bot_browser.screenshot.file_path}}"
+      instructions: "Extract currency rates from the table"
+      model: "{'version': 'latest', 'model': 'dataman'}"
+      schema: "currency, date, buying_transfer_rate"
+      text: "{{bot_browser.screenshot.file_path}}"
+      timeout: 30
+      output_var: rates_data
+      on_error: retry
+      max_retries: 2
+
+  - name: Write CSV
+    action: csv.write
+      file_path: "{{config.output_path}}"
+      data: "{{rates_data}}"
+      columns:
+        - Currency
+        - Date
+        - Buying Transfer Rate
+    on_error: retry
+    max_retries: 2
+
+  - name: Send Email
+    action: email.send
+      to: "{{config.email.to}}"
+      cc: ""
+      bcc: ""
+      subject: "{{config.email.subject}}"
+      body: "{{config.email.body}}"
+      html: false
+      attachments: "{{config.output_path}}"
+      smtp_host: ""
+      smtp_port: 0
+      smtp_user: ""
+      smtp_password: ""
+      use_tls: false
+      dry_run: "{{config.email.dry_run}}"
+    on_error: retry
+    max_retries: 2
+```

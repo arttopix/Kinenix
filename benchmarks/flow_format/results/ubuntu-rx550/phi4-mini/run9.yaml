@@ -1,0 +1,117 @@
+```yaml
+name: Bank of Thailand Buying Transfer Rates Collection
+description: Collect Bank of Thailand buying transfer rates for several currencies over one month and email them as a CSV file.
+variables:
+  config: {}
+steps:
+  - name: Calculate report month
+    action: date.calc
+    with:
+      date: "{{config.date}}"
+      input_format: "YYYY-MM-DD"
+      add_months: -1
+    output_var: config.month.date
+    on_error: retry
+    max_retries: 2
+  - name: Open Bank of Thailand
+    action: web.open
+    with:
+      url: "{{config.url}}"
+      headless: true
+    output_var: browser
+    on_error: retry
+    max_retries: 2
+  - name: Accept cookie banner
+    action: web.click
+    with:
+      selector: "#cookie-banner-button"
+      label: "Accept recommended cookies"
+    on_error: retry
+    max_retries: 2
+  - name: Filter currencies
+    action: logic.loop
+    with:
+      items: "{{config.currencies}}"
+      item_var: currency
+    steps:
+      - name: Check currency
+        action: web.uncheck
+        with:
+          selector: ".currency-filter input[name='currencyCheck'][value='{{currency}}']"
+        on_error: continue
+      - name: Check other currencies
+        action: web.uncheck
+        with:
+          selector: ".currency-filter input[name='currencyCheck'][value='{{currency}}']"
+        on_error: continue
+  - name: Pick start date
+    action: web.get_text
+    with:
+      selector: ".react-datepicker select:nth=1"
+    output_var: start_date
+  - name: Pick end date
+    action: web.get_text
+    with:
+      selector: ".react-datepicker select:nth=0"
+    output_var: end_date
+  - name: Click search
+    action: web.click
+    with:
+      selector: ".button.historical-btn"
+    output_var: search_clicked
+  - name: Wait for search results
+    action: web.wait_for
+    with:
+      selector: ".search-results"
+      state: "visible"
+    output_var: search_results_visible
+  - name: Collect buying transfer rates
+    action: logic.loop
+    with:
+      items: "{{config.currencies}}"
+      item_var: currency
+    steps:
+      - name: Click currency tab
+        action: web.click
+        with:
+          selector: "a[{{currency}}]"
+        on_error: retry
+        max_retries: 2
+      - name: Get buying transfer rate
+        action: web.get_text
+        with:
+          selector: ".buying-transfer-rate"
+        output_var: buying_transfer_rate
+      - name: Write to CSV
+        action: csv.write
+        with:
+          file_path: "{{config.output_path}}"
+          data: "{{currency}},{{start_date}},{{buying_transfer_rate}}"
+          columns: "Currency,Date,Buying Transfer Rate"
+          append: true
+        on_error: retry
+        max_retries: 2
+  - name: Close browser
+    action: web.close
+  - name: Prepare email
+    action: logic.append
+    with:
+      target: "{{config.email.body}}"
+      item: "Attachment: buying_transfer_rates.csv"
+  - name: Send email
+    action: email.send
+    with:
+      to: "{{config.email.to}}"
+      cc: ""
+      bcc: ""
+      subject: "{{config.email.subject}}"
+      body: "{{config.email.body}}"
+      html: true
+      attachments: [":/buying_transfer_rates.csv"]
+      smtp_host: ""
+      smtp_port: 0
+      smtp_user: ""
+      smtp_password: ""
+      use_tls: false
+      dry_run: true
+```

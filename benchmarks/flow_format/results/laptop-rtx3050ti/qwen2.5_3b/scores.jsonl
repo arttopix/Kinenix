@@ -1,20 +1,20 @@
-{"parsed": true, "steps": 8, "problems": 15, "actions_covered": 6, "error": null, "has_loop_substeps": false, "run": 1, "kind": "md", "seconds": 23}
-{"parsed": true, "steps": 16, "problems": 0, "actions_covered": 10, "error": null, "has_loop_substeps": true, "run": 1, "kind": "yaml", "seconds": 20}
-{"parsed": true, "steps": 21, "problems": 0, "actions_covered": 8, "error": null, "has_loop_substeps": true, "run": 2, "kind": "md", "seconds": 21}
-{"parsed": true, "steps": 16, "problems": 0, "actions_covered": 8, "error": null, "has_loop_substeps": false, "run": 2, "kind": "yaml", "seconds": 21}
-{"parsed": true, "steps": 9, "problems": 59, "actions_covered": 4, "error": null, "has_loop_substeps": false, "run": 3, "kind": "md", "seconds": 21}
-{"parsed": false, "steps": 0, "problems": null, "actions_covered": 0, "error": "ScannerError: mapping values are not allowed here\n  in \"<unicode string>\", line 49, column 23:\n          selector: button: Accept recommended cookies\n                        ", "run": 3, "kind": "yaml", "seconds": 17}
-{"parsed": true, "steps": 13, "problems": 4, "actions_covered": 9, "error": null, "has_loop_substeps": false, "run": 4, "kind": "md", "seconds": 12}
-{"parsed": true, "steps": 21, "problems": 0, "actions_covered": 7, "error": null, "has_loop_substeps": false, "run": 4, "kind": "yaml", "seconds": 20}
-{"parsed": true, "steps": 12, "problems": 9, "actions_covered": 8, "error": null, "has_loop_substeps": false, "run": 5, "kind": "md", "seconds": 20}
-{"parsed": true, "steps": 28, "problems": 3, "actions_covered": 10, "error": null, "has_loop_substeps": true, "run": 5, "kind": "yaml", "seconds": 21}
-{"parsed": true, "steps": 24, "problems": 8, "actions_covered": 9, "error": null, "has_loop_substeps": false, "run": 6, "kind": "md", "seconds": 26}
-{"parsed": true, "steps": 18, "problems": 2, "actions_covered": 9, "error": null, "has_loop_substeps": true, "run": 6, "kind": "yaml", "seconds": 15}
-{"parsed": true, "steps": 14, "problems": 1, "actions_covered": 5, "error": null, "has_loop_substeps": false, "run": 7, "kind": "md", "seconds": 15}
-{"parsed": false, "steps": 0, "problems": null, "actions_covered": 0, "error": "ParserError: while parsing a block mapping\n  in \"<unicode string>\", line 63, column 5:\n      - name: Pick the start and end dates\n        ^\nexpected <block end>, but found '", "run": 7, "kind": "yaml", "seconds": 17}
-{"parsed": true, "steps": 21, "problems": 34, "actions_covered": 3, "error": null, "has_loop_substeps": false, "run": 8, "kind": "md", "seconds": 41}
-{"parsed": true, "steps": 15, "problems": 19, "actions_covered": 9, "error": null, "has_loop_substeps": true, "run": 8, "kind": "yaml", "seconds": 15}
-{"parsed": true, "steps": 13, "problems": 58, "actions_covered": 8, "error": null, "has_loop_substeps": true, "run": 9, "kind": "md", "seconds": 29}
-{"parsed": false, "steps": 0, "problems": null, "actions_covered": 0, "error": "ScannerError: mapping values are not allowed here\n  in \"<unicode string>\", line 79, column 20:\n            max_retries: 2\n                       ^", "run": 9, "kind": "yaml", "seconds": 22}
-{"parsed": true, "steps": 4, "problems": 45, "actions_covered": 2, "error": null, "has_loop_substeps": false, "run": 10, "kind": "md", "seconds": 19}
-{"parsed": false, "steps": 0, "problems": null, "actions_covered": 0, "error": "ScannerError: while scanning for the next token\nfound character '`' that cannot start any token\n  in \"<unicode string>\", line 1, column 1:\n    ```yaml\n    ^", "run": 10, "kind": "yaml", "seconds": 41}
+{"parsed": true, "steps": 8, "problems": 15, "actions_covered": 6, "error": null, "has_loop_substeps": false, "run": 1, "kind": "md", "seconds": 23, "cut_off": false}
+{"parsed": true, "steps": 16, "problems": 0, "actions_covered": 10, "error": null, "has_loop_substeps": true, "run": 1, "kind": "yaml", "seconds": 20, "cut_off": false}
+{"parsed": true, "steps": 21, "problems": 0, "actions_covered": 8, "error": null, "has_loop_substeps": true, "run": 2, "kind": "md", "seconds": 21, "cut_off": false}
+{"parsed": true, "steps": 16, "problems": 0, "actions_covered": 8, "error": null, "has_loop_substeps": false, "run": 2, "kind": "yaml", "seconds": 21, "cut_off": false}
+{"parsed": true, "steps": 9, "problems": 59, "actions_covered": 4, "error": null, "has_loop_substeps": false, "run": 3, "kind": "md", "seconds": 21, "cut_off": false}
+{"parsed": false, "steps": 0, "problems": null, "actions_covered": 0, "error": "ScannerError: mapping values are not allowed here\n  in \"<unicode string>\", line 49, column 23:\n          selector: button: Accept recommended cookies\n                        ", "run": 3, "kind": "yaml", "seconds": 17, "cut_off": false}
+{"parsed": true, "steps": 13, "problems": 4, "actions_covered": 9, "error": null, "has_loop_substeps": false, "run": 4, "kind": "md", "seconds": 12, "cut_off": false}
+{"parsed": true, "steps": 21, "problems": 0, "actions_covered": 7, "error": null, "has_loop_substeps": false, "run": 4, "kind": "yaml", "seconds": 20, "cut_off": false}
+{"parsed": true, "steps": 12, "problems": 9, "actions_covered": 8, "error": null, "has_loop_substeps": false, "run": 5, "kind": "md", "seconds": 20, "cut_off": false}
+{"parsed": true, "steps": 28, "problems": 3, "actions_covered": 10, "error": null, "has_loop_substeps": true, "run": 5, "kind": "yaml", "seconds": 21, "cut_off": false}
+{"parsed": true, "steps": 24, "problems": 8, "actions_covered": 9, "error": null, "has_loop_substeps": false, "run": 6, "kind": "md", "seconds": 26, "cut_off": false}
+{"parsed": true, "steps": 18, "problems": 2, "actions_covered": 9, "error": null, "has_loop_substeps": true, "run": 6, "kind": "yaml", "seconds": 15, "cut_off": false}
+{"parsed": true, "steps": 14, "problems": 1, "actions_covered": 5, "error": null, "has_loop_substeps": false, "run": 7, "kind": "md", "seconds": 15, "cut_off": false}
+{"parsed": false, "steps": 0, "problems": null, "actions_covered": 0, "error": "ParserError: while parsing a block mapping\n  in \"<unicode string>\", line 63, column 5:\n      - name: Pick the start and end dates\n        ^\nexpected <block end>, but found '", "run": 7, "kind": "yaml", "seconds": 17, "cut_off": false}
+{"parsed": true, "steps": 21, "problems": 34, "actions_covered": 3, "error": null, "has_loop_substeps": false, "run": 8, "kind": "md", "seconds": 41, "cut_off": false}
+{"parsed": true, "steps": 15, "problems": 19, "actions_covered": 9, "error": null, "has_loop_substeps": true, "run": 8, "kind": "yaml", "seconds": 15, "cut_off": false}
+{"parsed": true, "steps": 13, "problems": 58, "actions_covered": 8, "error": null, "has_loop_substeps": true, "run": 9, "kind": "md", "seconds": 29, "cut_off": false}
+{"parsed": false, "steps": 0, "problems": null, "actions_covered": 0, "error": "ScannerError: mapping values are not allowed here\n  in \"<unicode string>\", line 79, column 20:\n            max_retries: 2\n                       ^", "run": 9, "kind": "yaml", "seconds": 22, "cut_off": false}
+{"parsed": true, "steps": 4, "problems": 45, "actions_covered": 2, "error": null, "has_loop_substeps": false, "run": 10, "kind": "md", "seconds": 19, "cut_off": false}
+{"parsed": false, "steps": 0, "problems": null, "actions_covered": 0, "error": "ScannerError: while scanning for the next token\nfound character '`' that cannot start any token\n  in \"<unicode string>\", line 1, column 1:\n    ```yaml\n    ^", "run": 10, "kind": "yaml", "seconds": 41, "cut_off": false}
