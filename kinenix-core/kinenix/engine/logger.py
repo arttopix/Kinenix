@@ -8,6 +8,7 @@ from typing import Optional, Union
 
 from ..env import get_env
 from ..models.context import ExecutionContext, StepResult
+from .redaction import Redactor
 
 
 def resolve_log_dir(log_dir: Optional[Union[str, Path]] = None, flow_path: Optional[Path] = None) -> Path:
@@ -62,6 +63,9 @@ class ExecutionLogger:
         if self.log_dir:
             self.log_dir.mkdir(parents=True, exist_ok=True)
 
+        # Replaced by the interpreter at the start of each top-level run; subflows share it
+        self.redactor = Redactor()
+
 
     def log_step_start(self, step_id: str, step_name: str, action: str) -> None:
         self.logger.info(f"Starting Step [{step_id}] '{step_name}' (Action: {action})")
@@ -74,11 +78,13 @@ class ExecutionLogger:
             )
         elif result.status == "failed":
             self.logger.error(
-                f"Failed Step [{result.step_id}] '{result.step_name}' - [{result.error_type} Error]: {result.error_message}"
+                f"Failed Step [{result.step_id}] '{result.step_name}' - [{result.error_type} Error]: "
+                f"{self.redactor.redact_text(result.error_message)}"
             )
         else:
             # A skip is expected behavior (its condition was not met), not a problem to warn about
             reason = (result.output or {}).get("skipped_reason") if isinstance(result.output, dict) else None
+            reason = self.redactor.redact_text(reason)
             self.logger.info(f"Skipped Step [{result.step_id}] '{result.step_name}'" + (f": {reason}" if reason else ""))
 
     def log_execution_summary(self, context: ExecutionContext) -> None:
@@ -96,6 +102,9 @@ class ExecutionLogger:
             raw_data["variables"] = {
                 k: v for k, v in raw_data["variables"].items() if not str(k).startswith("__")
             }
+
+        # Secrets and personal data are removed before anything is written or sent (docs/logging.md, Redaction)
+        raw_data = self.redactor.redact(raw_data)
 
         if self.log_dir:
             try:

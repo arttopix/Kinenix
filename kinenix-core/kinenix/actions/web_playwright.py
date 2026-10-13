@@ -8,6 +8,7 @@ from playwright.sync_api import sync_playwright, Browser, Page, Playwright
 
 from .base import LOCATOR_PARAMETERS, BaseAction
 from .registry import register_action
+from ..engine.redaction import MASK, add_secret
 from ..models.context import ExecutionContext
 
 logger = logging.getLogger("kinenix")
@@ -142,13 +143,23 @@ class WebClickAction(BaseAction):
 
 @register_action("web.type")
 class WebTypeAction(BaseAction):
-    accepted_parameters = LOCATOR_PARAMETERS + ('text',)
+    accepted_parameters = LOCATOR_PARAMETERS + ('text', 'secret')
 
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         page = _get_page(context)
         locator = _resolve_locator(page, parameters)
         text = str(parameters.get("text", ""))
         locator.first.fill(text)
+        # Text typed into a password field, or marked secret, is hidden in logs and Hub telemetry
+        secret = str(parameters.get("secret", "")).strip().lower() in ("true", "yes", "1")
+        if not secret:
+            try:
+                secret = (locator.first.get_attribute("type") or "").lower() == "password"
+            except Exception:
+                secret = False
+        if secret:
+            add_secret(context, text)
+            return {"action": "web.type", "text": MASK, "status": "typed"}
         return {"action": "web.type", "text": text, "status": "typed"}
 
 

@@ -29,6 +29,12 @@ Write what this automation must do, in plain language (Thai or English). This fi
 
 - <none>
 
+## Personal or confidential data
+
+<Fields that must not appear in logs or on the Hub, such as customer names, ID numbers, or policy numbers. They are listed in "redact" in config.json. Passwords, ID numbers, card numbers, phones, and e-mails are hidden automatically.>
+
+- <none>
+
 ## Output
 
 <File name and format, columns, grouping and sort order, or the message to send.>

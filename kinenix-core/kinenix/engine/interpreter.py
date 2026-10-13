@@ -9,6 +9,7 @@ from .conditions import resolve_condition
 from .evaluator import VariableEvaluator
 from .logger import ExecutionLogger
 from .markdown import JSON_FLOW_NOT_RUN, markdown_to_flow
+from .redaction import NOT_SECRET_ENV, Redactor
 from ..actions.registry import ActionRegistry
 from ..actions.flow_control import SubflowExecutionError, is_business_error
 from ..models.context import ExecutionContext, StepResult, FailureDetails, local_now
@@ -239,6 +240,14 @@ class FlowInterpreter:
     def run_flow(self, flow_def: FlowDefinition, initial_vars: Optional[Dict[str, Any]] = None) -> ExecutionContext:
         context = ExecutionContext(flow_name=flow_def.name)
 
+        # One Redactor per top-level run, shared with its subflows through the logger; actions reach it
+        # through the context to hide values they handle (docs/logging.md, Redaction)
+        if not self.call_stack:
+            self.logger.redactor = Redactor()
+        redactor = self.logger.redactor
+        context.set_variable("__redactor__", redactor)
+        redactor.add_env_references(json.dumps(flow_def.model_dump(exclude_none=True), ensure_ascii=False, default=str))
+
         # 1. Flow definition default variables (base priority)
         if flow_def.variables:
             for k, v in flow_def.variables.items():
@@ -263,6 +272,7 @@ class FlowInterpreter:
                     self._apply_config_data(dict(v), context)
                 else:
                     context.set_variable(k, v)
+        redactor.configure(context.get_variable("config"))
 
         # Build step map and validate any fallback_step_id upfront
         self._step_map = self._build_step_map(flow_def.steps)
@@ -296,9 +306,10 @@ class FlowInterpreter:
                     root_cause=f"Flow execution failed with unhandled exception: {str(e)}",
                     suggested_fix="Inspect execution logs and subflow definitions."
                 )
-            self.logger.logger.error(f"Flow execution failed with unhandled exception: {str(e)}")
+            self.logger.logger.error(f"Flow execution failed with unhandled exception: {redactor.redact_text(str(e))}")
         finally:
             self._cleanup_resources(context)
+            context.variables.pop("__redactor__", None)
 
         end_time = local_now()
         total_duration = (end_time - start_time).total_seconds()
@@ -622,6 +633,10 @@ class FlowInterpreter:
             v = v.strip().strip("'\"")
             if k and k not in os.environ:
                 os.environ[k] = v
+            # Values from .env are secrets unless they are known Kinenix settings
+            if k and k not in NOT_SECRET_ENV:
+                self.logger.redactor.add_secret(v)
+                self.logger.redactor.add_secret(os.environ.get(k))
 
     def _resolve_subflow_path(self, flow_target: str, context: ExecutionContext) -> Path:
         return resolve_subflow_path(flow_target, context)
