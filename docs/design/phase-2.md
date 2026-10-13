@@ -71,6 +71,7 @@ Run order:
      the remaining Steps are skipped; ${error} is set; On Error runs.
 3. Finally runs, whether Steps succeeded or failed.
 4. Result: failed if Steps failed, otherwise success. On Error does not turn a failure into a success.
+   A step that fails in Finally also makes the run fail, and the log says so (decided 2026-10-13); On Error does not run for it.
 ```
 
 - A `flow.fail` (business error) also runs On Error; `${error.type}` is `Business`.
@@ -319,7 +320,7 @@ kinenix hub query v_failures --format json        # table (default), json, csv (
 | 1 | Hub migration runner, WAL, `schema_version` | (foundation) |
 | 2 | Subflow context (`config`, folder, `inherit_config`), `.md` subflows, validate follows subflows, `hello` gets a subflow example | #49, #60 |
 | 3 | Redaction on the worker | (guardrail 1) |
-| 4 | `## On Error`, `## Finally`, `${error}`, `${run.*}`, `item_label`, retries then `on_error`, `> Requires:` | #50, #51, #52 |
-| 5 | Run records: `step_results`, `failures`, `executions.details`, views, data dictionary and its test, run report, one screenshot per failure, live log | #54, #62 |
+| 4 | `## On Error`, `## Finally`, `${error}`, `${run.id}` (and `flow`, `started`, `status`), `item_label`, retries then `on_error`, `> Requires:` | #50, #51, #52 |
+| 5 | Run records: `step_results`, `failures`, `executions.details`, views, data dictionary and its test, run report, one screenshot per failure, live log and `${run.log_path}` (moved from PR 4) | #54, #62 |
 | 6 | `kinenix hub query`, user views folder | - |
 | 7 | Docs (spec, actions reference, hub guide, quickstart), release 0.2.0b4 (Apache-2.0, upgrade note) | - |

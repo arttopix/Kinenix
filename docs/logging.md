@@ -45,7 +45,8 @@ Each execution log contains comprehensive runtime and business data:
     "exception_class": "FileNotFoundError",
     "error_message": "Excel file not found: ./assets/challenge.xlsx",
     "root_cause": "Required file was not found during execution of step 'Read Challenge Excel File'.",
-    "suggested_fix": "Verify the target file path exists and that relative paths are correctly anchored to the flow project directory."
+    "suggested_fix": "Verify the target file path exists and that relative paths are correctly anchored to the flow project directory.",
+    "section": "steps"
   },
   "metrics": {
     "total_steps": 2,
@@ -71,6 +72,7 @@ Each execution log contains comprehensive runtime and business data:
       "step_name": "Read Challenge Excel File",
       "action": "excel.read",
       "status": "failed",
+      "section": "steps",
       "duration_seconds": 0.05,
       "error_message": "Excel file not found: ./assets/challenge.xlsx",
       "error_type": "Technical"
@@ -78,6 +80,8 @@ Each execution log contains comprehensive runtime and business data:
   ]
 }
 ```
+
+`section` says where a step or the run's failure is in `flow.md`: `steps`, `on_error`, or `finally`. A run whose Steps succeeded but whose `## Finally` failed has `has_error: true` and `failure_details.section: "finally"`, and the console prints `Result: FAILED at step [finally_1] '...' in Finally`.
 
 Timestamps are the worker's local time with its UTC offset (`+07:00` above). The offset lets the Hub convert every execution to UTC, so workers in different time zones line up on the dashboard. The run's end time is not stored separately; it is `start_time` plus `metrics.total_duration_seconds`.
 

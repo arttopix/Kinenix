@@ -37,6 +37,12 @@ _ALT_ELSE_STEPS_REGEX = re.compile(
 ERROR_HANDLER_KEYS = ("on_error", "max_retries", "retry_interval", "fallback_step_id")
 
 
+# `## On Error` and `## Finally` hold steps that run when Steps fail, and after everything (docs/flow_markdown_spec.md)
+SECTION_TITLES = {"on error": "on_error", "onerror": "on_error", "finally": "finally"}
+SECTION_ID_PREFIX = {"steps": "step_", "on_error": "on_error_", "finally": "finally_"}
+SECTION_HEADINGS = {"steps": "Steps", "on_error": "On Error", "finally": "Finally"}
+
+
 # A parameter written as `- **body:** |` takes the indented lines below it as its value
 BLOCK_MARKER = "|"
 
@@ -170,7 +176,7 @@ def _parse_sub_steps_block(lines: List[Line], parent_id: str, issues: Optional[L
     current_step_lines: List[Tuple[int, str, int]] = []
     current_match = None
 
-    def finalize_step(match, body_lines, step_idx):
+    def finalize_step(match, body_lines, step_idx, line):
         idx_val = match.group("idx")
         name = match.group("name").strip()
         action = match.group("action").strip()
@@ -184,6 +190,7 @@ def _parse_sub_steps_block(lines: List[Line], parent_id: str, issues: Optional[L
             "name": name,
             "action": action,
             "parameters": {},
+            "line": line,
         }
 
         # Parse body_lines
@@ -258,14 +265,16 @@ def _parse_sub_steps_block(lines: List[Line], parent_id: str, issues: Optional[L
         return step_dict
 
     child_counter = 1
+    current_line = 0
     for indent, text, lineno in lines:
         if text and indent == min_indent:
             match = _CHILD_STEP_REGEX.match(text)
             if match:
                 if current_match:
-                    steps.append(finalize_step(current_match, current_step_lines, child_counter))
+                    steps.append(finalize_step(current_match, current_step_lines, child_counter, current_line))
                     child_counter += 1
                 current_match = match
+                current_line = lineno
                 current_step_lines = []
                 continue
         if current_match:
@@ -276,7 +285,7 @@ def _parse_sub_steps_block(lines: List[Line], parent_id: str, issues: Optional[L
                 f"bullet with its action, `  - Name (`action.name`):`, and its parameters are indented below it.")
 
     if current_match:
-        steps.append(finalize_step(current_match, current_step_lines, child_counter))
+        steps.append(finalize_step(current_match, current_step_lines, child_counter, current_line))
 
     return steps
 
@@ -293,14 +302,25 @@ def markdown_to_flow(md_content: str, issues: Optional[List[str]] = None) -> Flo
     flow_name = "Untitled Flow"
     description: Optional[str] = None
     version = "1.0.0"
+    requires: Optional[str] = None
     variables: Dict[str, Any] = {}
 
     in_variables_section = False
     in_steps_section = False
+    section = "steps"  # which list the following step headings belong to: steps, on_error, or finally
 
-    raw_steps: List[Tuple[Optional[re.Match], List[Tuple[int, str, int]]]] = []
+    # (section, heading line, heading match, body lines)
+    raw_steps: List[Tuple[str, int, re.Match, List[Line]]] = []
     current_step_match: Optional[re.Match] = None
+    current_step_line = 0
     current_step_lines: List[Tuple[int, str, int]] = []
+
+    def flush() -> None:
+        nonlocal current_step_match, current_step_lines
+        if current_step_match:
+            raw_steps.append((section, current_step_line, current_step_match, current_step_lines))
+        current_step_match = None
+        current_step_lines = []
 
     for lineno, line in enumerate(lines, start=1):
         stripped = line.strip()
@@ -318,16 +338,27 @@ def markdown_to_flow(md_content: str, issues: Optional[List[str]] = None) -> Flo
                 description = quote_text[len("description:"):].strip()
             elif quote_text.lower().startswith("version:"):
                 version = quote_text[len("version:"):].strip()
+            elif quote_text.lower().startswith("requires:"):
+                requires = quote_text[len("requires:"):].strip()
             continue
 
         # 3. Section headers
         if stripped.startswith("## "):
             sec_title = stripped[3:].strip().lower()
+            sec_key = re.sub(r"[\s_-]+", " ", sec_title)
+            if sec_key in SECTION_TITLES:
+                flush()
+                section = SECTION_TITLES[sec_key]
+                in_steps_section = True
+                in_variables_section = False
+                continue
             if "variable" in sec_title:
                 in_variables_section = True
                 in_steps_section = False
                 continue
             elif "step" in sec_title:
+                flush()
+                section = "steps"
                 in_steps_section = True
                 in_variables_section = False
                 continue
@@ -350,50 +381,47 @@ def markdown_to_flow(md_content: str, issues: Optional[List[str]] = None) -> Flo
                 issues.append(
                     f"Line {lineno}: step heading '{stripped[:60]}' has no action, so it is not a step. "
                     f"Put the action in parentheses at the end: `### 1. Open Page (`web.open`)`.")
-            if current_step_match:
-                raw_steps.append((current_step_match, current_step_lines))
-            current_step_match = None
-            current_step_lines = []
+            flush()
             continue
         if step_match:
             in_steps_section = True
             in_variables_section = False
-            if current_step_match:
-                raw_steps.append((current_step_match, current_step_lines))
+            flush()
             current_step_match = step_match
-            current_step_lines = []
+            current_step_line = lineno
             continue
 
         if in_steps_section and current_step_match:
             current_step_lines.append((indent, stripped, lineno))
 
-    if current_step_match:
-        raw_steps.append((current_step_match, current_step_lines))
+    flush()
 
-    # Process all steps
-    compiled_steps: List[Dict[str, Any]] = []
-    step_counter = 1
+    # Process all steps; ids are step_N, on_error_N, or finally_N, numbered per section
+    compiled: Dict[str, List[Dict[str, Any]]] = {"steps": [], "on_error": [], "finally": []}
+    step_counters = {"steps": 1, "on_error": 1, "finally": 1}
 
-    for match, body_lines in raw_steps:
+    for step_section, heading_line, match, body_lines in raw_steps:
         idx_val = match.group("idx")
         name = match.group("name").strip()
         action = match.group("action").strip()
+        prefix = SECTION_ID_PREFIX[step_section]
 
         if idx_val:
             if idx_val.isdigit():
-                step_id = f"step_{idx_val}"
+                step_id = f"{prefix}{idx_val}"
             else:
                 step_id = idx_val
         else:
-            step_id = f"step_{step_counter}"
+            step_id = f"{prefix}{step_counters[step_section]}"
 
-        step_counter += 1
+        step_counters[step_section] += 1
 
         step_dict: Dict[str, Any] = {
             "id": step_id,
             "name": name,
             "action": action,
             "parameters": {},
+            "line": heading_line,
         }
 
         i = 0
@@ -460,14 +488,17 @@ def markdown_to_flow(md_content: str, issues: Optional[List[str]] = None) -> Flo
                 issues.append(_stray_line_issue(lineno, text, name))
             i += 1
 
-        compiled_steps.append(step_dict)
+        compiled[step_section].append(step_dict)
 
     flow_payload = {
         "name": flow_name,
         "description": description,
         "version": version,
+        "requires": requires,
         "variables": variables,
-        "steps": compiled_steps,
+        "steps": compiled["steps"],
+        "on_error_steps": compiled["on_error"] or None,
+        "finally_steps": compiled["finally"] or None,
     }
 
     return FlowDefinition.model_validate(flow_payload)
@@ -513,6 +544,8 @@ def flow_to_markdown(flow: FlowDefinition) -> str:
     if flow.description:
         doc.append(f"> Description: {flow.description}")
     doc.append(f"> Version: {flow.version}")
+    if flow.requires:
+        doc.append(f"> Requires: {flow.requires}")
     doc.append("")
 
     # Variables
@@ -522,14 +555,21 @@ def flow_to_markdown(flow: FlowDefinition) -> str:
             doc.append(f"- `{k}`: {format_value(v)}")
         doc.append("")
 
-    # Steps
-    doc.append("## Steps")
-    doc.append("")
+    for section, steps in (("steps", flow.steps), ("on_error", flow.on_error_steps), ("finally", flow.finally_steps)):
+        if section == "steps" or steps:
+            doc.extend(_section_lines(section, steps or []))
 
-    for idx, step in enumerate(flow.steps, start=1):
+    return "\n".join(doc).rstrip() + "\n"
+
+
+def _section_lines(section: str, steps: List[Step]) -> List[str]:
+    """Markdown for one step section (## Steps, ## On Error, ## Finally)."""
+    doc = [f"## {SECTION_HEADINGS[section]}", ""]
+    prefix = SECTION_ID_PREFIX[section]
+    for idx, step in enumerate(steps, start=1):
         step_idx_str = str(idx)
-        if step.id and step.id.startswith("step_") and step.id[5:].isdigit():
-            step_idx_str = step.id[5:]
+        if step.id and step.id.startswith(prefix) and step.id[len(prefix):].isdigit():
+            step_idx_str = step.id[len(prefix):]
         elif step.id:
             step_idx_str = step.id
 
@@ -553,8 +593,7 @@ def flow_to_markdown(flow: FlowDefinition) -> str:
             doc.extend(_serialize_sub_steps(step.else_steps, indent_spaces=2))
 
         doc.append("")
-
-    return "\n".join(doc).rstrip() + "\n"
+    return doc
 
 
 def markdown_issues(md_content: str) -> List[str]:

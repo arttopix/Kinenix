@@ -857,12 +857,14 @@ Every step in Kinenix can define an optional `error_handler` strategy to make ex
 **Configuration Fields:**
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `on_error` | string | No | `"stop"` | Error policy: `"stop"` (fail flow), `"continue"` (record failure and proceed), or `"retry"` (retry step). Business errors (such as from `flow.fail`) are never retried |
-| `max_retries` | number | No | `0` | Number of extra attempts after original failure (e.g. `3` = 1 original + 3 retries) |
-| `retry_interval` | number | No | `1.0` | Delay in seconds between retry attempts |
+| `on_error` | string | No | `"stop"` | What happens after the last attempt: `"fail"` or `"stop"` (the flow fails and `## On Error` runs), `"continue"` (record the failure and go on), or `"retry"` (same as `"fail"`, kept for older flows) |
+| `max_retries` | number or `${...}` | No | `0` | Extra attempts after the first failure, made before `on_error` decides (e.g. `3` = 1 attempt + 3 retries). Business errors (such as from `flow.fail`) are never retried |
+| `retry_interval` | number or `${...}` | No | `1.0` | Delay in seconds between attempts |
 | `fallback_step_id` | string | No | `null` | Target step ID to execute as a recovery handler upon step failure |
 
 In `flow.md`, write the fields as ordinary step keys. The compiler moves them into `error_handler`; they are not passed to the action. The JSON form `- **error_handler:** {"on_error": "retry", ...}` is also accepted.
+
+Since 0.2.0b4, `max_retries` retries with any `on_error`; before, it worked only with `on_error: retry`. For one place that handles every failure of a flow, use `## On Error` and `## Finally` ([flow_markdown_spec.md](flow_markdown_spec.md#3-failures-retries-on-error-and-finally)).
 
 **Example with Retry and Fallback Recovery in `flow.md` (Markdown):**
 ```markdown
@@ -964,6 +966,7 @@ Iterates over an array or list of objects, binding each element to an item varia
 |---|---|---|---|
 | `items` | list / string | Yes | Array or variable reference `${var}` to iterate |
 | `item_var` | string | No (default: item) | Context variable name representing the current iteration item |
+| `item_label` | string | No | How an item is named in `${error.loop.item}` and in failure records, e.g. `${row.request_id} ${row.brand}`. Default: the item's first three fields |
 
 **Example:**
 ```markdown

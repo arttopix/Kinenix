@@ -8,6 +8,7 @@ from typing import Optional, Union
 
 from ..env import get_env
 from ..models.context import ExecutionContext, StepResult
+from .markdown import SECTION_HEADINGS
 from .redaction import Redactor
 
 
@@ -38,6 +39,11 @@ def resolve_log_dir(log_dir: Optional[Union[str, Path]] = None, flow_path: Optio
 
     # 3. Fallback to CWD/logs
     return (Path.cwd() / "logs").resolve()
+
+
+def _in_section(section: str) -> str:
+    """' in On Error' or ' in Finally', so failures outside ## Steps are easy to tell apart in the log."""
+    return f" in {SECTION_HEADINGS[section]}" if section in SECTION_HEADINGS and section != "steps" else ""
 
 
 class ExecutionLogger:
@@ -78,7 +84,7 @@ class ExecutionLogger:
             )
         elif result.status == "failed":
             self.logger.error(
-                f"Failed Step [{result.step_id}] '{result.step_name}' - [{result.error_type} Error]: "
+                f"Failed Step [{result.step_id}] '{result.step_name}'{_in_section(result.section)} - [{result.error_type} Error]: "
                 f"{self.redactor.redact_text(result.error_message)}"
             )
         else:
@@ -93,6 +99,10 @@ class ExecutionLogger:
         self.logger.info(f"Flow Name: {context.flow_name}")
         self.logger.info(f"Total Steps: {m.total_steps} (Success: {m.successful_steps}, Failed: {m.failed_steps}, Skipped: {m.skipped_steps})")
         self.logger.info(f"Total Duration: {m.total_duration_seconds:.2f}s")
+        details = context.failure_details
+        if context.has_error and details:
+            self.logger.info(f"Result: FAILED at step [{details.failed_step_id}] '{details.failed_step_name}'"
+                             f"{_in_section(details.section)}")
 
         raw_data = context.model_dump(mode="python")
         raw_data = {"$schema": "../../../schemas/execution_log.schema.json", **raw_data}

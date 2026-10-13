@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from pydantic import BaseModel, Field
 
 
@@ -9,9 +9,9 @@ class VariableDefinition(BaseModel):
 
 
 class ErrorHandlerConfig(BaseModel):
-    on_error: str = Field(default="stop", description="Action on error: stop, continue, or retry")
-    max_retries: int = Field(default=0, description="Maximum retry attempts if on_error is retry")
-    retry_interval: float = Field(default=1.0, description="Seconds to wait between retry attempts")
+    on_error: str = Field(default="stop", description="After the last attempt: fail (or stop, retry) or continue")
+    max_retries: Union[int, str] = Field(default=0, description="Retry attempts before on_error decides; a number or ${...}")
+    retry_interval: Union[float, str] = Field(default=1.0, description="Seconds to wait between attempts; a number or ${...}")
     fallback_step_id: Optional[str] = Field(default=None, description="Step ID to jump to upon error")
 
 
@@ -26,6 +26,8 @@ class Step(BaseModel):
     else_steps: Optional[List["Step"]] = Field(default=None, description="Child steps executed when logic.if evaluates to false")
     error_handler: Optional[ErrorHandlerConfig] = Field(default=None, description="Step-level error handling strategy")
     condition: Optional[str] = Field(default=None, description="Optional execution condition expression (e.g. '${row.Status} == Active')")
+    line: Optional[int] = Field(default=None, exclude=True,
+                                description="Line of the step heading in its flow.md, for error reports; not part of the compiled form")
 
 
 Step.model_rebuild()
@@ -43,4 +45,7 @@ class FlowDefinition(BaseModel):
     description: Optional[str] = Field(default=None, description="High-level description of business purpose and scope")
     version: str = Field(default="1.0.0", description="Semantic version of the flow definition")
     variables: Dict[str, Any] = Field(default_factory=dict, description="Initial context variables accessible via ${var_name}")
+    requires: Optional[str] = Field(default=None, description="Kinenix version the flow needs, e.g. kinenix>=0.2.0b4")
     steps: List[Step] = Field(default_factory=list, description="Sequential steps to execute")
+    on_error_steps: Optional[List[Step]] = Field(default=None, description="Steps of ## On Error: run once when Steps fail")
+    finally_steps: Optional[List[Step]] = Field(default=None, description="Steps of ## Finally: run after Steps and On Error, always")
