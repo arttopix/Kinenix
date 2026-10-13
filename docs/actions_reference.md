@@ -126,12 +126,20 @@ Fills text into an input or textarea element.
 | `text` | string | Yes | `""` | Text to enter into the field |
 | `selector` | string | Either | - | CSS selector or XPath expression |
 | `label` | string | Either | - | Case-sensitive label text matching preceding element |
+| `secret` | boolean | No | `false` | Hide the typed text in logs and Hub telemetry. Text typed into a `type="password"` field is always hidden |
+
+**Output:** `{"action": "web.type", "text": "<typed text, or **** when hidden>", "status": "typed"}`. Hidden text is also replaced wherever it appears in the run's records ([logging.md](logging.md#redaction)).
 
 **Example:**
 ```markdown
 ### step_type_name. Fill First Name (`web.type`)
 - **label:** First Name
 - **text:** ${row.First Name}
+
+### step_type_pin. Enter PIN (`web.type`)
+- **selector:** #pin
+- **text:** ${env.PORTAL_PIN}
+- **secret:** true
 ```
 
 ---

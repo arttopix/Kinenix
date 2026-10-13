@@ -204,16 +204,16 @@ Flows exist only as `flow.md` (decided after this design was first written); the
 
 ## 7. Redaction on the worker
 
-Applied to `${error}`, step output summaries, log files, and everything sent to the Hub. Best effort: pattern matching can miss values or hide too much, so the rule is also to record only what is needed.
+Built in PR 3; the user-facing description is in [logging.md](../logging.md#redaction). Applied to `${error}`, step output summaries, log files, and everything sent to the Hub. Best effort: pattern matching can miss values or hide too much, so the rule is also to record only what is needed.
 
 | What | How it is found | Replaced by |
 | :--- | :--- | :--- |
 | Values of variables from `.env` and `${env.*}` used by the flow | Exact value match | `****` |
-| Values of keys that look secret (`password`, `passwd`, `secret`, `token`, `api_key`, `apikey`, `authorization`, `cookie`) | Key name, in parameters, config, and outputs | `****` |
+| Values of keys that look secret (`password`, `passwd`, `secret`, `token`, `api_key`, `apikey`, `authorization`; `cookie` and `credential` only as the whole key name) | Key name, in parameters, config, and outputs | `****` |
 | Text typed into password fields (`web.type` on `type=password`) | Field type | `****` |
 | Thai national ID (13 digits with a valid check digit) | Pattern | `[thai-id]` |
 | Card numbers (13-19 digits with a valid Luhn check) | Pattern | `[card]` |
-| Phone numbers and e-mail addresses | Pattern; on by default, can be turned off in config | `[phone]`, `[email]` |
+| Phone numbers and e-mail addresses | Pattern; on by default, `"redact_contacts": false` in config turns it off | `[phone]`, `[email]` |
 | Fields the user lists in `config.redact` | Key name | `****` |
 
 ## 8. Hub database

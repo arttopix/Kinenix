@@ -84,6 +84,35 @@ Timestamps are the worker's local time with its UTC offset (`+07:00` above). The
 ### Privacy & State Sanitization
 Internal runtime objects (such as Playwright browser handles, page pointers, and database connections prefixed with `__`) are automatically filtered out prior to JSON serialization, ensuring clean, serializable log files without leaking sensitive memory objects.
 
+### Redaction
+
+The worker removes secrets and personal data before anything leaves the run: the JSON log file, the error lines on the console, and the telemetry sent to the Hub. Only these records are changed; the flow itself keeps working with the real values. Code: `kinenix-core/kinenix/engine/redaction.py`.
+
+| What | How it is found | Replaced by |
+| :--- | :--- | :--- |
+| Values from the bundle's `.env`, and of every `${env.NAME}` the flow uses | Exact value (4 characters or longer), wherever it appears | `****` |
+| Environment variables whose name looks secret (`SMTP_PASSWORD`, `KINENIX_HUB_API_KEY`, ...) | Exact value | `****` |
+| Values of keys that look secret: names containing `password`, `passwd`, `secret`, `token`, `api_key`, `authorization`, `private_key`, or named exactly `pwd`, `cookie(s)`, `set-cookie`, `credential(s)` | Key name, at any depth; the value is also hidden where it appears in other text | `****` |
+| `password=...`, `token: ...`, `Authorization: Bearer ...` inside text (URLs, error messages) | Pattern | `****` after the key |
+| Text typed by `web.type` into a `type="password"` field, or with `secret: true` | The action | `****` |
+| Thai national ID (13 digits with a valid check digit) | Pattern, also for numbers read from spreadsheets | `[thai-id]` |
+| Card numbers (13-19 digits that pass the Luhn check) | Pattern | `[card]` |
+| Thai phone numbers and e-mail addresses | Pattern; `"redact_contacts": false` in config keeps them | `[phone]`, `[email]` |
+| Fields listed in `config.redact` | Key name (case-insensitive); the values are also hidden in other text | `****` |
+
+Known Kinenix settings that are not secret (`KINENIX_HUB_URL`, `KINENIX_WORKER_ID`, `KINENIX_FLOWS_DIR`, and the other Hub address settings) stay readable when they come from `.env`.
+
+Fields with personal or business data are listed in the project's `config/config.json`:
+
+```json
+{
+  "redact": ["customer_name", "policy_no"],
+  "redact_contacts": true
+}
+```
+
+Redaction is best effort. A pattern can miss a value (a secret that does not come from `.env` and sits under a harmless key name) or hide one that is not secret (about 1 in 10 random 13-digit numbers pass the Thai ID check). Record only what is needed, and keep secrets in `.env`. Workers older than 0.2.0b4 do not redact, so upgrade every worker before relying on it.
+
 ---
 
 ## 3. Exception Classification
