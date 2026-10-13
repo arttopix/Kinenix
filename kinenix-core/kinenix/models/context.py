@@ -16,6 +16,7 @@ class StepResult(BaseModel):
     start_time: datetime = Field(..., description="Timestamp when step started")
     end_time: datetime = Field(..., description="Timestamp when step finished")
     duration_seconds: float = Field(..., description="Execution duration in seconds")
+    section: str = Field(default="steps", description="Section of flow.md the step is in: steps, on_error, or finally")
     output: Optional[Any] = Field(default=None, description="Output payload returned by the action")
     error_message: Optional[str] = Field(default=None, description="Error message if step failed")
     error_type: Optional[str] = Field(default=None, description="Error classification: Technical or Business")
@@ -41,6 +42,7 @@ class FailureDetails(BaseModel):
     root_cause: str = Field(..., description="Direct summary of the root cause for AI and human diagnosis")
     suggested_fix: str = Field(..., description="Actionable recommendation to resolve the failure")
     error_screenshot_path: Optional[str] = Field(default=None, description="Path to screenshot captured at moment of failure if browser was active")
+    section: str = Field(default="steps", description="Section of flow.md the failed step is in: steps, on_error, or finally")
 
 
 class ExecutionContext(BaseModel):

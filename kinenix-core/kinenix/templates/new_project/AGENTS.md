@@ -12,6 +12,8 @@ This folder is a Kinenix flow project. Kinenix runs automation flows written in 
 6. Run `kinenix validate .` and fix every reported problem.
 7. Run `kinenix run .`, read the log, and fix failures. Report what you verified.
 
+When the requirements say what to do if the bot fails (send an e-mail, take a screenshot) or what must always happen at the end (close the browser, zip the output), put those steps in `## On Error` and `## Finally` after `## Steps`, use `${error.message}`, `${error.step_name}`, and `${error.loop.item}` in them, and add `> Requires: kinenix>=0.2.0b4` under the title. Give every `logic.loop` an `item_label` that identifies the item, such as an order number.
+
 ## References
 
 | Need | Where |

@@ -71,10 +71,14 @@ Components in `@shared/` (or any flow file outside the calling bundle) are used 
 When a shared component needs many values from the caller's config, `inherit_config: true` passes the caller's whole config. The caller's keys win; keys only the component defines keep the component's defaults:
 
 ```markdown
+> Requires: kinenix>=0.2.0b4
+
 ### 2. Monthly Report (`flow.call`)
 - **flow:** @shared/monthly_report.md
 - **inherit_config:** true
 ```
+
+`inherit_config` needs Kinenix 0.2.0b4 or later; the `> Requires:` line under the flow's title makes older workers refuse the flow instead of running the subflow without the config.
 
 This ties the component to the caller's key names, so prefer `inputs` for components used by projects with different configs.
 

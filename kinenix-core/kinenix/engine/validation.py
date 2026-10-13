@@ -10,6 +10,7 @@ from typing import Iterable, List, Optional, Set
 from .. import actions  # noqa: F401  (imports every action module so the registry is complete)
 from ..actions.registry import ActionRegistry
 from ..models.flow import FlowDefinition, Step
+from .requires import requirement_problem
 
 # Keys that belong to the step itself; seeing them in parameters means a converted flow or a typo put them there
 STEP_LEVEL_KEYS = {
@@ -29,13 +30,49 @@ def _walk(steps: Iterable[Step]) -> Iterable[Step]:
         yield from _walk(step.else_steps)
 
 
+def _all_steps(flow: FlowDefinition) -> List[Step]:
+    """Steps, On Error, and Finally, in that order."""
+    return list(flow.steps) + list(flow.on_error_steps or []) + list(flow.finally_steps or [])
+
+
+ON_ERROR_VALUES = ("fail", "stop", "retry", "continue")
+# What the flow uses that Kinenix 0.2.0b3 and older would run wrongly (item_label is only ignored, so it is not listed)
+NEEDS_0_2_0B4 = "kinenix>=0.2.0b4"
+
+
+def _newer_features(flow: FlowDefinition) -> List[str]:
+    used = []
+    if flow.on_error_steps:
+        used.append("## On Error")
+    if flow.finally_steps:
+        used.append("## Finally")
+    steps = list(_walk(_all_steps(flow)))
+    if any(s.action == "flow.call" and "inherit_config" in s.parameters for s in steps):
+        used.append("inherit_config")
+    return used
+
+
 def validate_flow(flow: FlowDefinition) -> List[str]:
     """Return human-readable problems found in the flow; an empty list means none."""
     issues: List[str] = []
     known_actions = ActionRegistry.list_actions()
 
-    for step in _walk(flow.steps):
+    problem = requirement_problem(flow.requires)
+    if problem:
+        issues.append(problem)
+    used = _newer_features(flow)
+    if used and not flow.requires:
+        issues.append(
+            f"The flow uses {', '.join(used)}, which Kinenix 0.2.0b3 and older do not understand: they run "
+            f"On Error and Finally steps as ordinary steps and ignore inherit_config. Add "
+            f"`> Requires: {NEEDS_0_2_0B4}` under the title, so older workers refuse the flow instead.")
+
+    for step in _walk(_all_steps(flow)):
         where = f"Step '{step.id}' ({step.name})"
+        on_error = step.error_handler.on_error if step.error_handler else None
+        if on_error is not None and str(on_error).strip().lower() not in ON_ERROR_VALUES:
+            issues.append(f"{where}: on_error '{on_error}' is not one of {', '.join(ON_ERROR_VALUES)}; "
+                          f"it would stop the flow like fail.")
         action_cls = known_actions.get(step.action)
         if action_cls is None:
             close = difflib.get_close_matches(step.action, known_actions, n=1)
@@ -85,7 +122,7 @@ def validate_subflows(flow: FlowDefinition, flow_dir: Path, flow_file_dir: Optio
     issues: List[str] = []
     seen = _seen if _seen is not None else set()
     flow_file_dir = flow_file_dir or flow_dir
-    for step in _walk(flow.steps):
+    for step in _walk(_all_steps(flow)):
         if step.action != "flow.call":
             continue
         target = step.parameters.get("flow")
