@@ -158,11 +158,18 @@ def test_a_failed_subflow_reuses_its_screenshot_instead_of_taking_another(tmp_pa
     assert diag.error_screenshot_path == "/shots/one.png"
 
 
-def test_run_ids_are_never_mistaken_for_card_numbers():
-    # 20261014-054855-43ac was hidden as [card]ac in CI, and 060049-5345 would read as a phone number
+def test_run_ids_are_never_mistaken_for_card_or_phone_numbers():
+    # 20261014-054855-43ac was hidden as [card]ac in CI, and 060049-5345 would read as a phone number.
+    # The environment is left out: a CI password such as "root" would match a random suffix
     from datetime import datetime, timedelta
-    redactor = Redactor()
+    redactor = Redactor(environment={})
     start = datetime(2026, 10, 14, 5, 48, 55)
     for second in range(0, 86400 * 3, 7):
         run_id = new_run_id(start + timedelta(seconds=second))
         assert redactor.redact(run_id) == run_id
+
+
+def test_the_run_id_field_is_never_redacted():
+    redactor = Redactor(environment={"DB_PASSWORD": "root"})
+    record = {"run_id": "20261016T195714-root", "message": "login root failed"}
+    assert redactor.redact(record) == {"run_id": "20261016T195714-root", "message": "login **** failed"}
