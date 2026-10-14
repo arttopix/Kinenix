@@ -238,15 +238,31 @@ def main():
     # Command: hub
     # "orchestrator" is the name from before the rename to Hub and still works as an alias
     hub_parser = subparsers.add_parser("hub", aliases=["orchestrator"], help="Start the Kinenix Hub, set it up, or show its workers and executions")
-    hub_parser.add_argument("action", nargs="?", choices=["start", "status", "logs", "setup", "show-key"], default="start",
+    hub_parser.add_argument("action", nargs="?", choices=["start", "status", "logs", "query", "setup", "show-key"], default="start",
                              help="'start' runs the server (default; asks setup questions on first run); "
                                   "'status' shows workers and recent executions of a running server; "
                                   "'logs [ID]' shows the steps of one execution (latest when ID is omitted); "
+                                  "'query' reads runs, steps, and failures (read-only; see --list); "
                                   "'setup' changes the saved settings; 'show-key' prints the worker API key")
-    hub_parser.add_argument("execution_id", nargs="?", default=None,
-                             help="For 'logs': execution ID or its first characters, as shown by 'status'")
-    hub_parser.add_argument("--url", default=None, help="Hub URL for 'status' and 'logs' (default: http://127.0.0.1:<port>)")
-    hub_parser.add_argument("--limit", type=int, default=10, help="Number of recent executions shown by 'status' (default: 10)")
+    hub_parser.add_argument("target", nargs="?", default=None,
+                             help="For 'logs': execution ID or its first characters, as shown by 'status'. "
+                                  "For 'query': a view or table name (v_failures), or one SQL SELECT in quotes")
+    hub_parser.add_argument("--url", default=None,
+                             help="Hub URL for 'status' and 'logs' (default: http://127.0.0.1:<port>); "
+                                  "for 'query', ask that Hub instead of reading hub.db on this machine")
+    hub_parser.add_argument("--limit", type=int, default=None,
+                             help="Recent executions shown by 'status' (default: 10); rows returned by 'query' (default: 50)")
+    query_options = hub_parser.add_argument_group("query options")
+    query_options.add_argument("--list", action="store_true", help="List tables and views, their row counts, and what they answer")
+    query_options.add_argument("--describe", metavar="NAME", default=None, help="Show the columns of a table or view and what they mean")
+    query_options.add_argument("--since", default=None, help="Only rows from this time: today, yesterday, 30m, 12h, 7d, 2w, or a date (2026-10-12)")
+    query_options.add_argument("--flow", default=None, help="Only rows of this flow (flow_name)")
+    query_options.add_argument("--worker", default=None, help="Only rows of this worker (worker_id)")
+    query_options.add_argument("--status", default=None, help="Only rows with this status (success, failed, skipped)")
+    query_options.add_argument("--filter", action="append", metavar="COLUMN=VALUE", help="Only rows where a column has this value; repeat for more")
+    query_options.add_argument("--format", choices=["table", "json", "csv", "md"], default="table", help="Output format (default: table)")
+    query_options.add_argument("--output", metavar="FILE", default=None, help="Write the rows to a file instead of the screen")
+    query_options.add_argument("--expand", action="store_true", help="Show whole values, and details columns as JSON objects")
     hub_parser.add_argument("--no-prompt", action="store_true", help="Never ask questions (for services and scripts); use the environment and saved settings only")
     hub_parser.add_argument("--port", type=int, default=None, help="Port to bind the hub server (default: $KINENIX_HUB_PORT or 8080)")
     hub_parser.add_argument("--host", default=None, help="Host to bind the hub server (default: $KINENIX_HUB_HOST or 127.0.0.1; use 0.0.0.0 to accept remote connections)")
@@ -257,7 +273,14 @@ def main():
     # Command: install-browsers
     subparsers.add_parser("install-browsers", help="Download and install Playwright Chromium browser")
 
-    args = parser.parse_args()
+    args, extras = parser.parse_known_args()
+    # argparse cannot read a positional after options that follow another positional
+    # (`kinenix hub query --url URL "SELECT ..."`), so the one left over is the target
+    if (extras and getattr(args, "command", None) in ("hub", "orchestrator") and args.target is None
+            and len(extras) == 1 and not extras[0].startswith("-")):
+        args.target, extras = extras[0], []
+    if extras:
+        parser.error(f"unrecognized arguments: {' '.join(extras)}")
 
     if args.command == "version":
         print(f"Kinenix:      v{__version__}")
@@ -523,6 +546,10 @@ def main():
 
         port = args.port or hub_config.PORT
 
+        if args.action == "query":
+            from kinenix_hub import query_console
+            sys.exit(query_console.main(console, Console(stderr=True), args, hub_config, interactive))
+
         if args.action in ("status", "logs"):
             import requests
             url = args.url or f"http://127.0.0.1:{port}"
@@ -532,9 +559,9 @@ def main():
                 try:
                     with console.status(f"Reading {url}..."):
                         if args.action == "status":
-                            data = hub_console.fetch_status(url, auth, args.limit)
+                            data = hub_console.fetch_status(url, auth, args.limit or 10)
                         else:
-                            data = hub_console.fetch_execution_log(url, auth, args.execution_id)
+                            data = hub_console.fetch_execution_log(url, auth, args.target)
                     break
                 except LookupError as e:
                     console.print(f"[bold red]Error:[/] {e}")

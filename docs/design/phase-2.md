@@ -294,7 +294,7 @@ Each run gets a short Markdown report in `executions.details.report_md`, for peo
 
 ## 9. `kinenix hub query`
 
-Read-only queries from the terminal, on the Hub machine (reads `hub.db`) or against a remote Hub (`--url`, with the dashboard credentials). The same code will back the MCP tools.
+Built in PR 6; the user guide is [hub.md, Querying Runs](../hub.md#7-querying-runs). Read-only queries from the terminal, on the Hub machine (reads `hub.db`) or against a remote Hub (`--url`, with the dashboard credentials). The same code will back the MCP tools.
 
 ```bash
 kinenix hub query --list                          # views and tables, row counts, what they answer

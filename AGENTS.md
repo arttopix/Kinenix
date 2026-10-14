@@ -48,6 +48,7 @@ kinenix validate flows/examples/rpachallenge   # unknown actions and ignored par
 kinenix hub            # first run asks setup questions and saves them
 kinenix hub status     # workers and recent executions of a running server
 kinenix hub logs [ID]  # steps of one execution (latest when ID is omitted)
+kinenix hub query v_failures --since yesterday   # read-only questions to hub.db (--list, --describe, SQL)
 ```
 
 CLI output in `kinenix-worker` and `kinenix hub` is rendered with `rich` (`kinenix_worker/display.py`, `kinenix_hub/console.py`); `kinenix-core` itself does not depend on it.
@@ -74,7 +75,7 @@ Read the matching file before working in that area:
 | Logs and telemetry format | `.agents/rules/logging.md`, `docs/logging.md` |
 | Secrets, credentials, data privacy | `.agents/rules/security.md` |
 | Hub setup and API keys | `docs/hub.md` |
-| Hub tables, views, run records | `docs/hub_data.md` (update it with any column, view, or `details` key; a test checks it) |
+| Hub tables, views, run records, queries | `docs/hub_data.md` (update it with any column, view, or `details` key, then copy it to `kinenix-hub/kinenix_hub/hub_data.md`; tests check both), `docs/hub.md` section 7 |
 | Code style | `.agents/rules/coding_standards.md` |
 | Tests | `.agents/rules/testing_standards.md` |
 | Commits and branches | `.agents/rules/git_workflow.md` |
@@ -120,6 +121,7 @@ When you change code so that it matches a target, update this table and `docs/ro
 | `KINENIX_HUB_DASHBOARD_USER` / `KINENIX_HUB_DASHBOARD_PASSWORD` | kinenix-hub | Basic Auth for the dashboard and read endpoints; unset password means localhost-only |
 | `KINENIX_HUB_HOST` / `KINENIX_HUB_PORT` | kinenix-hub | Bind address (default `127.0.0.1`, localhost only) and port |
 | `KINENIX_HUB_SETTINGS_FILE` | kinenix-hub | Saved settings from `kinenix hub setup` (default `~/.kinenix/hub.env`); environment variables override it |
+| `KINENIX_HUB_VIEWS_DIR` | kinenix-hub | Folder of user views (`custom_*.sql`) created at every Hub start (default `~/.kinenix/hub_views`) |
 | `KINENIX_HUB_WORKER_OFFLINE_SECONDS` | kinenix-hub | Seconds without a heartbeat before a worker shows as offline (default 90) |
 | `DATABASE_URL` | kinenix-hub | SQLAlchemy connection string |
 | `CENTRAL_LLM_URL` | kinenix-hub | LLM endpoint for failure analysis |

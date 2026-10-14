@@ -52,4 +52,4 @@ version = { attr = "kinenix_hub.__version__" }
 include = ["kinenix_hub*"]
 
 [tool.setuptools.package-data]
-kinenix_hub = ["static/*"]
+kinenix_hub = ["static/*", "hub_data.md"]

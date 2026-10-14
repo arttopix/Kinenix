@@ -1,11 +1,14 @@
 """Views over the run records, so people and AI query one flat table instead of JSON (docs/hub_data.md).
 
 Views hold no data, so the Hub drops and creates them at every start instead of changing them through
-migrations. Kinenix view names start with `v_`; user views (`custom_`) are never touched here.
+migrations. Kinenix view names start with `v_`; user views start with `custom_` and come from .sql files
+in the user views folder (apply_user_views), so an upgrade never overwrites them.
 The views read JSON with SQLite's json_extract; on another database they are not created.
 """
 import logging
-from typing import Dict
+import re
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
@@ -109,3 +112,58 @@ def create_views(engine: Engine) -> None:
         for name, select in VIEWS.items():
             conn.execute(text(f"DROP VIEW IF EXISTS {name}"))
             conn.execute(text(f"CREATE VIEW {name} AS {select.strip()}"))
+
+
+USER_VIEW_PREFIX = "custom_"
+_USER_VIEW_NAME = re.compile(r"^custom_\w+$")
+
+
+def apply_user_views(engine: Engine, folder: Optional[Path]) -> List[Tuple[str, str]]:
+    """
+    Creates a view for each custom_*.sql file in `folder` (the file holds one SELECT; the view takes the
+    file's name) and drops custom_ views whose file is gone. A view that fails is logged with its file
+    name and skipped; the Hub keeps starting. Returns (file name, error) for each failure.
+    """
+    if engine.dialect.name != "sqlite":
+        return []
+    files = {}
+    failures: List[Tuple[str, str]] = []
+    if folder and folder.is_dir():
+        for path in sorted(folder.glob("*.sql")):
+            if _USER_VIEW_NAME.match(path.stem):
+                files[path.stem] = path
+            else:
+                failures.append((path.name, f"user view names must start with {USER_VIEW_PREFIX} (letters, digits, _)"))
+
+    with engine.begin() as conn:
+        existing = [row[0] for row in conn.execute(text(
+            "SELECT name FROM sqlite_master WHERE type = 'view' AND name GLOB 'custom_*'"))]
+        for name in existing:
+            if name not in files:
+                conn.execute(text(f'DROP VIEW "{name}"'))
+
+    # A view may read another user view, so views that fail are tried again while others still succeed
+    pending = dict(files)
+    errors: Dict[str, str] = {}
+    while pending:
+        created = []
+        for name, path in pending.items():
+            select = path.read_text(encoding="utf-8-sig").strip().rstrip(";").strip()
+            try:
+                with engine.begin() as conn:
+                    conn.execute(text(f'DROP VIEW IF EXISTS "{name}"'))
+                    conn.exec_driver_sql(f'CREATE VIEW "{name}" AS {select}')
+                    conn.exec_driver_sql(f'SELECT * FROM "{name}" LIMIT 0')
+                created.append(name)
+            except Exception as e:  # any SQL error in a user's file
+                errors[name] = str(getattr(e, "orig", None) or e).splitlines()[0]
+        for name in created:
+            pending.pop(name)
+            errors.pop(name, None)
+        if not created:
+            break
+
+    failures += [(files[name].name, errors[name]) for name in pending]
+    for file_name, error in failures:
+        logger.warning(f"User view {file_name} was not created: {error}")
+    return failures

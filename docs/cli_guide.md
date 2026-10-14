@@ -152,6 +152,17 @@ kinenix run rpachallenge --hub http://localhost:8080
 
 See the [Kinenix Hub Guide](hub.md#2-worker-authentication) for setup details.
 
+### 3.4 Ask the Hub About Runs (`kinenix hub query`)
+Reads runs, steps, and failures from the Hub database, read-only. On the Hub machine it reads `hub.db` directly; `--url` asks a Hub on another machine.
+
+```bash
+kinenix hub query --list                          # what can be queried
+kinenix hub query v_failures --since yesterday    # what failed, where, on which item
+kinenix hub query "SELECT flow_name, COUNT(*) FROM v_runs GROUP BY flow_name"
+```
+
+Options, safety rules, and user views: [hub.md, Querying Runs](hub.md#7-querying-runs). Columns: [hub_data.md](hub_data.md).
+
 ---
 
 ## 4. Smart Flow Resolver Behavior
