@@ -90,6 +90,25 @@
           "description": "Actionable recommendation to resolve the failure",
           "title": "Suggested Fix",
           "type": "string"
+        },
+        "error_screenshot_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Path to screenshot captured at moment of failure if browser was active",
+          "title": "Error Screenshot Path"
+        },
+        "section": {
+          "default": "steps",
+          "description": "Section of flow.md the failed step is in: steps, on_error, or finally",
+          "title": "Section",
+          "type": "string"
         }
       },
       "required": [
@@ -151,6 +170,12 @@
           "title": "Duration Seconds",
           "type": "number"
         },
+        "section": {
+          "default": "steps",
+          "description": "Section of flow.md the step is in: steps, on_error, or finally",
+          "title": "Section",
+          "type": "string"
+        },
         "output": {
           "anyOf": [
             {},
@@ -187,6 +212,79 @@
           "default": null,
           "description": "Error classification: Technical or Business",
           "title": "Error Type"
+        },
+        "line": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Line of the step heading in its flow.md",
+          "title": "Line"
+        },
+        "path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Flow > loop or condition > subflow > step, for finding the step",
+          "title": "Path"
+        },
+        "subflow": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Name of the subflow the step ran in, or empty",
+          "title": "Subflow"
+        },
+        "loop": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Innermost loop item: index (from 1), of, item",
+          "title": "Loop"
+        },
+        "retries": {
+          "default": 0,
+          "description": "Retries made before the step succeeded or failed",
+          "title": "Retries",
+          "type": "integer"
+        },
+        "failure": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "For a failed step: exception, root_cause, suggested_fix, screenshot, handled (stopped, continued, fallback), from_subflow (the failure is the subflow step's, recorded there)",
+          "title": "Failure"
         }
       },
       "required": [
@@ -206,6 +304,48 @@
       "description": "Name of the executed workflow",
       "title": "Flow Name",
       "type": "string"
+    },
+    "run_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Id of the run (${run.id}), shared with its subflows",
+      "title": "Run Id"
+    },
+    "kinenix_version": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Kinenix version that ran the flow",
+      "title": "Kinenix Version"
+    },
+    "items": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Work items: iterations of loops with item_label (total, done, failed)",
+      "title": "Items"
     },
     "start_time": {
       "description": "Workflow start timestamp",

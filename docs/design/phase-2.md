@@ -321,6 +321,7 @@ kinenix hub query v_failures --format json        # table (default), json, csv (
 | 2 | Subflow context (`config`, folder, `inherit_config`), `.md` subflows, validate follows subflows, `hello` gets a subflow example | #49, #60 |
 | 3 | Redaction on the worker | (guardrail 1) |
 | 4 | `## On Error`, `## Finally`, `${error}`, `${run.id}` (and `flow`, `started`, `status`), `item_label`, retries then `on_error`, `> Requires:` | #50, #51, #52 |
-| 5 | Run records: `step_results`, `failures`, `executions.details`, views, data dictionary and its test, run report, one screenshot per failure, live log and `${run.log_path}` (moved from PR 4) | #54, #62 |
+| 5a | Worker side: every step result records line, path, subflow, loop item, retries, and failure facts with `handled`; subflow steps join the main run's log; subflows send no run of their own; live log and `${run.log_path}` (moved from PR 4); one screenshot per failure; `items` from loops with `item_label` | #54, #62 |
+| 5b | Hub side: `step_results`, `failures`, `executions.details` (existing runs are backfilled from `raw_log`), views, data dictionary and its test, run report, step outputs stored short (500 characters; the full log stays in `raw_log`) | - |
 | 6 | `kinenix hub query`, user views folder | - |
 | 7 | Docs (spec, actions reference, hub guide, quickstart), release 0.2.0b4 (Apache-2.0, upgrade note) | - |

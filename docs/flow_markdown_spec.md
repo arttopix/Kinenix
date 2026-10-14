@@ -308,6 +308,7 @@ When a step inside a subflow fails, the caller's `${error}` describes that inner
 | `${run.id}` | Unique id of the run, such as `20261013-221502-a1b2`; use it in paths: `./output/${run.id}/`, or `"error_dir": "./output/errors/${run.id}"` in config |
 | `${run.flow}`, `${run.started}` | Flow name, start time |
 | `${run.status}` | `running` in Steps and On Error; `success` or `failed` in Finally |
+| `${run.log_path}` | The run's live log (one JSON line per finished step), for attaching to an error e-mail ([logging.md](logging.md)) |
 
 `error` and `run` are reserved variable names.
 
@@ -326,6 +327,8 @@ When a step inside a subflow fails, the caller's `${error}` describes that inner
 ```
 
 Without `item_label`, the first three fields of the item are used. The label is built from a redacted copy of the item.
+
+Loops with `item_label` are the flow's work items: the run log counts them as done or failed (`items` in [logging.md](logging.md)), so give it to the loop over the things the flow processes (requests, invoices, rows), not to loops that only pick options.
 
 ---
 

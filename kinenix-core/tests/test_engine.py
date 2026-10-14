@@ -334,11 +334,14 @@ def test_subflow_contract_first_return(tmp_path):
     assert ctx.get_variable("calculated_value") is None
     assert ctx.get_variable("should_not_exist") is None
 
-    # Hierarchical logging: parent step contains child steps and metrics
-    parent_step_res = ctx.step_results[0]
+    # The subflow's steps are in the run's step results, before the flow.call step that ran them
+    parent_step_res = ctx.step_results[-1]
+    assert parent_step_res.step_id == "step_invoke_subflow"
     assert parent_step_res.status == "success"
-    assert "subflow_steps" in parent_step_res.output
-    assert len(parent_step_res.output["subflow_steps"]) == 2  # Step 1 and Return step (Step 3 skipped)
+    assert "subflow_metrics" in parent_step_res.output
+    child_steps = [r for r in ctx.step_results if r.subflow]
+    assert len(child_steps) == 2  # Step 1 and Return step (Step 3 skipped)
+    assert all(r.path.startswith("Parent Main Flow > ") for r in child_steps)
 
 
 def test_subflow_default_variables_priority(tmp_path):

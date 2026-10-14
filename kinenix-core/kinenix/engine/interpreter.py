@@ -12,6 +12,7 @@ from .logger import ExecutionLogger
 from .markdown import JSON_FLOW_NOT_RUN, SECTION_HEADINGS, markdown_to_flow
 from .redaction import NOT_SECRET_ENV, Redactor
 from .requires import requirement_problem
+from .. import __version__
 from ..actions.registry import ActionRegistry
 from ..actions.flow_control import SubflowExecutionError, is_business_error
 from ..models.context import ExecutionContext, StepResult, FailureDetails, local_now
@@ -207,7 +208,12 @@ class FlowInterpreter:
         error_type = "Business" if is_business_error(exc) else "Technical"
 
         error_screenshot_path = None
-        if context:
+        child = getattr(exc, "child_context", None)
+        if isinstance(exc, SubflowExecutionError) and child is not None:
+            # The subflow took the screenshot when its step failed (#54)
+            child_details = getattr(child, "failure_details", None)
+            error_screenshot_path = getattr(child_details, "error_screenshot_path", None)
+        elif context:
             error_screenshot_path = self._try_capture_failure_screenshot(step, context)
 
         if isinstance(exc, SubflowExecutionError):
@@ -268,7 +274,7 @@ class FlowInterpreter:
             )
             self.logger.logger.error(problem)
             context.variables.pop("__redactor__", None)
-            self.logger.log_execution_summary(context)
+            self._finish(context)
             return context
 
         # 1. Flow definition default variables (base priority)
@@ -305,7 +311,13 @@ class FlowInterpreter:
             run_info = {"id": f"{started:%Y%m%d-%H%M%S}-{uuid.uuid4().hex[:4]}", "flow": flow_def.name,
                         "started": started.isoformat(timespec="seconds")}
         run_info = {**run_info, "status": "running"}
+        if not self.call_stack:
+            log_path = self.logger.start_run(context, run_info["id"])
+            run_info["log_path"] = str(log_path) if log_path else ""
+            context.set_variable("__items__", {"total": 0, "done": 0, "failed": 0})
         context.set_variable("run", run_info)
+        context.run_id = run_info["id"]
+        context.kinenix_version = __version__
         # Where a step is: flow > loop or if > subflow > ..., for ${error.path}
         if not isinstance(context.get_variable("__location__"), list):
             context.set_variable("__location__", [flow_def.name])
@@ -353,9 +365,17 @@ class FlowInterpreter:
         context.metrics.failed_steps = sum(1 for r in context.step_results if r.status == "failed")
         context.metrics.skipped_steps = sum(1 for r in context.step_results if r.status == "skipped")
         context.metrics.total_duration_seconds = total_duration
+        items = context.get_variable("__items__")
+        if not self.call_stack and isinstance(items, dict) and items.get("total"):
+            context.items = dict(items)
 
-        self.logger.log_execution_summary(context)
+        self._finish(context)
         return context
+
+    def _finish(self, context: ExecutionContext) -> None:
+        """The log file and Hub telemetry are written once per run, by the main flow; subflow steps are in it (#62)."""
+        if not self.call_stack:
+            self.logger.log_execution_summary(context)
 
     def _flow_failed(self, e: Exception, context: ExecutionContext) -> None:
         """Steps stopped with an exception: record the failure (if the step did not) and log it."""
@@ -400,6 +420,10 @@ class FlowInterpreter:
         finally:
             context.set_variable("__section__", "steps")
 
+    def _failure_count(self, context: ExecutionContext) -> int:
+        """Failures recorded so far in this run, including those inside subflows."""
+        return int(context.get_variable("__failures__") or 0)
+
     def _handler_number(self, value: Any, kind: type, name: str, step: Step, context: ExecutionContext) -> Any:
         """max_retries or retry_interval, which may be written as ${...}."""
         resolved = VariableEvaluator.evaluate_value(value, context.variables)
@@ -408,8 +432,14 @@ class FlowInterpreter:
         except (TypeError, ValueError):
             raise ValueError(f"Step '{step.id}' ({step.name}): {name} must be a number, not '{resolved}'.")
 
-    def _record(self, context: ExecutionContext, result: StepResult) -> None:
+    def _record(self, context: ExecutionContext, result: StepResult, step: Step) -> None:
         result.section = context.get_variable("__section__") or "steps"
+        location = context.get_variable("__location__") or [context.flow_name]
+        loops = context.get_variable("__loops__") or []
+        result.line = step.line
+        result.path = " > ".join([str(part) for part in location] + [step.name])
+        result.subflow = context.flow_name if context.get_variable("__is_subflow__") else None
+        result.loop = dict(loops[-1]) if loops else None
         results = context.step_results
         results.append(result)
         self.logger.log_step_result(result)
@@ -479,7 +509,7 @@ class FlowInterpreter:
                     duration_seconds=0.0,
                     output={"skipped_reason": f"Condition '{step.condition}' not met"}
                 )
-                self._record(context, result)
+                self._record(context, result, step)
                 return
 
         if step.action == "logic.loop":
@@ -516,6 +546,8 @@ class FlowInterpreter:
         while attempt <= max_retries:
             try:
                 output = _invoke_step_action()
+                if step.action == "flow.call":
+                    return  # _handle_flow_call_step recorded the step with the subflow's result
                 end_time = local_now()
                 duration = (end_time - start_time).total_seconds()
 
@@ -527,9 +559,10 @@ class FlowInterpreter:
                     start_time=start_time,
                     end_time=end_time,
                     duration_seconds=duration,
-                    output=output
+                    output=output,
+                    retries=attempt
                 )
-                self._record(context, result)
+                self._record(context, result, step)
                 return
             except Exception as e:
                 last_error = e
@@ -553,6 +586,22 @@ class FlowInterpreter:
         if (context.get_variable("__section__") or "steps") == "steps":
             context.set_variable("error", self._error_info(step, last_error, failure_diag, attempt, context))
 
+        section = context.get_variable("__section__") or "steps"
+        if handler and handler.fallback_step_id:
+            handled = "fallback"
+        elif (handler and str(handler.on_error).strip().lower() == "continue") or section != "steps":
+            handled = "continued"  # On Error and Finally go on with their next step
+        else:
+            handled = "stopped"
+        # A failed subflow recorded its own failing step; this flow decides how it was handled
+        child = getattr(last_error, "child_context", None)
+        origin = child.get_variable("__stopping_result__") if isinstance(last_error, SubflowExecutionError) and child else None
+        if isinstance(origin, StepResult) and origin.failure:
+            origin.failure["handled"] = handled
+        else:
+            origin = None
+            context.set_variable("__failures__", (context.get_variable("__failures__") or 0) + 1)
+
         result = StepResult(
             step_id=step.id,
             step_name=step.name,
@@ -562,9 +611,20 @@ class FlowInterpreter:
             end_time=end_time,
             duration_seconds=duration,
             error_message=str(last_error),
-            error_type=failure_diag.error_type
+            error_type=failure_diag.error_type,
+            retries=attempt,
+            failure={
+                "exception": failure_diag.exception_class,
+                "root_cause": failure_diag.root_cause,
+                "suggested_fix": failure_diag.suggested_fix,
+                "screenshot": failure_diag.error_screenshot_path or "",
+                "handled": handled,
+                "from_subflow": origin is not None,
+            }
         )
-        self._record(context, result)
+        self._record(context, result, step)
+        if handled == "stopped":
+            context.set_variable("__stopping_result__", origin or result)
 
         if context.failure_details is None:
             context.failure_details = failure_diag
@@ -602,6 +662,12 @@ class FlowInterpreter:
         loops = list(context.get_variable("__loops__") or [])
         location = list(context.get_variable("__location__") or [context.flow_name])
         context.set_variable("__location__", location + [step.name])
+        # A loop with item_label works through items; the run counts them as done or failed
+        counts = context.get_variable("__items__")
+        counted = (step.parameters.get("item_label") not in (None, "") and isinstance(counts, dict)
+                   and (context.get_variable("__section__") or "steps") == "steps")
+        if counted:
+            counts["total"] += len(items)
         try:
             for index, item in enumerate(items):
                 if context.get_variable("__early_exit__"):
@@ -610,10 +676,18 @@ class FlowInterpreter:
                 context.set_variable(f"{item_var}_index", index)
                 label = self._item_label(step.parameters.get("item_label"), item_var, item, context)
                 context.set_variable("__loops__", loops + [{"index": index + 1, "of": len(items), "item": label}])
-                for sub_step in sub_steps:
-                    if context.get_variable("__early_exit__"):
-                        break
-                    self._execute_step(sub_step, context)
+                failures_before = self._failure_count(context)
+                try:
+                    for sub_step in sub_steps:
+                        if context.get_variable("__early_exit__"):
+                            break
+                        self._execute_step(sub_step, context)
+                except Exception:
+                    if counted:
+                        counts["failed"] += 1
+                    raise
+                if counted:
+                    counts["failed" if self._failure_count(context) > failures_before else "done"] += 1
         finally:
             context.set_variable("__loops__", loops)
             context.set_variable("__location__", location)
@@ -631,7 +705,7 @@ class FlowInterpreter:
             duration_seconds=duration,
             output={"total_items_processed": len(items)}
         )
-        self._record(context, result)
+        self._record(context, result, step)
 
     def _handle_if_step(self, step: Step, evaluated_params: Dict[str, Any], context: ExecutionContext, start_time: datetime) -> None:
         left = evaluated_params.get("left")
@@ -692,7 +766,7 @@ class FlowInterpreter:
                 "executed_steps": executed_count
             }
         )
-        self._record(context, result)
+        self._record(context, result, step)
 
     def _apply_config_data(self, config_data: Dict[str, Any], context: ExecutionContext) -> Dict[str, Any]:
         # 1. Align website <-> target_url synonyms
@@ -851,6 +925,7 @@ class FlowInterpreter:
         child_vars["run"] = dict(context.get_variable("run") or {})
         child_vars["__location__"] = list(context.get_variable("__location__") or [context.flow_name]) + [subflow_def.name]
         child_vars["__loops__"] = list(context.get_variable("__loops__") or [])
+        child_vars["__items__"] = context.get_variable("__items__")
 
         # 4.5 Safeguard & Browser Session Propagation
         if evaluated_params.get("propagate_sessions", True):
@@ -875,6 +950,9 @@ class FlowInterpreter:
         )
 
         child_context = child_interpreter.run_flow(subflow_def, initial_vars=child_vars)
+        # The subflow's steps are part of this run's record, in the order they ran (#62)
+        context.step_results.extend(child_context.step_results)
+        context.set_variable("__failures__", self._failure_count(context) + self._failure_count(child_context))
 
         if child_context.has_error:
             failed_id = child_context.failure_details.failed_step_id if child_context.failure_details else "unknown"
@@ -921,10 +999,9 @@ class FlowInterpreter:
                 "subflow_path": str(resolved_path),
                 "return_value": child_return,
                 "subflow_metrics": child_context.metrics.model_dump(),
-                "subflow_steps": [r.model_dump() for r in child_context.step_results]
             }
         )
-        self._record(context, result)
+        self._record(context, result, step)
 
     def _handle_flow_return_step(self, step: Step, evaluated_params: Dict[str, Any], context: ExecutionContext, start_time: datetime) -> None:
         value = evaluated_params.get("value")
@@ -944,7 +1021,7 @@ class FlowInterpreter:
             duration_seconds=duration,
             output={"returned": value, "early_exit": True}
         )
-        self._record(context, result)
+        self._record(context, result, step)
 
     def _evaluate_condition(self, left: Any, operator: str, right: Any) -> bool:
         op = (operator or "equals").lower().strip()

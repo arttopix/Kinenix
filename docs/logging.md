@@ -12,13 +12,18 @@ Kinenix records every workflow execution into **Structured JSON Logs** organized
 logs/
 ├── rpa_challenge_solver/               # Partitioned by Flow Name
 │   └── 2026-09-11/                     # Partitioned by Execution Date (YYYY-MM-DD)
-│       ├── 213906_failed.json          # Format: [HHMMSS]_[status].json
+│       ├── 213906_20260911-213906-a1b2.jsonl   # Live log: one line per step, written while it runs
+│       ├── 213906_failed.json          # Format: [HHMMSS]_[status].json, written at the end
 │       └── 213938_success.json
 └── invoice_tax_filing/
     └── 2026-09-12/
         ├── 083000_success.json
         └── 091500_failed.json
 ```
+
+One run writes one log, also when it calls subflows: the steps of every subflow are in the main flow's log, and only the main flow sends the run to the Hub. (Before 0.2.0b4 each subflow call wrote a log file and sent a run of its own.)
+
+The live log (`.jsonl`) gets one JSON line per step as soon as the step ends. Its path is `${run.log_path}`, so a `## On Error` or `## Finally` step can attach the log of the run so far, for example to an error e-mail. The JSON log at the end is the complete record: the live log is not changed afterwards, so a subflow failure shows the subflow's own `handled` value there.
 
 ### Key Benefits:
 - **Instant Triage:** Log filenames immediately show the execution time and status (`_success` or `_failed`), allowing developers and operations teams to spot failures without opening files.
@@ -34,6 +39,9 @@ Each execution log contains comprehensive runtime and business data:
 {
   "$schema": "../../../schemas/execution_log.schema.json",
   "flow_name": "RPA Challenge Solver",
+  "run_id": "20260911-213934-a1b2",
+  "kinenix_version": "0.2.0b4",
+  "items": null,
   "start_time": "2026-09-11 21:39:34.000000+07:00",
   "is_completed": false,
   "has_error": true,
@@ -75,11 +83,36 @@ Each execution log contains comprehensive runtime and business data:
       "section": "steps",
       "duration_seconds": 0.05,
       "error_message": "Excel file not found: ./assets/challenge.xlsx",
-      "error_type": "Technical"
+      "error_type": "Technical",
+      "line": 12,
+      "path": "RPA Challenge Solver > Read Challenge Excel File",
+      "subflow": null,
+      "loop": null,
+      "retries": 0,
+      "failure": {
+        "exception": "FileNotFoundError",
+        "root_cause": "Required file was not found during execution of step 'Read Challenge Excel File'.",
+        "suggested_fix": "Verify the target file path exists ...",
+        "screenshot": "",
+        "handled": "stopped",
+        "from_subflow": false
+      }
     }
   ]
 }
 ```
+
+Every step result records where it ran and what happened:
+
+| Field | Meaning |
+| :--- | :--- |
+| `line`, `path` | Line of the step heading in its `flow.md`; `Flow > loop or condition > subflow > step` |
+| `subflow` | Name of the subflow the step ran in, or `null` in the main flow |
+| `loop` | The innermost loop item: `{"index": 2, "of": 12, "item": "R002 HONDA"}` (`item` from `item_label`) |
+| `retries` | Retries made before the step succeeded or failed |
+| `failure` | For a failed step: `exception`, `root_cause`, `suggested_fix`, `screenshot`, `handled` (`stopped`, `continued`, `fallback`), and `from_subflow` (true on a `flow.call` step whose subflow failed; the failure itself is recorded on the subflow's step) |
+
+`items` counts work items: the iterations of loops that have an `item_label`, as `{"total": 12, "done": 10, "failed": 1}`; the rest were not reached. A loop without `item_label` is not counted, so loops that only tick options do not inflate the numbers. `items` is `null` when the flow has no such loop.
 
 `section` says where a step or the run's failure is in `flow.md`: `steps`, `on_error`, or `finally`. A run whose Steps succeeded but whose `## Finally` failed has `has_error: true` and `failure_details.section: "finally"`, and the console prints `Result: FAILED at step [finally_1] '...' in Finally`.
 
