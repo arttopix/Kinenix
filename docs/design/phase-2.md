@@ -227,12 +227,12 @@ Built in PR 3; the user-facing description is in [logging.md](../logging.md#reda
 
 ### 8.2 Tables
 
-Hybrid storage: stable fields that are filtered often are columns; everything else is in a JSON `details` column with a version key `"v"`. New facts are added to `details` without a migration. A test keeps the allowed `details` keys, the code, and the data dictionary in line.
+Built in PR 5b; the reference for every column, view, and `details` key is [hub_data.md](../hub_data.md). Hybrid storage: stable fields that are filtered often are columns; everything else is in a JSON `details` column with a version key `"v"`. New facts are added to `details` without a migration. A test keeps the allowed `details` keys, the code, and the data dictionary in line.
 
 **`executions`** (exists; one row per run): existing columns, plus `details`:
 
 ```json
-{"v": 1, "run_id": "a1b2c3", "kinenix_version": "0.2.0b4", "items_total": 12, "items_failed": 2, "report_md": "..."}
+{"v": 1, "run_id": "a1b2c3", "kinenix_version": "0.2.0b4", "items_total": 12, "items_done": 9, "items_failed": 2, "report_md": "..."}
 ```
 
 **`step_results`** (new; one row per executed step, including every loop iteration, subflow steps, and On Error and Finally steps):

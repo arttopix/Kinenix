@@ -1,6 +1,7 @@
 import datetime
+import json
 import uuid
-from sqlalchemy import Column, String, Float, Boolean, DateTime, Text
+from sqlalchemy import Column, String, Float, Boolean, DateTime, Text, Integer, ForeignKey, Index
 from . import config
 from .database import Base
 from .timeutils import isoformat_utc, utc_now
@@ -62,6 +63,8 @@ class Execution(Base):
     error_message = Column(Text, nullable=True)
     screenshot_path = Column(String(256), nullable=True)
     raw_log = Column(Text, nullable=True)
+    # Run facts as JSON: run id, Kinenix version, work items, report (services/run_records.py, docs/hub_data.md)
+    details = Column(Text, nullable=True)
 
     # Central AI Triage & Summary
     ai_category = Column(String(128), nullable=True)
@@ -94,5 +97,54 @@ class Execution(Base):
             "ai_root_cause": self.ai_root_cause,
             "ai_suggestion": self.ai_suggestion,
             "created_at": isoformat_utc(self.created_at),
+            "details": _json_or_none(self.details),
         }
+
+
+def _json_or_none(text):
+    try:
+        return json.loads(text) if text else None
+    except ValueError:
+        return None
+
+
+class StepResult(Base):
+    """One executed step of a run, also inside loops, subflows, On Error, and Finally (docs/hub_data.md)."""
+    __tablename__ = "step_results"
+    __table_args__ = (Index("ix_step_results_execution_seq", "execution_id", "seq"),)
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    execution_id = Column(String(64), ForeignKey("executions.id"), nullable=False)
+    seq = Column(Integer, nullable=False)
+    section = Column(String(16), nullable=False, default="steps")
+    step_id = Column(String(128), nullable=True)
+    step_name = Column(Text, nullable=True)
+    action = Column(String(64), nullable=True)
+    status = Column(String(16), nullable=True)
+    started_at = Column(DateTime, nullable=True)
+    duration_seconds = Column(Float, nullable=True)
+    details = Column(Text, nullable=True)
+
+
+class Failure(Base):
+    """One failure of a run, also one the flow continued after (docs/hub_data.md)."""
+    __tablename__ = "failures"
+    __table_args__ = (
+        Index("ix_failures_failed_at", "failed_at"),
+        Index("ix_failures_flow_failed_at", "flow_name", "failed_at"),
+        Index("ix_failures_execution", "execution_id"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    execution_id = Column(String(64), ForeignKey("executions.id"), nullable=False)
+    step_result_id = Column(Integer, ForeignKey("step_results.id"), nullable=True)
+    failed_at = Column(DateTime, nullable=True)
+    flow_name = Column(String(128), nullable=True)
+    worker_id = Column(String(64), nullable=True)
+    step_name = Column(Text, nullable=True)
+    action = Column(String(64), nullable=True)
+    error_type = Column(String(32), nullable=True)
+    handled = Column(String(16), nullable=True)
+    message = Column(Text, nullable=True)
+    details = Column(Text, nullable=True)
 

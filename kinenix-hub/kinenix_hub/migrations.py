@@ -11,12 +11,13 @@ Rules for writing a migration:
 - Keep the SQL portable between SQLite and PostgreSQL where possible.
 No third-party migration tool is used, so the Hub has no extra dependency.
 """
+import json
 import logging
 import weakref
 from datetime import datetime, timezone
 from typing import Callable, List, NamedTuple
 
-from sqlalchemy import event, inspect, text
+from sqlalchemy import event, inspect, select, text
 from sqlalchemy.engine import Connection, Engine
 
 logger = logging.getLogger("kinenix.hub")
@@ -66,8 +67,42 @@ def _baseline(conn: Connection) -> None:
     """The schema of Hub 0.2.0b3 (workers, executions); create_all has already made it."""
 
 
+def _legacy_payload(row) -> dict:
+    """An execution log for a run whose raw_log is missing or unreadable, from the executions columns."""
+    if not row.has_error:
+        return {"has_error": False}
+    return {"has_error": True, "failure_details": {
+        "failed_step_id": row.failed_step_id, "failed_step_name": row.failed_step_name,
+        "error_type": row.error_type, "exception_class": row.exception_class,
+        "error_message": row.error_message, "error_screenshot_path": row.screenshot_path}}
+
+
+def _run_records(conn: Connection) -> None:
+    """executions.details, step_results, and failures, filled in for the runs already stored."""
+    # Imported here: models imports database, which imports this module
+    from .models import Execution, Failure, StepResult
+    from .services.run_records import build_run_records, execution_run, store_run_records
+
+    add_column_if_missing(conn, "executions", "details", "TEXT")
+    StepResult.__table__.create(conn, checkfirst=True)
+    Failure.__table__.create(conn, checkfirst=True)
+
+    table = Execution.__table__
+    ids = [row[0] for row in conn.execute(select(table.c.id).where(table.c.details.is_(None)))]
+    for execution_id in ids:
+        row = conn.execute(select(table).where(table.c.id == execution_id)).one()
+        try:
+            payload = json.loads(row.raw_log) if row.raw_log else None
+        except ValueError:
+            payload = None
+        if not isinstance(payload, dict):
+            payload = _legacy_payload(row)
+        store_run_records(conn, execution_id, build_run_records(payload, execution_run(row)))
+
+
 MIGRATIONS: List[Migration] = [
     Migration(1, "baseline: workers and executions", _baseline),
+    Migration(2, "run records: executions.details, step_results, failures", _run_records),
 ]
 
 
