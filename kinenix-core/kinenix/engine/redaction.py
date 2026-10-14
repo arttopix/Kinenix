@@ -5,7 +5,7 @@ patterns can miss a value or hide one that is not secret, so flows should also r
 """
 import os
 import re
-from typing import Any, Dict, Iterable, List, Optional, Set
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Set
 
 MASK = "****"
 
@@ -26,6 +26,9 @@ NOT_SECRET_ENV = {
     "KINENIX_HUB_HOST", "KINENIX_HUB_PORT", "KINENIX_HUB_DASHBOARD_USER", "KINENIX_HUB_SETTINGS_FILE",
     "KINENIX_HUB_WORKER_OFFLINE_SECONDS", "CENTRAL_LLM_URL",
 }
+
+# Ids Kinenix creates hold no secrets, and the Hub matches records by them, so they are never changed
+KEPT_AS_IS = {"run_id"}
 
 ENV_REFERENCE = re.compile(r"\$\{env\.([A-Za-z_][A-Za-z0-9_]*)\}")
 
@@ -72,11 +75,12 @@ def _digit_marker(match: "re.Match[str]") -> str:
 class Redactor:
     """The secrets and settings of one run, shared by the main flow, its subflows, and their actions."""
 
-    def __init__(self) -> None:
+    def __init__(self, environment: Optional[Mapping[str, str]] = None) -> None:
+        """`environment` defaults to os.environ, whose secret-looking variables are hidden."""
         self._secrets: Set[str] = set()
         self.fields: Set[str] = set()
         self.contacts = True
-        for name, value in os.environ.items():
+        for name, value in (os.environ if environment is None else environment).items():
             if SECRET_KEY.search(name) and name not in NOT_SECRET_ENV:
                 self.add_secret(value)
 
@@ -143,7 +147,8 @@ class Redactor:
 
     def _walk(self, data: Any, secrets: List[str]) -> Any:
         if isinstance(data, dict):
-            return {key: (MASK if self._hides(key, value) else self._walk(value, secrets))
+            return {key: (value if key in KEPT_AS_IS else MASK if self._hides(key, value)
+                          else self._walk(value, secrets))
                     for key, value in data.items()}
         if isinstance(data, (list, tuple)):
             return [self._walk(item, secrets) for item in data]
