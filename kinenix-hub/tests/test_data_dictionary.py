@@ -1,11 +1,10 @@
 """docs/hub_data.md documents every table, view, column, and details key of the Hub database, and nothing else."""
-import re
 from pathlib import Path
 from typing import Dict, Set
 
 from sqlalchemy import create_engine, inspect
 
-from kinenix_hub import models  # noqa: F401  (registers the tables on Base)
+from kinenix_hub import dictionary, models  # noqa: F401  (models registers the tables on Base)
 from kinenix_hub.database import Base
 from kinenix_hub.migrations import run_migrations
 from kinenix_hub.services.run_records import EXECUTION_DETAILS_KEYS, FAILURE_DETAILS_KEYS, STEP_DETAILS_KEYS
@@ -16,20 +15,7 @@ DICTIONARY = Path(__file__).resolve().parents[2] / "docs" / "hub_data.md"
 
 def _documented() -> Dict[str, Set[str]]:
     """{`name` or `table.details`: the names in the first column of the table under its heading}."""
-    documented: Dict[str, Set[str]] = {}
-    current = None
-    for line in DICTIONARY.read_text(encoding="utf-8").splitlines():
-        heading = re.match(r"^#{3,4} `([\w.]+)`$", line)
-        if heading:
-            current = heading.group(1)
-            documented[current] = set()
-        elif line.startswith("## "):
-            current = None
-        elif current:
-            row = re.match(r"^\| `(\w+)` \|", line)
-            if row:
-                documented[current].add(row.group(1))
-    return documented
+    return {name: set(entry.columns) for name, entry in dictionary.load(DICTIONARY).items()}
 
 
 def _database(tmp_path):

@@ -9,5 +9,8 @@ _test_dir = Path(tempfile.mkdtemp(prefix="kinenix-hub-tests-"))
 # Saved settings from `kinenix hub setup` (~/.kinenix/hub.env) must not change test behavior
 os.environ["KINENIX_HUB_SETTINGS_FILE"] = str(_test_dir / "no-settings.env")
 
+# User views come from a test folder, not ~/.kinenix/hub_views
+os.environ["KINENIX_HUB_VIEWS_DIR"] = str(_test_dir / "hub_views")
+
 # Test workers and executions go to a throwaway database, not the default hub.db
 os.environ["DATABASE_URL"] = f"sqlite:///{(_test_dir / 'test.db').as_posix()}"

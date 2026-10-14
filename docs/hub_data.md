@@ -2,7 +2,9 @@
 
 What the Hub stores about runs, and how to query it. Written for people and AI assistants that answer questions such as "what failed last night, and where?". Start with the views; the tables behind them are listed after.
 
-A test (`kinenix-hub/tests/test_data_dictionary.py`) fails when a table, view, column, or `details` key exists without a row here, or the other way round.
+Query them with `kinenix hub query` ([hub.md, Querying Runs](hub.md#7-querying-runs)), for example `kinenix hub query v_failures --since yesterday`, or with any SQLite tool on `~/.kinenix/hub.db`. User views (`custom_*`) are added from `~/.kinenix/hub_views/`.
+
+A test (`kinenix-hub/tests/test_data_dictionary.py`) fails when a table, view, column, or `details` key exists without a row here, or the other way round. `kinenix hub query --describe` shows this document's meanings, from a copy in the package (`kinenix-hub/kinenix_hub/hub_data.md`); copy this file there after editing it, a test checks that they are the same.
 
 ## How the data gets here
 

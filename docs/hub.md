@@ -38,6 +38,7 @@ The first time `kinenix hub` runs in an interactive terminal, it asks a few ques
 | `kinenix hub` | Start; runs the questions on first use |
 | `kinenix hub setup` | Change the saved answers (Enter keeps the current key and password) |
 | `kinenix hub show-key` | Print the worker API key to copy to workers |
+| `kinenix hub query` | Ask the database about runs, steps, and failures ([section 7](#7-querying-runs)) |
 | `kinenix hub --no-prompt` | Never ask (services and scripts) |
 
 The answers are stored in `~/.kinenix/hub.env` (override with `KINENIX_HUB_SETTINGS_FILE`), outside the repository. The dashboard password is stored only as a salted PBKDF2 hash; the worker API key is stored as is, because the server must compare it, so the file is made owner-readable only on Linux and macOS. Environment variables and the `--host` / `--port` flags always take precedence over the file.
@@ -79,6 +80,7 @@ No CORS policy is configured: the dashboard is served from the Hub's own origin,
 | `CENTRAL_LLM_URL` | `http://127.0.0.1:8000/v1/systemone` | LLM endpoint used for failure analysis. |
 | `KINENIX_HUB_HOST` / `KINENIX_HUB_PORT` | `127.0.0.1` / `8080` | Bind address and port. The CLI flags `--host` / `--port` override them. Use `0.0.0.0` to accept remote connections. |
 | `KINENIX_HUB_SETTINGS_FILE` | `~/.kinenix/hub.env` | Saved settings written by `kinenix hub setup`. See [Saved Settings](#saved-settings-first-run). |
+| `KINENIX_HUB_VIEWS_DIR` | `~/.kinenix/hub_views` | Folder of user views (`custom_*.sql`), created at every start. See [User views](#72-user-views). |
 | `KINENIX_HUB_WORKER_OFFLINE_SECONDS` | `90` | A worker with no heartbeat for this long is shown as `offline`. Keep it above three times the workers' `KINENIX_HEARTBEAT_INTERVAL`. |
 
 ---
@@ -94,6 +96,7 @@ The Hub has two independent credentials: an API key for workers (this section) a
 | `POST /api/v1/executions/{id}/reanalyze` | Worker API key |
 | `GET /` (dashboard page) | Dashboard login |
 | `GET /api/v1/workers`, `/api/v1/executions`, `/api/v1/executions/{id}`, `/api/v1/executions/{id}/steps` | Dashboard login |
+| `POST /api/v1/query`, `GET /api/v1/query/catalog`, `/api/v1/query/describe/{name}` (read-only queries, [section 7](#7-querying-runs)) | Dashboard login |
 | `GET /api/v1/healthz`, `/static/*` | Public (no data) |
 
 ### 2.1 Behavior
@@ -242,3 +245,56 @@ The SQLite database runs in WAL (write-ahead log) mode, so workers can write whi
 | `hub.db-shm` | Shared index for the WAL file |
 
 **To back up or move the database** (for example to another machine), stop the Hub first. When the last connection closes, SQLite copies the recent changes into `hub.db` and removes the other two files, so `hub.db` alone is complete. If `hub.db-wal` is still there (for example after the machine lost power), copy all three files together; SQLite applies the log the next time it opens the database. Copying only `hub.db` while the Hub runs can miss the latest executions. Do not keep `hub.db` on a network drive; SQLite needs local file locking.
+
+---
+
+## 7. Querying Runs
+
+`kinenix hub query` answers questions such as "what failed last night, and where?" from the terminal. It reads the views and tables described in [hub_data.md](hub_data.md). On the Hub machine it reads `hub.db` directly, and the Hub does not need to be running. With `--url` it asks a Hub on another machine, with the dashboard credentials (as `status` does).
+
+```bash
+kinenix hub query --list                                 # tables and views, row counts, what each answers
+kinenix hub query --describe v_failures                  # columns, their meaning, and examples
+kinenix hub query v_failures --since yesterday           # failures since yesterday 00:00, newest first
+kinenix hub query v_runs --flow "TIPH Quotes" --status failed --limit 10
+kinenix hub query v_failures --filter handled=continued --filter loop_item="R007 HONDA HR-V"
+kinenix hub query "SELECT step_name, COUNT(*) AS n FROM v_failures GROUP BY step_name ORDER BY n DESC"
+kinenix hub query v_steps --flow Hello --format json     # table (default), json, csv, md
+kinenix hub query v_failures --since 7d --output failures.csv
+kinenix hub query v_failures --url http://192.168.1.137:8080
+```
+
+| Option | Meaning |
+| :--- | :--- |
+| `--since` | Rows from this time: `today`, `yesterday`, `30m`, `12h`, `7d`, `2w`, or a date (`2026-10-12`) or date and time. Days and dates are local midnight on the machine that runs the command. Filters on the view's time column (`failed_at`, `started_at`, ...) |
+| `--flow`, `--worker`, `--status` | `flow_name`, `worker_id`, `status` equal to the value |
+| `--filter COLUMN=VALUE` | Any column equal to the value; repeat for more |
+| `--limit` | Rows returned (default 50, at most 10000); the output says when more exist |
+| `--format`, `--output` | `table`, `json`, `csv`, or `md`; `--output FILE` writes the rows to a file (the format follows the file extension when `--format` is not given) |
+| `--expand` | Whole values instead of cut ones, and `details` columns as JSON objects in `json` |
+
+The filters work with a view or table name. With SQL, write the conditions in the `WHERE` clause. A result with more columns than fit the terminal is printed as one block of `column  value` lines per row.
+
+### 7.1 Safety
+
+- The database is opened read-only, and only reading is allowed: `INSERT`, `UPDATE`, `DELETE`, `CREATE`, `DROP`, `PRAGMA`, and `ATTACH` are refused.
+- One statement per call; a query is stopped after 10 seconds.
+- Over HTTP (`--url`), `executions.raw_log` reads as empty, because the whole execution log can hold flow variables and step outputs that the API does not show. On the Hub machine the file is readable anyway, so a local query shows it.
+- Queries read SQLite only; with another `DATABASE_URL` the command reports that.
+
+### 7.2 User Views
+
+Save a query you ask often as a view: put one `SELECT` in a file named `custom_<name>.sql` in `~/.kinenix/hub_views/` (setting `KINENIX_HUB_VIEWS_DIR`). The Hub creates a view with the file's name at every start, so restart the Hub after adding or changing a file.
+
+```sql
+-- ~/.kinenix/hub_views/custom_failures_by_flow.sql
+SELECT flow_name, COUNT(*) AS failures, MAX(failed_at) AS last_failed_at
+FROM v_failures GROUP BY flow_name
+```
+
+- Names start with `custom_`, so Kinenix views (`v_`) and upgrades never overwrite them. A file with another name is reported and skipped.
+- A file `custom_<name>.md` next to it documents the view: its first paragraph appears in `--list`, the whole file in `--describe`.
+- A view may read Kinenix views and other user views.
+- A file that fails (an SQL error, more than one statement) is logged with its file name at start, and the Hub keeps starting.
+- The folder is the source of user views: when a file is removed, the Hub drops its view at the next start. Views hold no data, so nothing is lost.
+

@@ -7,7 +7,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from . import __version__
-from .config import HOST, PORT, STATIC_DIR
+from . import query as hub_query
+from .config import DATABASE_URL, HOST, PORT, STATIC_DIR, VIEWS_DIR
 from .database import get_db, init_db
 from .models import Worker, Execution
 from .security import require_worker_api_key, require_dashboard_auth, log_auth_mode
@@ -60,6 +61,17 @@ class HeartbeatRequest(BaseModel):
 class TelemetryRequest(BaseModel):
     worker_id: str = "local-worker"
     payload: Dict[str, Any]
+
+
+class QueryRequest(BaseModel):
+    """A view or table name with filters, or one SQL SELECT (see query.py and docs/hub.md)."""
+    source: str
+    since: Optional[str] = None
+    flow: Optional[str] = None
+    worker: Optional[str] = None
+    status: Optional[str] = None
+    filters: Dict[str, str] = Field(default_factory=dict)
+    limit: Optional[int] = None
 
 
 # ---------------------------------------------------------
@@ -158,6 +170,50 @@ def reanalyze_execution(execution_id: str, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(execution)
     return {"status": "reanalyzed", "execution": execution.to_dict()}
+
+
+# ---------------------------------------------------------
+# Read-only queries (`kinenix hub query --url`); executions.raw_log reads as empty here
+# ---------------------------------------------------------
+
+def _query_connection():
+    try:
+        return hub_query.connect(hub_query.database_path(DATABASE_URL), hide_raw_log=True)
+    except hub_query.QueryError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/v1/query/catalog", dependencies=[Depends(require_dashboard_auth)])
+def query_catalog():
+    conn = _query_connection()
+    try:
+        return {"objects": hub_query.catalog(conn, VIEWS_DIR)}
+    finally:
+        conn.close()
+
+
+@app.get("/api/v1/query/describe/{name}", dependencies=[Depends(require_dashboard_auth)])
+def query_describe(name: str):
+    conn = _query_connection()
+    try:
+        return hub_query.describe(conn, name, VIEWS_DIR)
+    except hub_query.QueryError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        conn.close()
+
+
+@app.post("/api/v1/query", dependencies=[Depends(require_dashboard_auth)])
+def run_query(req: QueryRequest):
+    conn = _query_connection()
+    try:
+        result = hub_query.run(conn, req.source, since=req.since, flow=req.flow, worker=req.worker,
+                               status=req.status, filters=req.filters, limit=req.limit)
+        return result.to_dict()
+    except hub_query.QueryError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        conn.close()
 
 
 # ---------------------------------------------------------
