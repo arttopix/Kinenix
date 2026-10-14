@@ -4,9 +4,10 @@ from unittest.mock import MagicMock, patch
 
 from kinenix import __version__
 from kinenix.actions.flow_control import SubflowExecutionError
-from kinenix.engine.interpreter import FlowInterpreter
+from kinenix.engine.interpreter import FlowInterpreter, new_run_id
 from kinenix.engine.logger import ExecutionLogger
 from kinenix.engine.markdown import markdown_to_flow
+from kinenix.engine.redaction import Redactor
 from kinenix.models.context import ExecutionContext, FailureDetails
 from kinenix.models.flow import Step
 
@@ -155,3 +156,13 @@ def test_a_failed_subflow_reuses_its_screenshot_instead_of_taking_another(tmp_pa
     step = Step(id="step_1", name="Call", action="flow.call")
     diag = interpreter._diagnose_failure(step, exc, ExecutionContext(flow_name="parent"))
     assert diag.error_screenshot_path == "/shots/one.png"
+
+
+def test_run_ids_are_never_mistaken_for_card_numbers():
+    # 20261014-054855-43ac was hidden as [card]ac in CI, and 060049-5345 would read as a phone number
+    from datetime import datetime, timedelta
+    redactor = Redactor()
+    start = datetime(2026, 10, 14, 5, 48, 55)
+    for second in range(0, 86400 * 3, 7):
+        run_id = new_run_id(start + timedelta(seconds=second))
+        assert redactor.redact(run_id) == run_id

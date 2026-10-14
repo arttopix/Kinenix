@@ -12,7 +12,7 @@ Kinenix records every workflow execution into **Structured JSON Logs** organized
 logs/
 ├── rpa_challenge_solver/               # Partitioned by Flow Name
 │   └── 2026-09-11/                     # Partitioned by Execution Date (YYYY-MM-DD)
-│       ├── 213906_20260911-213906-a1b2.jsonl   # Live log: one line per step, written while it runs
+│       ├── 213906_20260911T213906-qhzk.jsonl   # Live log: one line per step, written while it runs
 │       ├── 213906_failed.json          # Format: [HHMMSS]_[status].json, written at the end
 │       └── 213938_success.json
 └── invoice_tax_filing/
@@ -39,7 +39,7 @@ Each execution log contains comprehensive runtime and business data:
 {
   "$schema": "../../../schemas/execution_log.schema.json",
   "flow_name": "RPA Challenge Solver",
-  "run_id": "20260911-213934-a1b2",
+  "run_id": "20260911T213934-qhzk",
   "kinenix_version": "0.2.0b4",
   "items": null,
   "start_time": "2026-09-11 21:39:34.000000+07:00",

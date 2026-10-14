@@ -1,7 +1,8 @@
 import json
 import os
+import secrets
+import string
 import time
-import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -45,6 +46,12 @@ def is_shared_subflow(flow_target: Any, resolved_path: Path, context: Any) -> bo
         return True
     bundle = Path(bundle_dir).resolve()
     return bundle != resolved_path.parent and bundle not in resolved_path.parents
+
+
+def new_run_id(started: datetime) -> str:
+    """Sortable and readable, e.g. 20261014T054855-qhzk. The T and the letters keep runs of digits short,
+    so redaction never takes an id for a card or phone number (it did: 20261014-054855-43ac became [card]ac)."""
+    return f"{started:%Y%m%dT%H%M%S}-{''.join(secrets.choice(string.ascii_lowercase) for _ in range(4))}"
 
 
 def _is_true(value: Any) -> bool:
@@ -308,7 +315,7 @@ class FlowInterpreter:
         run_info = context.get_variable("run") if self.call_stack else None
         if not isinstance(run_info, dict) or not run_info.get("id"):
             started = local_now()
-            run_info = {"id": f"{started:%Y%m%d-%H%M%S}-{uuid.uuid4().hex[:4]}", "flow": flow_def.name,
+            run_info = {"id": new_run_id(started), "flow": flow_def.name,
                         "started": started.isoformat(timespec="seconds")}
         run_info = {**run_info, "status": "running"}
         if not self.call_stack:

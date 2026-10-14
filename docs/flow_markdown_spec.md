@@ -305,7 +305,7 @@ When a step inside a subflow fails, the caller's `${error}` describes that inner
 
 | Field | Meaning |
 | :--- | :--- |
-| `${run.id}` | Unique id of the run, such as `20261013-221502-a1b2`; use it in paths: `./output/${run.id}/`, or `"error_dir": "./output/errors/${run.id}"` in config |
+| `${run.id}` | Unique id of the run, such as `20261013T221502-qhzk`; use it in paths: `./output/${run.id}/`, or `"error_dir": "./output/errors/${run.id}"` in config |
 | `${run.flow}`, `${run.started}` | Flow name, start time |
 | `${run.status}` | `running` in Steps and On Error; `success` or `failed` in Finally |
 | `${run.log_path}` | The run's live log (one JSON line per finished step), for attaching to an error e-mail ([logging.md](logging.md)) |
