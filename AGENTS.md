@@ -74,6 +74,7 @@ Read the matching file before working in that area:
 | Logs and telemetry format | `.agents/rules/logging.md`, `docs/logging.md` |
 | Secrets, credentials, data privacy | `.agents/rules/security.md` |
 | Hub setup and API keys | `docs/hub.md` |
+| Hub tables, views, run records | `docs/hub_data.md` (update it with any column, view, or `details` key; a test checks it) |
 | Code style | `.agents/rules/coding_standards.md` |
 | Tests | `.agents/rules/testing_standards.md` |
 | Commits and branches | `.agents/rules/git_workflow.md` |

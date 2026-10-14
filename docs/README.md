@@ -26,6 +26,7 @@ Each topic has one owning document. Other files link here instead of repeating t
 | [quickstart.md](quickstart.md) | Install, create a project with `kinenix init`, run it, and connect a worker to the Hub in about ten minutes |
 | [cli_guide.md](cli_guide.md) | `kinenix` commands and options |
 | [hub.md](hub.md) | Running the Hub, environment variables, worker authentication |
+| [hub_data.md](hub_data.md) | Hub data dictionary: tables, views, run reports, and example queries, for people and AI |
 | [logging.md](logging.md) | Execution log layout and JSON format |
 | [ask_router.md](ask_router.md) | Natural-language questions to the Hub (work in progress) |
 | [../kinenix-worker/README.md](../kinenix-worker/README.md) | Worker CLI and Raspberry Pi setup |

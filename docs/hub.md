@@ -225,11 +225,11 @@ To upgrade an editable install: `pip uninstall kinenix-orchestrator`, then `pip 
 
 ## 6. Database
 
-The Hub keeps workers and executions in one SQLite file, `~/.kinenix/hub.db` by default (`DATABASE_URL` selects another file or a PostgreSQL server).
+The Hub keeps workers and executions in one SQLite file, `~/.kinenix/hub.db` by default (`DATABASE_URL` selects another file or a PostgreSQL server). Each run is stored with every step and every failure, a short run report, and views for querying; [hub_data.md](hub_data.md) describes the tables and views and gives example queries.
 
 ### 6.1 Upgrades
 
-A newer Hub may need more tables or columns than an existing `hub.db` has. At every start, the Hub applies the schema changes it has not applied yet and records each one in the `schema_version` table; existing data is kept. Each change runs in its own transaction, so a change that fails leaves the database as it was, and the Hub stops with the error. Nothing needs to be run by hand.
+A newer Hub may need more tables or columns than an existing `hub.db` has. At every start, the Hub applies the schema changes it has not applied yet and records each one in the `schema_version` table; existing data is kept. Each change runs in its own transaction, so a change that fails leaves the database as it was, and the Hub stops with the error. Nothing needs to be run by hand. The first start of Hub 0.2.0b4 also fills in the steps, failures, and run reports of the runs already stored, from their logs; on a large database this start takes longer.
 
 ### 6.2 WAL mode and the extra files
 

@@ -39,9 +39,11 @@ def get_db():
 
 
 def init_db():
-    """Create missing tables, then apply schema migrations to an existing database (see migrations.py)."""
+    """Create missing tables, apply schema migrations to an existing database (see migrations.py), and create the views."""
     from . import models  # noqa: F401  (registers every table on Base)
     from .migrations import run_migrations
+    from .views import create_views
 
     Base.metadata.create_all(bind=engine)
     run_migrations(engine)
+    create_views(engine)

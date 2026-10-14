@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from ..models import Execution, Worker
 from ..timeutils import parse_timestamp, utc_now
 from .ai_summarizer import analyze_failure
+from .run_records import build_run_records, execution_run, store_run_records
 
 logger = logging.getLogger("kinenix.hub.telemetry")
 
@@ -104,6 +105,9 @@ def ingest_execution_log(db: Session, payload: Dict[str, Any], worker_id: str = 
         execution.ai_suggestion = ai_res.get("suggestion")
 
     db.add(execution)
+    db.flush()
+    # Steps, failures, and the run report as queryable rows (docs/hub_data.md)
+    store_run_records(db, execution.id, build_run_records(payload, execution_run(execution)))
     db.commit()
     db.refresh(execution)
 
