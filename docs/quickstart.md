@@ -127,13 +127,14 @@ kinenix hub              # the first run asks a few questions; answer yes to acc
 kinenix hub show-key     # the key for workers
 ```
 
-Point the worker at the Hub, then open the dashboard at `http://127.0.0.1:8080` on the Hub machine, or run `kinenix hub status`:
+Connect the worker to the Hub (it asks for the key, checks it, and saves it), then open the dashboard at `http://127.0.0.1:8080` on the Hub machine, or run `kinenix hub status`:
 
 ```bash
-export KINENIX_HUB_URL=http://<hub-ip>:8080          # Windows: $env:KINENIX_HUB_URL = "..."
-export KINENIX_HUB_API_KEY=<key from show-key>
+kinenix connect http://<hub-ip>:8080
 kinenix-worker ping
 ```
+
+Runs started on the Hub machine itself go to the Hub without this step: `kinenix hub` setup offers to send them there.
 
 ---
 

@@ -45,6 +45,7 @@ kinenix init demo --example hello                 # copy of a flows/examples bun
 kinenix actions [web]                             # actions and the parameters each accepts
 kinenix run flows/examples/rpachallenge
 kinenix validate flows/examples/rpachallenge   # unknown actions and ignored parameters
+kinenix connect http://<hub-ip>:8080   # send this machine's runs to a Hub (asks for and checks the key)
 kinenix hub            # first run asks setup questions and saves them
 kinenix hub status     # workers and recent executions of a running server
 kinenix hub logs [ID]  # steps of one execution (latest when ID is omitted)
@@ -113,8 +114,9 @@ When you change code so that it matches a target, update this table and `docs/ro
 
 | Variable | Used by | Purpose |
 | :--- | :--- | :--- |
-| `KINENIX_HUB_URL` | kinenix-core, kinenix-worker | Hub URL for telemetry and heartbeats |
+| `KINENIX_HUB_URL` | kinenix-core, kinenix-worker | Hub URL for telemetry and heartbeats; when unset, the one saved by `kinenix connect` or `kinenix hub setup` in `~/.kinenix/kinenix.env` |
 | `KINENIX_HUB_API_KEY` | kinenix-core, kinenix-worker, kinenix-hub | Shared worker key: workers send it as `X-API-Key`, the Hub requires it on write endpoints (unset on the Hub means localhost-only). Same value on both sides |
+| `KINENIX_SETTINGS_FILE` | kinenix-core, kinenix-worker, kinenix-hub | Saved client settings (default `~/.kinenix/kinenix.env`: flows folder, Hub URL and key); test suites point it to a temporary file |
 | `KINENIX_FLOWS_DIR` | kinenix-core, kinenix-worker | The user's flows folder (default `~/kinenix-flows`, or the setting saved in `~/.kinenix/kinenix.env`); `kinenix init` creates projects there and `kinenix run NAME` finds them |
 | `KINENIX_WORKER_ID` | kinenix-core, kinenix-worker | Worker identifier in telemetry and heartbeats; kinenix-worker defaults to the host name |
 | `KINENIX_HEARTBEAT_INTERVAL` | kinenix-worker | Seconds between heartbeats while a worker command runs (default 30) |

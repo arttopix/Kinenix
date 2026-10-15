@@ -237,3 +237,13 @@ def test_default_host_is_localhost(monkeypatch):
     finally:
         monkeypatch.undo()
         importlib.reload(hub_config)
+
+
+def test_worker_key_check_endpoint(monkeypatch):
+    """`kinenix connect` checks the key here before saving it; nothing is recorded."""
+    assert client.get("/api/v1/auth/worker").status_code == 200  # no key set: localhost only
+    assert remote_client.get("/api/v1/auth/worker").status_code == 403
+    monkeypatch.setattr(hub_config, "API_KEY", "worker-key-1")
+    assert remote_client.get("/api/v1/auth/worker", headers={"X-API-Key": "worker-key-1"}).status_code == 200
+    assert remote_client.get("/api/v1/auth/worker", headers={"X-API-Key": "wrong"}).status_code == 401
+    assert client.get("/api/v1/auth/worker").status_code == 401

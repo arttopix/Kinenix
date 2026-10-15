@@ -7,12 +7,16 @@ are easy to open and review, and on Windows it is outside Documents, which OneDr
 The location comes from, in order: the KINENIX_FLOWS_DIR environment variable, the saved setting in
 ~/.kinenix/kinenix.env (written the first time `kinenix init` asks, or by `kinenix flows-dir PATH`), and
 the default. ~/.kinenix itself keeps settings and data (hub.env, hub.db, worker.env), not flows.
+
+~/.kinenix/kinenix.env also keeps the Hub this machine sends runs to (KINENIX_HUB_URL, KINENIX_HUB_API_KEY),
+saved by `kinenix connect` or `kinenix hub setup` and read through kinenix.env.get_env. KINENIX_SETTINGS_FILE
+points to another file (tests use it to stay away from the real one).
 """
 import os
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Callable, Dict, Optional
+from typing import Callable, Dict, Mapping, Optional
 
 ENV_VAR = "KINENIX_FLOWS_DIR"
 SETTING_KEY = "KINENIX_FLOWS_DIR"
@@ -23,7 +27,8 @@ def default_flows_dir() -> Path:
 
 
 def settings_file() -> Path:
-    return Path.home() / ".kinenix" / "kinenix.env"
+    override = os.environ.get("KINENIX_SETTINGS_FILE")
+    return Path(override).expanduser() if override else Path.home() / ".kinenix" / "kinenix.env"
 
 
 def _read_settings(path: Path) -> Dict[str, str]:
@@ -35,6 +40,35 @@ def _read_settings(path: Path) -> Dict[str, str]:
                 key, value = line.split("=", 1)
                 values[key.strip()] = value.strip()
     return values
+
+
+def saved_settings() -> Dict[str, str]:
+    """Every setting saved in kinenix.env."""
+    return _read_settings(settings_file())
+
+
+def save_settings(values: Mapping[str, Optional[str]]) -> Path:
+    """
+    Sets settings in kinenix.env, keeping the others; None or "" removes one. The file is made owner-only
+    on Linux and macOS, because it can hold the Hub's worker API key.
+    """
+    target = settings_file()
+    current = _read_settings(target)
+    for key, value in values.items():
+        if value:
+            current[key] = value
+        else:
+            current.pop(key, None)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    lines = ["# Kinenix settings, written by `kinenix flows-dir`, `kinenix connect`, and `kinenix hub setup`.",
+             "# Environment variables with the same names take precedence. Do not commit this file."]
+    lines += [f"{key}={value}" for key, value in current.items()]
+    target.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    try:
+        os.chmod(target, 0o600)
+    except OSError:
+        pass
+    return target
 
 
 def configured_flows_dir() -> Optional[Path]:
@@ -50,13 +84,7 @@ def flows_dir() -> Path:
 def save_flows_dir(path: Path) -> Path:
     """Remember the flows folder in ~/.kinenix/kinenix.env, keeping any other settings in that file."""
     path = Path(path).expanduser().resolve()
-    target = settings_file()
-    values = _read_settings(target)
-    values[SETTING_KEY] = str(path)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    lines = ["# Kinenix settings. The KINENIX_FLOWS_DIR environment variable takes precedence."]
-    lines += [f"{key}={value}" for key, value in values.items()]
-    target.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    save_settings({SETTING_KEY: str(path)})
     return path
 
 

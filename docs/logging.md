@@ -128,7 +128,7 @@ The worker removes secrets and personal data before anything leaves the run: the
 | What | How it is found | Replaced by |
 | :--- | :--- | :--- |
 | Values from the bundle's `.env`, and of every `${env.NAME}` the flow uses | Exact value (4 characters or longer), wherever it appears | `****` |
-| Environment variables whose name looks secret (`SMTP_PASSWORD`, `KINENIX_HUB_API_KEY`, ...) | Exact value | `****` |
+| Environment variables whose name looks secret (`SMTP_PASSWORD`, `KINENIX_HUB_API_KEY`, ...), and the Hub key saved by `kinenix connect` | Exact value | `****` |
 | Values of keys that look secret: names containing `password`, `passwd`, `secret`, `token`, `api_key`, `authorization`, `private_key`, or named exactly `pwd`, `cookie(s)`, `set-cookie`, `credential(s)` | Key name, at any depth; the value is also hidden where it appears in other text | `****` |
 | `password=...`, `token: ...`, `Authorization: Bearer ...` inside text (URLs, error messages) | Pattern | `****` after the key |
 | Text typed by `web.type` into a `type="password"` field, or with `secret: true` | The action | `****` |

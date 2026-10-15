@@ -83,6 +83,12 @@ def health_check():
     return {"status": "healthy", "service": "Kinenix Hub"}
 
 
+@app.get("/api/v1/auth/worker", dependencies=[Depends(require_worker_api_key)])
+def check_worker_key():
+    """Lets `kinenix connect` check the key before saving it, without recording a heartbeat or a run."""
+    return {"status": "ok"}
+
+
 @app.post("/api/v1/heartbeat", dependencies=[Depends(require_worker_api_key)])
 def heartbeat(req: HeartbeatRequest, db: Session = Depends(get_db)):
     worker = record_heartbeat(

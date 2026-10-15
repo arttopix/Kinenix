@@ -16,6 +16,7 @@ def home(tmp_path, monkeypatch):
     fake.mkdir()
     monkeypatch.setattr(Path, "home", classmethod(lambda cls: fake))
     monkeypatch.delenv("KINENIX_FLOWS_DIR", raising=False)
+    monkeypatch.delenv("KINENIX_SETTINGS_FILE", raising=False)
     return fake
 
 

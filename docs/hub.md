@@ -32,6 +32,7 @@ The first time `kinenix hub` runs in an interactive terminal, it asks a few ques
 2. Port
 3. Worker API key, with hidden input; press Enter to generate one
 4. Dashboard password, typed twice; press Enter to keep the dashboard localhost-only
+5. Whether `kinenix run` and `kinenix-worker` on this machine send their runs to this Hub (saved in `~/.kinenix/kinenix.env`, as `kinenix connect` does)
 
 | Command | Purpose |
 | :--- | :--- |
@@ -94,6 +95,7 @@ The Hub has two independent credentials: an API key for workers (this section) a
 | `POST /api/v1/heartbeat` | Worker API key |
 | `POST /api/v1/telemetry` | Worker API key |
 | `POST /api/v1/executions/{id}/reanalyze` | Worker API key |
+| `GET /api/v1/auth/worker` (key check for `kinenix connect`; records nothing) | Worker API key |
 | `GET /` (dashboard page) | Dashboard login |
 | `GET /api/v1/workers`, `/api/v1/executions`, `/api/v1/executions/{id}`, `/api/v1/executions/{id}/steps` | Dashboard login |
 | `POST /api/v1/query`, `GET /api/v1/query/catalog`, `/api/v1/query/describe/{name}` (read-only queries, [section 7](#7-querying-runs)) | Dashboard login |
@@ -125,14 +127,17 @@ When the key is unset, the Hub still binds to the network but refuses remote wri
    kinenix hub
    ```
 
-3. On every worker, set the same key and point telemetry at the Hub:
+3. On every worker, connect to the Hub. `kinenix connect` asks for the key, checks it against the Hub (`GET /api/v1/auth/worker`), and saves the URL and key in `~/.kinenix/kinenix.env` only when the Hub accepts them; `kinenix run` and `kinenix-worker` on that machine then report to the Hub:
 
    ```powershell
-   $env:KINENIX_HUB_API_KEY = "<generated-key>"
-   kinenix run flows/examples/rpachallenge --hub http://<hub-ip>:8080
+   kinenix connect http://<hub-ip>:8080        # or: kinenix connect <hub-ip> (port 8080), --key <key> to skip the question
+   kinenix connect                             # the Hub in use, where the setting comes from, and whether it answers
+   kinenix connect --off                       # stop reporting
    ```
 
-   The Hub URL can also be set with `KINENIX_HUB_URL` instead of `--hub`.
+   `KINENIX_HUB_URL` and `KINENIX_HUB_API_KEY` in the environment (for example in a worker service's `worker.env`) and `kinenix run --hub URL` take precedence over the saved setting; `kinenix connect` warns when they do. On the Hub machine, `kinenix hub show-key` prints the key and the `kinenix connect` command for workers, and the startup banner shows the command too.
+
+   Runs started on the Hub machine itself need no step: `kinenix hub setup` (also on the first start) asks whether to send this machine's runs to this Hub and saves `http://127.0.0.1:<port>` with the key.
 
 4. Verify from a worker machine:
 

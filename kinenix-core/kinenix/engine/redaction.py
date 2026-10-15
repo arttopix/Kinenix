@@ -76,11 +76,15 @@ class Redactor:
     """The secrets and settings of one run, shared by the main flow, its subflows, and their actions."""
 
     def __init__(self, environment: Optional[Mapping[str, str]] = None) -> None:
-        """`environment` defaults to os.environ, whose secret-looking variables are hidden."""
+        """`environment` defaults to os.environ and the saved settings; secret-looking variables are hidden."""
         self._secrets: Set[str] = set()
         self.fields: Set[str] = set()
         self.contacts = True
-        for name, value in (os.environ if environment is None else environment).items():
+        if environment is None:
+            # The Hub key may be saved in ~/.kinenix/kinenix.env (kinenix connect) instead of the environment
+            from ..workspace import saved_settings
+            environment = {**saved_settings(), **os.environ}
+        for name, value in environment.items():
             if SECRET_KEY.search(name) and name not in NOT_SECRET_ENV:
                 self.add_secret(value)
 
