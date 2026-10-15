@@ -142,8 +142,15 @@ By default, Kinenix automatically detects the project root and writes structured
 kinenix run rpachallenge --log-dir "./custom_logs"
 ```
 
-### 3.3 Send Telemetry to the Hub (`--hub`)
-Uploads the execution log to a Kinenix Hub after the run. If the Hub requires an API key, set `KINENIX_HUB_API_KEY` first:
+### 3.3 Send Telemetry to the Hub (`kinenix connect`, `--hub`)
+Connect a machine once, and every run on it uploads its execution log to that Hub:
+
+```bash
+kinenix connect http://<hub-ip>:8080     # asks for the key, checks it, saves it in ~/.kinenix/kinenix.env
+kinenix connect                          # the Hub in use;  kinenix connect --off  stops reporting
+```
+
+For one run only, `--hub` sets the Hub URL. If the Hub requires an API key and none is saved, set `KINENIX_HUB_API_KEY` first:
 
 ```powershell
 $env:KINENIX_HUB_API_KEY = "<key>"

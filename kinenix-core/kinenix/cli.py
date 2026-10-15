@@ -267,6 +267,17 @@ def main():
     hub_parser.add_argument("--port", type=int, default=None, help="Port to bind the hub server (default: $KINENIX_HUB_PORT or 8080)")
     hub_parser.add_argument("--host", default=None, help="Host to bind the hub server (default: $KINENIX_HUB_HOST or 127.0.0.1; use 0.0.0.0 to accept remote connections)")
 
+    # Command: connect
+    connect_parser = subparsers.add_parser(
+        "connect", help="Send runs and worker heartbeats from this machine to a Hub (saved in ~/.kinenix/kinenix.env)")
+    connect_parser.add_argument("url", nargs="?", default=None,
+                                help="Hub address, e.g. http://192.168.1.137:8080 or 192.168.1.137 (port 8080 when omitted); "
+                                     "without it, shows the Hub in use")
+    connect_parser.add_argument("--key", default=None,
+                                help="Worker API key (asked when omitted; on the Hub, `kinenix hub show-key` prints it)")
+    connect_parser.add_argument("--off", action="store_true", help="Stop sending runs to a Hub")
+    connect_parser.add_argument("--no-check", action="store_true", help="Save without checking that the Hub answers")
+
     # Command: version
     subparsers.add_parser("version", help="Show kinenix version and environment details")
 
@@ -506,6 +517,18 @@ def main():
             sys.exit(1)
         sys.exit(0)
 
+    elif args.command == "connect":
+        from . import connect
+        if args.off:
+            sys.exit(connect.disconnect())
+        if not args.url:
+            sys.exit(connect.show())
+        key = args.key
+        if key is None and sys.stdin is not None and sys.stdin.isatty():
+            import getpass
+            key = getpass.getpass("Worker API key (Enter if the Hub has none): ").strip()
+        sys.exit(connect.connect(args.url, key or None, verify=not args.no_check))
+
     elif args.command in ("hub", "orchestrator"):
         if args.command == "orchestrator":
             print("Note: 'kinenix orchestrator' is now 'kinenix hub'; the old name will be removed in a later release.", file=sys.stderr)
@@ -542,6 +565,9 @@ def main():
                 console.print("No worker API key is set. Create one with: [bold]kinenix hub setup[/]")
                 sys.exit(1)
             console.print(hub_config.API_KEY, soft_wrap=True)
+            # The key alone goes to standard output, so `$(kinenix hub show-key)` keeps working
+            urls = hub_console.browser_urls(args.host or hub_config.HOST, args.port or hub_config.PORT)
+            Console(stderr=True).print(f"[dim]On a worker: kinenix connect {urls[-1]} --key <this key>[/]")
             sys.exit(0)
 
         port = args.port or hub_config.PORT

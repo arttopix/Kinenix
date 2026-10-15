@@ -9,6 +9,9 @@ _test_dir = Path(tempfile.mkdtemp(prefix="kinenix-hub-tests-"))
 # Saved settings from `kinenix hub setup` (~/.kinenix/hub.env) must not change test behavior
 os.environ["KINENIX_HUB_SETTINGS_FILE"] = str(_test_dir / "no-settings.env")
 
+# The Hub this machine sends runs to (~/.kinenix/kinenix.env), written by `kinenix hub setup`
+os.environ["KINENIX_SETTINGS_FILE"] = str(_test_dir / "kinenix.env")
+
 # User views come from a test folder, not ~/.kinenix/hub_views
 os.environ["KINENIX_HUB_VIEWS_DIR"] = str(_test_dir / "hub_views")
 

@@ -5,6 +5,7 @@ import pytest
 import requests
 from rich.console import Console
 
+from kinenix.workspace import save_settings, saved_settings
 from kinenix_hub import console as hub_console
 from kinenix_hub.settings_file import read_settings, verify_password, write_settings
 
@@ -79,6 +80,12 @@ def test_print_status_empty():
     assert "No workers" in out and "No executions" in out
 
 
+@pytest.fixture(autouse=True)
+def no_saved_hub():
+    """Each test starts without a Hub saved in kinenix.env (a test file set by conftest.py)."""
+    save_settings({"KINENIX_HUB_URL": None, "KINENIX_HUB_API_KEY": None})
+
+
 def _scripted_console(monkeypatch, *answers) -> Console:
     """Console whose input() returns the given answers in order, for plain and hidden prompts alike."""
     console = _console()
@@ -89,8 +96,8 @@ def _scripted_console(monkeypatch, *answers) -> Console:
 
 def test_setup_first_run_generates_key_and_hashes_password(monkeypatch, tmp_path):
     path = tmp_path / "hub.env"
-    # remote? port, api key (generate), password, typo repeat, password, repeat
-    console = _scripted_console(monkeypatch, "", "", "", "first", "typo", "second", "second")
+    # remote? port, api key (generate), password, typo repeat, password, repeat, send this machine's runs here?
+    console = _scripted_console(monkeypatch, "", "", "", "first", "typo", "second", "second", "")
     values = hub_console.run_setup(console, path)
     out = console.export_text()
 
@@ -102,25 +109,42 @@ def test_setup_first_run_generates_key_and_hashes_password(monkeypatch, tmp_path
     assert "second" not in path.read_text(encoding="utf-8")
     assert verify_password("second", saved["KINENIX_HUB_DASHBOARD_PASSWORD_HASH"])
     assert "Passwords do not match" in out
+    # Runs on the Hub machine go to this Hub without setting KINENIX_HUB_URL
+    assert saved_settings() == {"KINENIX_HUB_URL": "http://127.0.0.1:8080", "KINENIX_HUB_API_KEY": saved["KINENIX_HUB_API_KEY"]}
 
 
 def test_setup_rerun_keeps_existing_credentials(monkeypatch, tmp_path):
     path = tmp_path / "hub.env"
     write_settings(path, {"KINENIX_HUB_HOST": "0.0.0.0", "KINENIX_HUB_PORT": "8080",
                           "KINENIX_HUB_API_KEY": "old-key", "KINENIX_HUB_DASHBOARD_PASSWORD_HASH": "h"})
-    # keep remote, change port, keep key, keep password
-    values = hub_console.run_setup(_scripted_console(monkeypatch, "", "9000", "", ""), path)
+    # keep remote, change port, keep key, keep password, send this machine's runs here
+    values = hub_console.run_setup(_scripted_console(monkeypatch, "", "9000", "", "", "y"), path)
     assert values == {"KINENIX_HUB_HOST": "0.0.0.0", "KINENIX_HUB_PORT": "9000",
                       "KINENIX_HUB_API_KEY": "old-key", "KINENIX_HUB_DASHBOARD_PASSWORD_HASH": "h"}
+    assert saved_settings() == {"KINENIX_HUB_URL": "http://127.0.0.1:9000", "KINENIX_HUB_API_KEY": "old-key"}
 
 
 def test_setup_local_only_asks_no_credentials(monkeypatch, tmp_path):
     path = tmp_path / "hub.env"
-    console = _scripted_console(monkeypatch, "maybe", "n", "abc", "8081")
+    console = _scripted_console(monkeypatch, "maybe", "n", "abc", "8081", "")
     values = hub_console.run_setup(console, path)
     assert values == {"KINENIX_HUB_HOST": "127.0.0.1", "KINENIX_HUB_PORT": "8081"}
+    assert saved_settings() == {"KINENIX_HUB_URL": "http://127.0.0.1:8081"}  # no key: localhost needs none
     out = console.export_text()
     assert "Please answer y or n" in out and "between 1 and 65535" in out
+
+
+def test_setup_does_not_take_over_a_machine_that_reports_elsewhere(monkeypatch, tmp_path):
+    save_settings({"KINENIX_HUB_URL": "http://192.168.1.137:8080", "KINENIX_HUB_API_KEY": "remote-key"})
+    console = _scripted_console(monkeypatch, "n", "", "")  # local only, port, keep sending elsewhere (default no)
+    hub_console.run_setup(console, tmp_path / "hub.env")
+    assert saved_settings() == {"KINENIX_HUB_URL": "http://192.168.1.137:8080", "KINENIX_HUB_API_KEY": "remote-key"}
+
+
+def test_setup_answering_no_stops_sending_to_this_hub(monkeypatch, tmp_path):
+    save_settings({"KINENIX_HUB_URL": "http://127.0.0.1:8080", "KINENIX_HUB_API_KEY": "k"})
+    hub_console.run_setup(_scripted_console(monkeypatch, "n", "", "n"), tmp_path / "hub.env")
+    assert "KINENIX_HUB_URL" not in saved_settings()
 
 
 def test_fetch_status_passes_auth_and_raises_on_http_error():

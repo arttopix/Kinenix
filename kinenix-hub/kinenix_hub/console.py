@@ -64,6 +64,8 @@ def print_banner(console: Console, host: str, port: int, llm_url: str, api_key_s
     if len(urls) > 1:
         grid.add_row("Worker URL", Text(urls[1], style="bold"))
     grid.add_row("Listening on", f"{host}:{port} " + ("(all interfaces)" if remote else "(this address only)"))
+    if len(urls) > 1:
+        grid.add_row("Connect a worker", Text(f"kinenix connect {urls[1]}", style="bold") + Text("  (key: kinenix hub show-key)", style="dim"))
     grid.add_row("Worker API key", Text("set", style="green") if api_key_set else Text("not set: localhost workers only", style="yellow"))
     grid.add_row("Dashboard login", Text("set", style="green") if dashboard_password_set else Text("not set: localhost viewers only", style="yellow"))
     grid.add_row("Central LLM", llm_url)
@@ -115,6 +117,23 @@ def _ask_new_password(console: Console, label: str) -> str:
         console.print("[red]Passwords do not match. Try again.[/]")
 
 
+def _ask_send_local_runs(console: Console, values: Dict[str, str]) -> None:
+    """Offers to send runs and heartbeats from this machine to this Hub (kinenix connect, saved in kinenix.env)."""
+    from kinenix.workspace import save_settings, saved_settings, settings_file
+
+    local_url = f"http://127.0.0.1:{values.get('KINENIX_HUB_PORT', '8080')}"
+    current = saved_settings().get("KINENIX_HUB_URL", "").rstrip("/")
+    local = current == local_url or not current
+    question = ("Send runs from this machine (kinenix run, kinenix-worker) to this Hub?" if local else
+                f"This machine sends runs to {current}. Send them to this Hub instead?")
+    if ask_yes_no(console, question, default=local):
+        save_settings({"KINENIX_HUB_URL": local_url, "KINENIX_HUB_API_KEY": values.get("KINENIX_HUB_API_KEY") or None})
+        console.print(f"[green]Saved[/] {settings_file()}: runs on this machine go to {local_url}")
+    elif current == local_url:
+        save_settings({"KINENIX_HUB_URL": None, "KINENIX_HUB_API_KEY": None})
+        console.print(f"Runs on this machine are no longer sent to {local_url}.")
+
+
 def run_setup(console: Console, path: Path) -> Dict[str, str]:
     """Interactive first-run setup. Saves the answers to the settings file and returns them."""
     values = read_saved_settings(path)  # carries over a pre-rename orchestrator.env
@@ -151,6 +170,7 @@ def run_setup(console: Console, path: Path) -> Dict[str, str]:
 
     write_settings(path, values)
     console.print(f"[green]Saved[/] {path}")
+    _ask_send_local_runs(console, values)
     if new_key:
         console.print(Panel(
             f"{new_key}\n\n[dim]Set it on each worker as KINENIX_HUB_API_KEY.\n"

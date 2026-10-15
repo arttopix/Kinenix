@@ -10,7 +10,7 @@ kinenix install-browsers          # Playwright Chromium, needed for web actions
 kinenix-worker info
 ```
 
-Requires Python 3.10 or newer. To report to a Kinenix Hub, set `KINENIX_HUB_URL` and `KINENIX_HUB_API_KEY` (section 3D). The Raspberry Pi quickstart below installs from the repository instead and also sets up a systemd service.
+Requires Python 3.10 or newer. To report to a Kinenix Hub, run `kinenix connect http://<hub-ip>:8080` (section 3D). The Raspberry Pi quickstart below installs from the repository instead and also sets up a systemd service.
 
 ---
 
@@ -97,7 +97,15 @@ kinenix-worker run flows/examples/rpachallenge --sandbox
 
 ### D. Connect to the Hub
 
-The worker reports to a Kinenix Hub when these environment variables are set (see the [Hub guide](https://github.com/arttopix/Kinenix/blob/main/docs/hub.md) for the server side):
+Connect once; the command asks for the Hub's worker key (on the Hub: `kinenix hub show-key`), checks that the Hub accepts it, and saves both in `~/.kinenix/kinenix.env`, which the worker and `kinenix run` read:
+
+```bash
+kinenix connect http://192.168.1.132:8080
+kinenix connect                 # the Hub in use and whether it answers
+kinenix connect --off           # stop reporting
+```
+
+Environment variables still work and take precedence over the saved setting (see the [Hub guide](https://github.com/arttopix/Kinenix/blob/main/docs/hub.md) for the server side):
 
 | Variable | Default | Purpose |
 | :--- | :--- | :--- |
@@ -136,7 +144,7 @@ It reads two files in `~/.kinenix/`, creating them if they do not exist (existin
 
 | File | Contents |
 | :--- | :--- |
-| `worker.env` | `KINENIX_HUB_URL`, `KINENIX_HUB_API_KEY`, `KINENIX_WORKER_ID` as `export` lines; owner-readable only. Also put the secrets your flows read here, for example `GMAIL_USER` and `GMAIL_APP_PASSWORD` for `email.send`: the service does not see variables set in your shell. Add `source ~/.kinenix/worker.env` to `~/.bashrc` to use the same values in your shell. |
+| `worker.env` | `KINENIX_HUB_URL`, `KINENIX_HUB_API_KEY`, `KINENIX_WORKER_ID` as `export` lines; owner-readable only. Leave the Hub lines empty to use the Hub saved by `kinenix connect`; values set here take precedence over it. Also put the secrets your flows read here, for example `GMAIL_USER` and `GMAIL_APP_PASSWORD` for `email.send`: the service does not see variables set in your shell. Add `source ~/.kinenix/worker.env` to `~/.bashrc` to use the same values in your shell. |
 | `triggers.json` | Triggers for the daemon. The default `{"triggers": []}` runs no flows and only sends heartbeats. |
 
 **Your own flows** belong in your flows folder, `~/kinenix-flows`, not in this repository (see [Where your flows live](https://github.com/arttopix/Kinenix/blob/main/docs/quickstart.md#2-where-your-flows-live)). Keep them in a private git repository and clone it on the Pi:
