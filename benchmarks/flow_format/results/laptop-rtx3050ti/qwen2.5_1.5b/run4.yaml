@@ -1,0 +1,132 @@
+```yaml
+name: Collect and Email Bank of Thailand Transfer Rates
+description: Collects Bank of Thailand buying transfer rates for specified currencies over one month and emails them as a CSV file.
+variables:
+  config: {}
+  url: "https://www.bankofthailand.go.th"
+  currencies: ["THB", "USD", "EUR", "JPY"]
+  month: {}
+  month.date: "today"
+  month.add_months: 1
+  config.url: "https://www.bankofthailand.go.th"
+  config.currencies: ["THB", "USD", "EUR", "JPY"]
+  config.month.date: "today"
+  config.month.add_months: 1
+  config.output_path: "/path/to/output/transfer_rates.csv"
+  config.email.to: "recipient@example.com"
+  config.email.subject: "Bank of Thailand Transfer Rates Report"
+  config.email.body: "Please find the Bank of Thailand transfer rates for your reference."
+  config.email.dry_run: false
+
+steps:
+  - name: Extract URL
+    action: logic.set_variable
+    with:
+      name: config.url
+      value: "${config.url}"
+
+  - name: Select Date
+    action: logic.set_variable
+    with:
+      name: config.month
+      value: "${config.month.date}"
+
+  - name: Open URL
+    action: http.request
+    with:
+      url: "${config.url}"
+      headers: {}
+      payload: {}
+      timeout: 10
+
+  - name: Accept Cookies
+    action: logic.set_variable
+    with:
+      name: config.url
+      value: "${config.url}"
+
+  - name: Configure Currencies
+    action: logic.set_variable
+    with:
+      name: config.currencies
+      value: "${config.currencies}"
+
+  - name: Set Headless Mode
+    action: logic.set_variable
+    with:
+      name: config.headless
+      value: false
+
+  - name: Open Dropdown
+    action: logic.set_variable
+    with:
+      name: config.url
+      value: "${config.url}"
+
+  - name: Select Currencies
+    action: logic.set_variable
+    with:
+      name: config.currencies
+      value: "${config.currencies}"
+
+  - name: Open Currency Filter
+    action: logic.set_variable
+    with:
+      name: config.url
+      value: "${config.url}"
+
+  - name: Pick Start and End Dates
+    action: logic.set_variable
+    with:
+      name: config.url
+      value: "${config.url}"
+
+  - name: Click Search Button
+    action: logic.set_variable
+    with:
+      name: config.url
+      value: "${config.url}"
+
+  - name: Write to CSV
+    action: csv.write
+    with:
+      file_path: "${config.output_path}"
+      data: ""
+      columns: ["Currency", "Date", "Buying Transfer Rate"]
+      append: false
+      encoding: "utf-8"
+
+  - name: Close Browser
+    action: logic.set_variable
+    with:
+      name: config.output_path
+      value: "${config.output_path}"
+
+  - name: Email Report
+    action: logic.set_variable
+    with:
+      name: config.output_path
+      value: "${config.output_path}"
+      name: config.email.to
+      value: "${config.email.to}"
+      name: config.email.subject
+      value: "${config.email.subject}"
+      name: config.email.body
+      value: "${config.email.body}"
+      name: config.email.dry_run
+      value: "${config.email.dry_run}"
+
+  - name: Email Report
+    action: logic.set_variable
+    with:
+      name: config.output_path
+      value: "${config.output_path}"
+      name: config.email.to
+      value: "${config.email.to}"
+      name: config.email.subject
+      value: "${config.email.subject}"
+      name: config.email.body
+      value: "${config.email.body}"
+      name: config.email.dry_run
+      value: "${config.email.dry_run}"
+```

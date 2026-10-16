@@ -1,6 +1,6 @@
 # {{title}}
 
-A [Kinenix](https://github.com/arttopix/Kinenix) automation project.
+A [Kinenix](https://github.com/arttopix/kinenix) automation project.
 
 ## How to build it
 
@@ -13,7 +13,7 @@ A [Kinenix](https://github.com/arttopix/Kinenix) automation project.
    ```
 4. **Review** `flow.md` and the results in `output/`. Change settings in `config/config.json` without touching the flow.
 
-To run it on a schedule, see the worker guide: https://github.com/arttopix/Kinenix/blob/main/kinenix-worker/README.md
+To run it on a schedule, see the worker guide: https://github.com/arttopix/kinenix/blob/main/kinenix-worker/README.md
 
 ## Files
 
@@ -21,7 +21,6 @@ To run it on a schedule, see the worker guide: https://github.com/arttopix/Kinen
 | :--- | :--- |
 | `requirements.md` | What the automation must do. You write it. |
 | `flow.md` | The flow. Written by you or an AI assistant from `requirements.md`. |
-| `flow.json` | Build output of `flow.md`, rebuilt before each run. Do not edit. |
 | `config/config.json` | Settings the flow reads as `${config.*}`. |
 | `.env.example` | Names of the secrets the flow needs. Copy to `.env` and fill in; `.env` is never committed. |
 | `AGENTS.md`, `CLAUDE.md` | Instructions for AI assistants working in this folder. |

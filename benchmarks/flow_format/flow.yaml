@@ -1,0 +1,190 @@
+name: BOT FX Transfer Rate Collector
+description: >-
+  Collect Bank of Thailand historical buying transfer rates for the configured currencies
+  over one month (the previous month by default), write them to a CSV file grouped by
+  currency, and email the file.
+version: 1.0.0
+
+variables:
+  fx_rows: []
+
+steps:
+  - name: First Day Of Report Month
+    action: date.calc
+    with:
+      date: ${config.month.date}
+      add_months: ${config.month.add_months}
+      snap: start_of_month
+    output_var: start
+
+  - name: Last Day Of Report Month
+    action: date.calc
+    with:
+      date: ${config.month.date}
+      add_months: ${config.month.add_months}
+      snap: end_of_month
+    output_var: end
+
+  - name: Open BOT Exchange Rate Page
+    action: web.open
+    with:
+      url: ${config.url}
+      headless: ${config.headless}
+      timeout: 60000
+    on_error: retry
+    max_retries: 2
+    retry_interval: 5.0
+
+  - name: Accept Cookie Banner
+    action: web.click
+    with:
+      selector: "button:has-text('Accept recommended cookies')"
+      timeout: 15000
+      optional: true
+
+  - name: Open Currency Filter
+    action: web.click
+    with:
+      selector: "#dropdownCurrency"
+    on_error: retry
+    max_retries: 2
+    retry_interval: 2.0
+
+  - name: Select Configured Currencies
+    action: logic.loop
+    with:
+      items: ${config.currencies}
+      item_var: currency
+    steps:
+      - name: Tick Currency Checkbox
+        action: web.check
+        with:
+          selector: ".currency-filter input[name='currencyCheck'][value='${currency}']"
+          timeout: 10000
+
+  - name: Close Currency Filter
+    action: web.click
+    with:
+      selector: "h3:has-text('Historical Foreign Exchange Rates')"
+
+  - name: Open Start Date Picker
+    action: web.click
+    with:
+      selector: ".date-filter input[placeholder='Select a date'] >> nth=0"
+
+  - name: Choose Start Year
+    action: web.select_option
+    with:
+      selector: ".react-datepicker select >> nth=1"
+      value: ${start.year}
+
+  - name: Choose Start Month
+    action: web.select_option
+    with:
+      selector: ".react-datepicker select >> nth=0"
+      text: ${start.month_name}
+
+  - name: Choose Start Day
+    action: web.click
+    with:
+      selector: ".react-datepicker__day:not(.react-datepicker__day--outside-month):text-is('${start.day}')"
+
+  - name: Open End Date Picker
+    action: web.click
+    with:
+      selector: ".date-filter input[placeholder='Select a date'] >> nth=1"
+
+  - name: Choose End Year
+    action: web.select_option
+    with:
+      selector: ".react-datepicker select >> nth=1"
+      value: ${end.year}
+
+  - name: Choose End Month
+    action: web.select_option
+    with:
+      selector: ".react-datepicker select >> nth=0"
+      text: ${end.month_name}
+
+  - name: Choose End Day
+    action: web.click
+    with:
+      selector: ".react-datepicker__day:not(.react-datepicker__day--outside-month):text-is('${end.day}')"
+
+  - name: Search Historical Rates
+    action: web.click
+    with:
+      selector: button.historical-btn
+    on_error: retry
+    max_retries: 2
+    retry_interval: 3.0
+
+  - name: Wait For Results To Load
+    action: logic.delay
+    with:
+      seconds: 3
+
+  - name: Read Transfer Rates Per Currency
+    action: logic.loop
+    with:
+      items: ${config.currencies}
+      item_var: currency
+    steps:
+      - name: Show Currency Table
+        action: web.click
+        with:
+          selector: ".main-content:has(button.historical-btn) button:text-is('${currency}')"
+          timeout: 10000
+
+      - name: Read Currency Table
+        action: web.get_table
+        with:
+          selector: ".main-content:has(button.historical-btn) table:visible"
+          columns: {"Period": "Date", "Buying Rates Transfer": "Buying Transfer Rate"}
+          numeric_columns: ["Buying Transfer Rate"]
+          add_columns: {"Currency": "${currency}"}
+          min_rows: 1
+          timeout: 15000
+        output_var: currency_rows
+        on_error: retry
+        max_retries: 2
+        retry_interval: 2.0
+
+      - name: Collect Currency Rows
+        action: logic.append
+        with:
+          target: fx_rows
+          item: ${currency_rows}
+          extend: true
+
+  - name: Write Grouped Rates To CSV
+    action: csv.write
+    with:
+      file_path: ${config.output_path}
+      data: ${fx_rows}
+      columns: ["Currency", "Date", "Buying Transfer Rate"]
+    on_error: retry
+    max_retries: 2
+    retry_interval: 2.0
+
+  - name: Capture Result Screenshot
+    action: web.screenshot
+    with:
+      path: ${config.screenshot_path}
+    on_error: continue
+
+  - name: Close Browser
+    action: web.close
+    on_error: continue
+
+  - name: Email CSV Report
+    action: email.send
+    with:
+      to: ${config.email.to}
+      subject: ${config.email.subject}
+      body: ${config.email.body}
+      attachments: ["${config.output_path}"]
+      dry_run: ${config.email.dry_run}
+    on_error: retry
+    max_retries: 2
+    retry_interval: 10.0

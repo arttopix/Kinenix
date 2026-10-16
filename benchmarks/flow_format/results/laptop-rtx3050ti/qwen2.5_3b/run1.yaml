@@ -1,0 +1,195 @@
+name: Collect_BankOfThailand_Rates
+description: This flow collects Bank of Thailand buying transfer rates for several currencies over one month and emails them as a CSV file.
+
+variables:
+  config_month_date: "2023-01-01"
+  config_month_add_months: -1
+  config_currencies: ["THB", "USD", "EUR"]
+  config_url: "https://www.bangkokbank.com/exchange-rates"
+  config_output_path: "./output/rates.csv"
+  config_email_to: "email@example.com"
+  config_email_subject: "Bank of Thailand Exchange Rates"
+  config_email_body: "Monthly Bank of Thailand Exchange Rates"
+  config_email_dry_run: "False"
+  config_headless: "True"
+
+steps:
+  - name: Work_out_Day_Range
+    action: date.calc
+    with:
+      date: "${config_month_date}"
+      add_months: "${config_month_add_months}"
+      format: "%Y-%m-%d"
+    output_var: config_month_start_date
+    on_error: continue
+    max_retries: 2
+    retry_interval: 60
+  - name: Open_BangkokBank
+    action: web.open
+    with:
+      url: "${config_url}"
+      headless: "${config_headless}"
+      timeout: 30
+    output_var: browser
+    on_error: retry
+    max_retries: 2
+    retry_interval: 60
+  - name: Accept_Cookie_Banner
+    action: web.hover
+    with:
+      selector: ".accept-button"
+      label: "Accept"
+    output_var: browser
+    on_error: continue
+    max_retries: 2
+    retry_interval: 60
+  - name: Open_Currency_Filter
+    action: web.click
+    with:
+      selector: "#dropdownCurrency"
+      label: "Currency Filter"
+    output_var: browser
+    on_error: continue
+    max_retries: 2
+    retry_interval: 60
+  - name: Tick_Currencies
+    action: logic.loop
+    with:
+      items: ${config_currencies}
+      item_var: currency
+    steps:
+      - name: Click_Currency_Checkbox
+        action: web.click
+        with:
+          selector: ".currency-filter input[name='currencyCheck'][value='${currency}']"
+          label: "Currency Checkbox"
+        output_var: browser
+        on_error: continue
+        max_retries: 2
+        retry_interval: 60
+  - name: Select_Start_End_Dates
+    action: web.select_option
+    with:
+      selector: ".react-datepicker select >> nth=1"
+      label: "Year Select"
+      value: "${config_month_start_date}"
+      text: "${config_month_start_date}"
+      label_text: "Start Date"
+      index: 0
+      ai_match: "False"
+      base_url: "${config_url}"
+      systemone_url: "${config_url}"
+      fallback_to_ollama: "False"
+      timeout: 30
+    output_var: browser
+    on_error: continue
+    max_retries: 2
+    retry_interval: 60
+    steps:
+      - name: Select_Month
+        action: web.select_option
+        with:
+          selector: ".react-datepicker select >> nth=0"
+          label: "Month Select"
+          value: "January"
+          text: "January"
+          label_text: "Month"
+          index: 0
+          ai_match: "False"
+          base_url: "${config_url}"
+          systemone_url: "${config_url}"
+          fallback_to_ollama: "False"
+          timeout: 30
+        output_var: browser
+        on_error: continue
+        max_retries: 2
+        retry_interval: 60
+      - name: Select_Day
+        action: web.select_option
+        with:
+          selector: ".react-datepicker table td:nth-child(1)"
+          label: "Day Select"
+          value: "1"
+          text: "1"
+          label_text: "Day"
+          index: 0
+          ai_match: "False"
+          base_url: "${config_url}"
+          systemone_url: "${config_url}"
+          fallback_to_ollama: "False"
+          timeout: 30
+        output_var: browser
+        on_error: continue
+        max_retries: 2
+        retry_interval: 60
+  - name: Click_Search_Button
+    action: web.click
+    with:
+      selector: "button.historical-btn"
+      label: "Search"
+    output_var: browser
+    on_error: continue
+    max_retries: 2
+    retry_interval: 60
+  - name: Get_Rates
+    action: web.get_table
+    with:
+      selector: ".exchange-rates-table"
+      label: "Exchange Rate Table"
+      columns: ["Period", "Buying Rates Transfer"]
+      numeric_columns: ["Buying Rates Transfer"]
+      add_columns: ["Currency"]
+      min_rows: 1
+      timeout: 30
+    output_var: rates
+    on_error: continue
+    max_retries: 2
+    retry_interval: 60
+    steps:
+      - name: Add_Date
+        action: logic.append
+        with:
+          target: rates
+          item: {"Date": "${config_month_start_date}"}
+      - name: Add_Currency
+        action: logic.append
+        with:
+          target: rates
+          item: {"Currency": "${currency}"}
+  - name: Write_CSV
+    action: csv.write
+    with:
+      file_path: "${config_output_path}"
+      data: ${rates}
+      columns: ["Currency", "Date", "Buying Transfer Rate"]
+      encoding: "utf-8"
+      append: "False"
+    output_var: rates_csv_written
+    on_error: continue
+    max_retries: 2
+    retry_interval: 60
+  - name: Email_CSV
+    action: email.send
+    with:
+      to: "${config_email_to}"
+      subject: "${config_email_subject}"
+      body: "${config_email_body}"
+      attachments: ["${config_output_path}"]
+      smtp_host: "smtp.example.com"
+      smtp_port: "587"
+      smtp_user: "user@example.com"
+      smtp_password: "password"
+      use_tls: "True"
+      dry_run: "${config_email_dry_run}"
+    output_var: email_sent
+    on_error: continue
+    max_retries: 2
+    retry_interval: 60
+  - name: Close_Browser
+    action: web.close
+    output_var: browser
+    on_error: continue
+    max_retries: 2
+    retry_interval: 60
+
+flow_return: "${email_sent}"

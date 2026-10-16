@@ -1,6 +1,6 @@
 # kinenix-hub
 
-The **Kinenix Hub** is the central server of [Kinenix](https://github.com/arttopix/Kinenix), an open-source, local AI-native RPA framework in Python. Workers report to it, and you watch everything from one place.
+The **Kinenix Hub** is the central server of [Kinenix](https://github.com/arttopix/kinenix), an open-source, local AI-native RPA framework in Python. Workers report to it, and you watch everything from one place.
 
 > **Status: beta.** Job dispatch from the Hub to workers is planned; today workers run their own schedules and report to the Hub.
 
@@ -24,6 +24,8 @@ This installs `kinenix-hub` together with `kinenix`, which provides the `kinenix
 kinenix hub              # start; the first run asks a few setup questions and saves them
 kinenix hub status       # workers and recent executions
 kinenix hub logs         # steps of the latest execution
+kinenix hub report --flow "BOT FX"   # how the latest run of a flow went
+kinenix hub query v_failures --since yesterday   # what failed, where, on which item
 kinenix hub show-key     # the API key to give to workers
 ```
 
@@ -31,10 +33,10 @@ Settings are saved in `~/.kinenix/hub.env` and data in `~/.kinenix/hub.db`. On a
 
 ## Documentation
 
-- [Hub guide](https://github.com/arttopix/Kinenix/blob/main/docs/hub.md): setup, authentication, saved settings, and the API
-- [Worker guide](https://github.com/arttopix/Kinenix/blob/main/kinenix-worker/README.md)
-- [Project README](https://github.com/arttopix/Kinenix#readme)
+- [Hub guide](https://github.com/arttopix/kinenix/blob/main/docs/hub.md): setup, authentication, saved settings, and the API
+- [Worker guide](https://github.com/arttopix/kinenix/blob/main/kinenix-worker/README.md)
+- [Project README](https://github.com/arttopix/kinenix#readme)
 
 ## License
 
-MIT
+Apache License 2.0. Releases up to and including 0.2.0b3 were published under the MIT License.

@@ -6,11 +6,11 @@ This document defines credential management, data privacy constraints, and local
 
 ## 1. Zero Credential Leakage
 
-- **No Hardcoded Secrets:** Never hardcode passwords, API tokens, webhook URLs (e.g., LINE Channel Access Token, Teams Webhooks), or database connection strings directly in source code or `flow.json` files.
+- **No Hardcoded Secrets:** Never hardcode passwords, API tokens, webhook URLs (e.g., LINE Channel Access Token, Teams Webhooks), or database connection strings directly in source code or `flow.md` files.
 - **Environment Variables & Secret Providers:**
   - Retrieve sensitive parameters via environment variables `${env:SECRET_KEY}` or designated configuration files.
   - Configuration files containing sensitive information must be explicitly listed in `.gitignore`.
-- **Log Masking:** Automatically redact sensitive parameters (passwords, tokens, authorization headers) from structured execution logs and diagnostic telemetry.
+- **Log Masking:** Redact secrets and personal data from execution logs, console errors, and Hub telemetry on the worker, through `kinenix/engine/redaction.py` only. What is hidden and how: `docs/logging.md` (Redaction). Never log or send a value before it passes through the Redactor.
 
 ---
 

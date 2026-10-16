@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 import tempfile
 from datetime import datetime
 from pathlib import Path
@@ -8,6 +9,8 @@ from typing import Optional, Union
 
 from ..env import get_env
 from ..models.context import ExecutionContext, StepResult
+from .markdown import SECTION_HEADINGS
+from .redaction import Redactor
 
 
 def resolve_log_dir(log_dir: Optional[Union[str, Path]] = None, flow_path: Optional[Path] = None) -> Path:
@@ -39,6 +42,11 @@ def resolve_log_dir(log_dir: Optional[Union[str, Path]] = None, flow_path: Optio
     return (Path.cwd() / "logs").resolve()
 
 
+def _in_section(section: str) -> str:
+    """' in On Error' or ' in Finally', so failures outside ## Steps are easy to tell apart in the log."""
+    return f" in {SECTION_HEADINGS[section]}" if section in SECTION_HEADINGS and section != "steps" else ""
+
+
 class ExecutionLogger:
     """
     Structured logger for recording flow execution steps and metrics.
@@ -62,23 +70,59 @@ class ExecutionLogger:
         if self.log_dir:
             self.log_dir.mkdir(parents=True, exist_ok=True)
 
+        # Replaced by the interpreter at the start of each top-level run; subflows share it
+        self.redactor = Redactor()
+        # The run's live log: one JSON line per step, written while the flow runs (${run.log_path})
+        self.live_log_path: Optional[Path] = None
+
+    def _run_dir(self, context: ExecutionContext) -> Path:
+        flow_slug = re.sub(r"[^\w\-]+", "_", context.flow_name.lower().strip()).strip("_")
+        return self.log_dir / flow_slug / context.start_time.strftime("%Y-%m-%d")
+
+    def start_run(self, context: ExecutionContext, run_id: str) -> Optional[Path]:
+        """Starts the live log of a top-level run; returns its path, or None without a log folder."""
+        self.live_log_path = None
+        if not self.log_dir:
+            return None
+        try:
+            target_dir = self._run_dir(context)
+            target_dir.mkdir(parents=True, exist_ok=True)
+            self.live_log_path = target_dir / f"{context.start_time.strftime('%H%M%S')}_{run_id}.jsonl"
+            self.live_log_path.write_text("", encoding="utf-8")
+        except Exception as e:
+            self.logger.error(f"Failed to start the live log: {e}")
+            self.live_log_path = None
+        return self.live_log_path
+
+    def _write_live(self, result: StepResult) -> None:
+        if not self.live_log_path:
+            return
+        try:
+            line = json.dumps(self.redactor.redact(result.model_dump(mode="json")), ensure_ascii=False, default=str)
+            with self.live_log_path.open("a", encoding="utf-8") as live:
+                live.write(line + "\n")
+        except Exception as e:
+            self.logger.error(f"Failed to write the live log: {e}")
+
 
     def log_step_start(self, step_id: str, step_name: str, action: str) -> None:
         self.logger.info(f"Starting Step [{step_id}] '{step_name}' (Action: {action})")
 
     def log_step_result(self, result: StepResult) -> None:
-        status_upper = result.status.upper()
+        self._write_live(result)
         if result.status == "success":
             self.logger.info(
                 f"Completed Step [{result.step_id}] '{result.step_name}' in {result.duration_seconds:.3f}s"
             )
         elif result.status == "failed":
             self.logger.error(
-                f"Failed Step [{result.step_id}] '{result.step_name}' - [{result.error_type} Error]: {result.error_message}"
+                f"Failed Step [{result.step_id}] '{result.step_name}'{_in_section(result.section)} - [{result.error_type} Error]: "
+                f"{self.redactor.redact_text(result.error_message)}"
             )
         else:
             # A skip is expected behavior (its condition was not met), not a problem to warn about
             reason = (result.output or {}).get("skipped_reason") if isinstance(result.output, dict) else None
+            reason = self.redactor.redact_text(reason)
             self.logger.info(f"Skipped Step [{result.step_id}] '{result.step_name}'" + (f": {reason}" if reason else ""))
 
     def log_execution_summary(self, context: ExecutionContext) -> None:
@@ -87,6 +131,10 @@ class ExecutionLogger:
         self.logger.info(f"Flow Name: {context.flow_name}")
         self.logger.info(f"Total Steps: {m.total_steps} (Success: {m.successful_steps}, Failed: {m.failed_steps}, Skipped: {m.skipped_steps})")
         self.logger.info(f"Total Duration: {m.total_duration_seconds:.2f}s")
+        details = context.failure_details
+        if context.has_error and details:
+            self.logger.info(f"Result: FAILED at step [{details.failed_step_id}] '{details.failed_step_name}'"
+                             f"{_in_section(details.section)}")
 
         raw_data = context.model_dump(mode="python")
         raw_data = {"$schema": "../../../schemas/execution_log.schema.json", **raw_data}
@@ -97,15 +145,15 @@ class ExecutionLogger:
                 k: v for k, v in raw_data["variables"].items() if not str(k).startswith("__")
             }
 
+        # Secrets and personal data are removed before anything is written or sent (docs/logging.md, Redaction)
+        raw_data = self.redactor.redact(raw_data)
+
         if self.log_dir:
             try:
-                import re
-                flow_slug = re.sub(r"[^\w\-]+", "_", context.flow_name.lower().strip()).strip("_")
-                date_str = context.start_time.strftime("%Y-%m-%d")
                 time_str = context.start_time.strftime("%H%M%S")
                 status_str = "failed" if context.has_error else "success"
 
-                target_dir = self.log_dir / flow_slug / date_str
+                target_dir = self._run_dir(context)
                 target_dir.mkdir(parents=True, exist_ok=True)
 
                 log_file = target_dir / f"{time_str}_{status_str}.json"
@@ -123,6 +171,8 @@ class ExecutionLogger:
         )
         if hub_url:
             self._send_telemetry(hub_url, raw_data, context)
+        else:
+            self.logger.info("Hub: not connected, so this run stays on this machine (kinenix connect URL to report runs).")
 
     def _send_telemetry(self, hub_url: str, raw_data: dict, context: ExecutionContext) -> None:
         try:

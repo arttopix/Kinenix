@@ -1,0 +1,144 @@
+```yaml
+name: Monthly Currency Buying Transfer Rates
+description: Collect Bank of Thailand buying transfer rates for several currencies over one month and email them as a CSV file.
+variables:
+  config: {}
+steps:
+  - name: Calculate first and last day of the report month
+    action: date.calc
+    with:
+      date: "{{config.month.date}}"
+      input_format: "YYYY-MM-DD"
+      add_months: "{{config.month.add_months}}"
+    output_var: report_start_date
+    on_error: retry
+    max_retries: 2
+
+  - name: Open Bank of Thailand URL
+    action: web.open
+    with:
+      url: "{{config.url}}"
+      headless: "{{config.headless}}"
+    output_var: browser
+    on_error: retry
+    max_retries: 2
+
+  - name: Accept cookie banner
+    action: web.click
+    with:
+      selector: Accept recommended cookies
+    output_var: cookie_accepted
+    on_error: retry
+    max_retries: 2
+
+  - name: Open currency filter
+    action: web.click
+    with:
+      selector: #dropdownCurrency
+    output_var: currency_filter_opened
+    on_error: retry
+    max_retries: 2
+
+  - name: Tick each currency
+    action: logic.loop
+    with:
+      items: "{{config.currencies}}"
+      item_var: currency
+    steps:
+      - name: Check currency
+        action: web.uncheck
+        with:
+          selector: .currency-filter input[name='currencyCheck'][value="{{currency}}']
+        on_error: retry
+        max_retries: 2
+
+  - name: Pick start and end dates
+    action: logic.loop
+    with:
+      items: ["year select", ".react-datepicker select >> nth=1", "month select (by month name)", "day cell text"]
+      item_var: date_component
+    steps:
+      - name: Select year
+        action: web.type
+        with:
+          selector: year select
+          text: "{{report_start_date.year}}"
+        output_var: year_value
+      - name: Select month
+        action: web.type
+        with:
+          selector: ".react-datepicker select >> nth=0"
+          text: "{{report_start_date.month_name}}"
+        output_var: month_value
+      - name: Select day
+        action: web.type
+        with:
+          selector: day cell text
+          text: "{{report_start_date.day}}"
+        output_var: day_value
+    on_error: retry
+    max_retries: 2
+
+  - name: Search for rates
+    action: web.click
+    with:
+      selector: button.historical-btn
+    output_var: search_button_clicked
+    on_error: retry
+    max_retries: 2
+
+  - name: Collect rates for each currency
+    action: logic.loop
+    with:
+      items: "{{config.currencies}}"
+      item_var: currency
+    steps:
+      - name: Open currency tab
+        action: web.click
+        with:
+          selector: currency tab
+          text: "{{currency}}"
+        output_var: currency_tab_opened
+      - name: Read buying transfer rates
+        action: web.get_table
+        with:
+          selector: table with buying transfer rates
+          columns: ["Period", "Buying Rates Transfer"]
+          add_columns: ["Currency", "Buying Transfer Rate"]
+        output_var: rates_data
+      - name: Write rates to CSV
+        action: csv.write
+        with:
+          file_path: "{{config.output_path}}"
+          data: "{{rates_data}}"
+          columns: ["Currency", "Date", "Buying Transfer Rate"]
+        on_error: retry
+        max_retries: 2
+    on_error: retry
+    max_retries: 2
+
+  - name: Close the browser
+    action: web.close
+    output_var: browser_closed
+    on_error: retry
+    max_retries: 2
+
+  - name: Email CSV as CSV file
+    action: email.send
+    with:
+      to: "{{config.email.to}}"
+      cc: ""
+      bcc: ""
+      subject: "{{config.email.subject}}"
+      body: "{{config.email.body}}"
+      attachments: "{{config.output_path}}"
+      smtp_host: ""
+      smtp_port: ""
+      smtp_user: ""
+      smtp_password: ""
+      use_tls: false
+      dry_run: true
+    on_error: retry
+    max_retries: 2
+```
+Note: This flow assumes that the necessary variables are set in the `config` dictionary, such as `url`, `currencies`, `month.date`, `month.add_months`, `output_path`, `email.to`, and `email.subject`. The actual selectors and actions may need to be adjusted to match the specific website's structure and requirements. The flow also assumes that the necessary actions for interacting with web elements are available in the actions list provided. If any action is not available, a retry mechanism with a fallback step may be needed.

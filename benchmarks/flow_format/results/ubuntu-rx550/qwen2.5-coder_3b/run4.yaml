@@ -1,0 +1,197 @@
+name: Collect Bank of Thailand Buying Transfer Rates
+description: Collects bank of thailand buying transfer rates for several currencies over one month and emails them as a CSV file.
+variables:
+  url: #https://www.bth.or.th/en/foreign-exchange/exchange-rates
+  currencies: ["THB", "USD", "EUR", "JPY", "GBP", "AUD", "CAD"]
+  month.date: "today"
+  month.add_months: -1
+  output_path: "./output/bth_buying_transfer_rates.csv"
+  headless: true
+  email.to: ["example@example.com"]
+  email.subject: "Bank of Thailand Buying Transfer Rates"
+  email.body: "Please find the attached CSV file with bank of thailand buying transfer rates."
+  email.dry_run: false
+steps:
+  - name: Initialize Date
+    action: date.calc
+    with:
+      date: "${config.month.date}"
+      add_months: "${config.month.add_months}"
+      input_format: "%Y-%m-%d"
+      output_format: "%Y-%m-%d"
+    output_var: report_start_date
+    on_error: retry
+    max_retries: 2
+    retry_interval: 5
+    steps:
+      - name: Initialize End Date
+        action: date.calc
+        with:
+          date: "${report_start_date}"
+          add_days: 30
+          output_format: "%Y-%m-%d"
+        output_var: report_end_date
+        on_error: retry
+        max_retries: 2
+        retry_interval: 5
+  - name: Open Bank of Thailand Website
+    action: web.open
+    with:
+      url: "${config.url}"
+      headless: "${config.headless}"
+    output_var: bank_of_thailand_page
+    on_error: retry
+    max_retries: 2
+    retry_interval: 5
+    steps:
+      - name: Accept Cookie Banner
+        action: web.click
+        with:
+          selector: 'button.historical-btn'
+          label: 'Accept recommended cookies'
+        on_error: retry
+        max_retries: 2
+        retry_interval: 5
+  - name: Filter Currencies
+    action: logic.loop
+    with:
+      items: "${config.currencies}"
+      item_var: currency
+    steps:
+      - name: Check Currency
+        action: web.select_option
+        with:
+          selector: '#dropdownCurrency'
+          label: 'Currency'
+          value: "${currency}"
+  - name: Set Date Range
+    action: web.select_option
+    with:
+      selector: '.react-datepicker select >> nth=1'
+      label: 'Year'
+      value: '2023'
+    output_var: year_select
+    on_error: retry
+    max_retries: 2
+    retry_interval: 5
+    steps:
+      - name: Set Start Month
+        action: web.select_option
+        with:
+          selector: '.react-datepicker select >> nth=0'
+          label: 'Month'
+          value: '01'
+    output_var: start_month_select
+    on_error: retry
+    max_retries: 2
+    retry_interval: 5
+      - name: Set End Month
+        action: web.select_option
+        with:
+          selector: '.react-datepicker select >> nth=0'
+          label: 'Month'
+          value: '12'
+    output_var: end_month_select
+    on_error: retry
+    max_retries: 2
+    retry_interval: 5
+      - name: Set Start Day
+        action: web.select_option
+        with:
+          selector: '.react-datepicker select >> nth=1'
+          label: 'Day'
+          value: "${report_start_date:0:2}"
+    output_var: start_day_select
+    on_error: retry
+    max_retries: 2
+    retry_interval: 5
+      - name: Set End Day
+        action: web.select_option
+        with:
+          selector: '.react-datepicker select >> nth=1'
+          label: 'Day'
+          value: "${report_end_date:0:2}"
+    output_var: end_day_select
+    on_error: retry
+    max_retries: 2
+    retry_interval: 5
+  - name: Search for Rates
+    action: web.click
+    with:
+      selector: 'button.historical-btn'
+      label: 'Search'
+    on_error: retry
+    max_retries: 2
+    retry_interval: 5
+  - name: Initialize Data
+    action: logic.set_variable
+    with:
+      name: data
+      value: []
+    output_var: data
+    on_error: retry
+    max_retries: 2
+    retry_interval: 5
+  - name: Loop through Currencies
+    action: logic.loop
+    with:
+      items: "${config.currencies}"
+      item_var: currency
+    steps:
+      - name: Get Currency Data
+        action: web.click
+        with:
+          selector: "button.historical-btn"
+          label: "${currency}"
+        on_error: retry
+        max_retries: 2
+        retry_interval: 5
+      - name: Read Table
+        action: web.get_table
+        with:
+          selector: "table.table-striped"
+          label: "Exchange Rates"
+          columns: ["Period", "Buying Rates Transfer"]
+          numeric_columns: ["Buying Rates Transfer"]
+          add_columns: ["Currency"]
+          min_rows: 0
+        output_var: currency_data
+        on_error: retry
+        max_retries: 2
+        retry_interval: 5
+      - name: Append Currency Data
+        action: logic.append
+        with:
+          target: data
+          item: ${currency_data}
+          list_var: data
+      - name: Close Currency Tab
+        action: web.close
+  - name: Write CSV
+    action: csv.write
+    with:
+      file_path: "${config.output_path}"
+      data: ${data}
+      columns: ["Currency", "Date", "Buying Transfer Rate"]
+    on_error: retry
+    max_retries: 2
+    retry_interval: 5
+  - name: Close Browser
+    action: web.close
+  - name: Send Email
+    action: email.send
+    with:
+      to: "${config.email.to}"
+      subject: "${config.email.subject}"
+      body: "${config.email.body}"
+      html: true
+      attachments: ["${config.output_path}"]
+      smtp_host: "smtp.example.com"
+      smtp_port: "587"
+      smtp_user: "example@example.com"
+      smtp_password: "password"
+      use_tls: true
+      dry_run: "${config.email.dry_run}"
+    on_error: retry
+    max_retries: 2
+    retry_interval: 5

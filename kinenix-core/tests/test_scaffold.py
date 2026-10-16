@@ -30,10 +30,10 @@ def test_examples_are_listed_with_the_default_first():
 def test_hello_project_is_created_and_runs(tmp_path):
     project = scaffold.create_project(tmp_path / "my-bot")
     assert sorted(p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file()) == [
-        "README.md", "config/config.json", "flow.json", "flow.md",
+        "README.md", "config/config.json", "flow.md", "subflows/make_greeting.md",
     ]
 
-    flow = load_flow(project / "flow.json")
+    flow = load_flow(project / "flow.md")
     ctx = FlowInterpreter(logger=ExecutionLogger(log_dir=tmp_path / "logs")).run_flow(
         flow, initial_vars={"__flow_dir__": str(project)}
     )
@@ -50,7 +50,7 @@ def test_empty_names_stop_with_a_business_error(tmp_path):
     (project / "config" / "config.json").write_text('{"names": [], "greeting": "Hi", "output_path": "./out.csv"}',
                                                     encoding="utf-8")
     ctx = FlowInterpreter(logger=ExecutionLogger(log_dir=tmp_path / "logs")).run_flow(
-        load_flow(project / "flow.json"), initial_vars={"__flow_dir__": str(project)}
+        load_flow(project / "flow.md"), initial_vars={"__flow_dir__": str(project)}
     )
     assert ctx.has_error
     assert ctx.failure_details.error_type == "Business"
@@ -77,7 +77,7 @@ def test_every_example_creates_a_valid_project(tmp_path):
     for name, _, _ in scaffold.available_examples():
         project = scaffold.create_project(tmp_path / name, name)
         assert validate_flow(load_flow(project / "flow.md")) == [], name
-        assert (project / "flow.json").is_file()
+        assert not (project / "flow.json").exists()
     assert (tmp_path / "rpachallenge" / "assets" / "challenge.xlsx").is_file()
     assert not list((tmp_path / "rpachallenge" / "assets").glob("*.png"))  # outputs are not shipped
 
@@ -106,7 +106,7 @@ def test_new_project_has_everything_for_the_requirements_to_flow_workflow(tmp_pa
     project = scaffold.create_new_project("Get stock data", tmp_path / "get_stock_data")
     files = sorted(p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file())
     assert files == [".env.example", ".gitignore", "AGENTS.md", "CLAUDE.md", "README.md",
-                     "config/config.json", "flow.json", "flow.md", "requirements.md"]
+                     "config/config.json", "flow.md", "requirements.md"]
 
     for name in ("requirements.md", "flow.md", "AGENTS.md", "README.md"):
         text = (project / name).read_text(encoding="utf-8")

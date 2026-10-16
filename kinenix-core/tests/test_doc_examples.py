@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from kinenix.engine import requires
 from kinenix.engine.markdown import markdown_issues, markdown_to_flow
 from kinenix.engine.validation import validate_flow
 
@@ -27,8 +28,16 @@ def _examples():
 
 
 @pytest.mark.parametrize("body", list(_examples()))
-def test_doc_example_compiles_and_validates(body):
-    source = body if body.lstrip().startswith("# ") else "# Example\n\n## Steps\n\n" + body
+def test_doc_example_compiles_and_validates(body, monkeypatch):
+    # The docs describe the version being developed, which `> Requires:` lines in examples may name
+    monkeypatch.setattr(requires, "__version__", "999.0")
+    if body.lstrip().startswith("# "):
+        source = body
+    else:
+        # A fragment's `> Requires:` line belongs under the title, before ## Steps
+        header = "".join(line + "\n" for line in body.splitlines() if line.startswith("> "))
+        steps = "".join(line + "\n" for line in body.splitlines() if not line.startswith("> "))
+        source = "# Example\n" + header + "\n## Steps\n\n" + steps
     flow = markdown_to_flow(source)
     assert flow.steps, "the example has no steps"
     problems = markdown_issues(source) + validate_flow(flow)

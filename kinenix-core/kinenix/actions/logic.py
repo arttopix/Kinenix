@@ -40,7 +40,7 @@ class IfAction(BaseAction):
 @register_action("logic.loop")
 class LoopAction(BaseAction):
     """Loop iteration action. Handled with sub_steps by FlowInterpreter."""
-    accepted_parameters = ('items', 'item_var')
+    accepted_parameters = ('items', 'item_var', 'item_label')
 
     def execute(self, parameters: Dict[str, Any], context: ExecutionContext) -> Any:
         return {"action": "logic.loop"}

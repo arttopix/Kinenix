@@ -40,7 +40,7 @@ This flow automates the following steps:
    ```
 2. Run the flow using the Kinenix CLI:
    ```powershell
-   kinenix run flows/examples/rpachallenge_ocr/flow.json
+   kinenix run flows/examples/rpachallenge_ocr
    ```
 
 ---

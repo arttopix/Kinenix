@@ -10,7 +10,7 @@ In traditional RPA platforms, workflow authoring relies heavily on tedious visua
 
 With the emergence of modern AI and Large Language Models, developers no longer need to manually drag 50 boxes to build a workflow. Instead, **kinenix-studio** is designed around an **AI-Assisted, Developer-First Paradigm**:
 
-- **AI-Accelerated Flow Authoring:** Plain-text prompt bar generates or updates `flow.json` workflows in seconds.
+- **AI-Accelerated Flow Authoring:** Plain-text prompt bar generates or updates `flow.md` workflows in seconds.
 - **Linear Step Timeline:** Clean, vertical sequence of steps (like Postman or GitHub Actions) rather than complex 2D wire-connecting graphs.
 - **Precision Element Inspector:** Point-and-click overlay on live browser pages to capture robust, multi-layer selectors (Role/Text, CSS, XPath).
 - **Persistent Session & "Run Only This Step":** Keep browser contexts open in memory to test and tune individual step selectors in sub-second feedback loops without restarting flows from step 1.

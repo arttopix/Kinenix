@@ -1,4 +1,3 @@
-import json
 import shutil
 import tempfile
 from pathlib import Path
@@ -6,6 +5,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from kinenix.engine.markdown import flow_to_markdown, load_flow
+from kinenix.models.flow import FlowDefinition
 from kinenix_studio.server import app
 
 client = TestClient(app)
@@ -60,7 +61,7 @@ def test_get_rpachallenge_flow():
 def test_update_flow_validation_failure():
     # Attempting to save an invalid flow with a step missing required fields ('action' and 'name')
     bad_payload = {
-        "path": "flows/examples/non_existent_flow.json",
+        "path": "flows/examples/non_existent_flow.md",
         "flow": {
             "name": "Broken Flow",
             "steps": [
@@ -81,7 +82,7 @@ def test_save_and_update_step_isolated():
     root = Path(__file__).resolve().parent.parent.parent
     test_dir = root / "flows" / "_test_studio"
     test_dir.mkdir(parents=True, exist_ok=True)
-    tmp_flow = test_dir / "test_flow.json"
+    tmp_flow = test_dir / "flow.md"
 
     try:
         initial_flow = {
@@ -98,7 +99,7 @@ def test_save_and_update_step_isolated():
                 }
             ]
         }
-        tmp_flow.write_text(json.dumps(initial_flow), encoding="utf-8")
+        tmp_flow.write_text(flow_to_markdown(FlowDefinition(**initial_flow)), encoding="utf-8")
 
         # 1. Update single step via PUT /api/flow/step
         updated_step = {
@@ -115,7 +116,7 @@ def test_save_and_update_step_isolated():
         assert step_resp.status_code == 200
 
         # Verify disk updated
-        disk_data = json.loads(tmp_flow.read_text(encoding="utf-8"))
+        disk_data = load_flow(tmp_flow).model_dump(exclude_none=True)
         assert disk_data["steps"][0]["name"] == "Modified Step"
         assert disk_data["steps"][0]["parameters"]["value"] == "world"
 
@@ -127,7 +128,7 @@ def test_save_and_update_step_isolated():
         })
         assert save_resp.status_code == 200
 
-        reloaded = json.loads(tmp_flow.read_text(encoding="utf-8"))
+        reloaded = load_flow(tmp_flow).model_dump(exclude_none=True)
         assert reloaded["name"] == "Renamed Flow"
 
         # 3. Test running the flow via POST /api/flow/run
@@ -150,7 +151,7 @@ def test_path_containment_rejects_traversal():
     assert resp.status_code == 403
 
     resp_put = client.put("/api/flow", json={
-        "path": "../../outside_flow.json",
+        "path": "../../outside_flow.md",
         "flow": {"name": "Hacked", "steps": []}
     })
     assert resp_put.status_code == 403

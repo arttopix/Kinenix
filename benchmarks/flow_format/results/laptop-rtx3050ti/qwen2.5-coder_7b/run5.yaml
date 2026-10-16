@@ -1,0 +1,129 @@
+```yaml
+name: Bank of Thailand Transfer Rates
+description: Collect and email Bank of Thailand buying transfer rates for several currencies over one month.
+variables:
+  first_day: null
+  last_day: null
+  table_data: []
+  csv_content: null
+  email_sent: false
+steps:
+  - name: Calculate Date Range
+    action: date.calc
+    with:
+      date: ${config.month.date}
+      add_months: ${config.month.add_months}
+      snap: first_day_of_month
+    output_var: first_day
+  - name: Calculate Date Range
+    action: date.calc
+    with:
+      date: ${config.month.date}
+      add_months: ${config.month.add_months}
+      add_days: -1
+      snap: first_day_of_month
+    output_var: last_day
+  - name: Open Bank of Thailand Website
+    action: web.open
+    with:
+      url: ${config.url}
+      headless: ${config.headless}
+    output_var: browser
+  - name: Accept Cookie Banner
+    action: web.click
+    with:
+      selector: button[aria-label='Accept recommended cookies']
+      label: Accept recommended cookies
+  - name: Select Currency Filter
+    action: web.select_option
+    with:
+      selector: #dropdownCurrency
+      value: ${config.currencies}
+  - name: Set Start Date
+    action: date.calc
+    with:
+      date: ${first_day}
+      format: 'YYYY-MM-DD'
+    output_var: start_date
+  - name: Set End Date
+    action: date.calc
+    with:
+      date: ${last_day}
+      format: 'YYYY-MM-DD'
+    output_var: end_date
+  - name: Select Dates
+    action: web.type
+    with:
+      selector: .react-datepicker input
+      label: Date picker
+      text: ${start_date}
+  - name: Select Dates
+    action: web.type
+    with:
+      selector: .react-datepicker input
+      label: Date picker
+      text: ${end_date}
+  - name: Search Transfer Rates
+    action: web.click
+    with:
+      selector: button.historical-btn
+      label: Search
+  - name: Loop Through Currencies
+    action: logic.loop
+    with:
+      items: ${config.currencies}
+      item_var: currency
+    steps:
+      - name: Click Currency Tab
+        action: web.click
+        with:
+          selector: a.currency-filter span
+          label: ${currency}
+      - name: Get Table Data
+        action: web.get_table
+        with:
+          selector: table
+          label: Transfer rates table
+          columns: ["Period", "Buying Rates Transfer"]
+          numeric_columns: ["Buying Rates Transfer"]
+          add_columns: {"Currency": "${currency}"}
+        output_var: table_data
+      - name: Append Table Data
+        action: logic.append
+        with:
+          target: table_data
+          list_var: table_data
+          item: ${table_data}
+  - name: Write CSV Content
+    action: csv.write
+    with:
+      file_path: ${config.output_path}
+      data: ${table_data}
+      columns: ["Currency", "Date", "Buying Transfer Rate"]
+    output_var: csv_content
+    on_error: retry
+    max_retries: 2
+  - name: Check if Dry Run
+    action: logic.if
+    with:
+      condition: ${config.email.dry_run}
+      left: ${config.email.dry_run}
+      operator: ==
+      right: false
+    steps:
+      - name: Send Email
+        action: email.send
+        with:
+          to: ${config.email.to}
+          subject: ${config.email.subject}
+          body: ${config.email.body}
+          attachments: [${config.output_path}]
+          smtp_host: ${config.email.smtp_host}
+          smtp_port: ${config.email.smtp_port}
+          smtp_user: ${config.email.smtp_user}
+          smtp_password: ${config.email.smtp_password}
+          use_tls: ${config.email.use_tls}
+        output_var: email_sent
+        on_error: retry
+        max_retries: 2
+```

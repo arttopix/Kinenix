@@ -16,9 +16,19 @@ class StepResult(BaseModel):
     start_time: datetime = Field(..., description="Timestamp when step started")
     end_time: datetime = Field(..., description="Timestamp when step finished")
     duration_seconds: float = Field(..., description="Execution duration in seconds")
+    section: str = Field(default="steps", description="Section of flow.md the step is in: steps, on_error, or finally")
     output: Optional[Any] = Field(default=None, description="Output payload returned by the action")
     error_message: Optional[str] = Field(default=None, description="Error message if step failed")
     error_type: Optional[str] = Field(default=None, description="Error classification: Technical or Business")
+    line: Optional[int] = Field(default=None, description="Line of the step heading in its flow.md")
+    path: Optional[str] = Field(default=None, description="Flow > loop or condition > subflow > step, for finding the step")
+    subflow: Optional[str] = Field(default=None, description="Name of the subflow the step ran in, or empty")
+    loop: Optional[Dict[str, Any]] = Field(default=None, description="Innermost loop item: index (from 1), of, item")
+    retries: int = Field(default=0, description="Retries made before the step succeeded or failed")
+    failure: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="For a failed step: exception, root_cause, suggested_fix, screenshot, handled "
+                    "(stopped, continued, fallback), from_subflow (the failure is the subflow step's, recorded there)")
 
 
 class ExecutionMetrics(BaseModel):
@@ -41,10 +51,15 @@ class FailureDetails(BaseModel):
     root_cause: str = Field(..., description="Direct summary of the root cause for AI and human diagnosis")
     suggested_fix: str = Field(..., description="Actionable recommendation to resolve the failure")
     error_screenshot_path: Optional[str] = Field(default=None, description="Path to screenshot captured at moment of failure if browser was active")
+    section: str = Field(default="steps", description="Section of flow.md the failed step is in: steps, on_error, or finally")
 
 
 class ExecutionContext(BaseModel):
     flow_name: str = Field(..., description="Name of the executed workflow")
+    run_id: Optional[str] = Field(default=None, description="Id of the run (${run.id}), shared with its subflows")
+    kinenix_version: Optional[str] = Field(default=None, description="Kinenix version that ran the flow")
+    items: Optional[Dict[str, int]] = Field(
+        default=None, description="Work items: iterations of loops with item_label (total, done, failed)")
     start_time: datetime = Field(default_factory=local_now, description="Workflow start timestamp")
     variables: Dict[str, Any] = Field(default_factory=dict, description="In-memory variables captured during execution")
     step_results: List[StepResult] = Field(default_factory=list, description="Detailed per-step execution log")

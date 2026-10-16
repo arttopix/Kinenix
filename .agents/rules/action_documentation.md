@@ -28,7 +28,7 @@ Whenever a developer or AI assistant adds a new action or modifies an existing a
 
 ## 2. Action Reference Documentation Format (Dual-Representation)
 
-Every action documented in `docs/actions_reference.md` must follow the exact structure below, providing both the authoring Markdown format and the compiled JSON runtime schema:
+Every action documented in `docs/actions_reference.md` must follow the structure below, with a `flow.md` example:
 
 ```markdown
 ### `category.action_name`
@@ -40,24 +40,16 @@ Every action documented in `docs/actions_reference.md` must follow the exact str
 | `param_1` | string | Yes | - | Purpose of param_1 |
 | `param_2` | boolean | No | `false` | Purpose of param_2 |
 
-**Example in `flow.md` (Markdown):**
+**Example:**
 ```markdown
 ### 1. Step Name (`category.action_name`)
 - **param_1:** example_value
 - **param_2:** false
 ```
 
-**Compiled `flow.json`:**
+**Output Format:** (when the action returns a structured value)
 ```json
-{
-  "id": "step_1",
-  "name": "Step Name",
-  "action": "category.action_name",
-  "parameters": {
-    "param_1": "example_value",
-    "param_2": false
-  }
-}
+{"status": "done"}
 ```
 ```
 
@@ -65,7 +57,7 @@ Every action documented in `docs/actions_reference.md` must follow the exact str
 
 ## 3. Formatting Rules & Constraints
 
-- **Dual-Representation Mandatory:** Never provide JSON-only examples in `docs/actions_reference.md`. Always present the `flow.md` representation first, followed by the compiled runtime `flow.json`.
+- **`flow.md` only:** Flows exist only as `flow.md`, so examples show `flow.md`. Do not add compiled `flow.json` examples. `kinenix-core/tests/test_doc_examples.py` compiles and validates every `flow.md` example in `docs/`.
 - **Markdown Specification Compliance:** Markdown examples must strictly follow `docs/flow_markdown_spec.md`:
   - Level 3 heading `### <id/number>. <Name> (<category.action_name>)` with registered action name in parentheses.
   - Parameters formatted as `- **<param_name>:** <value>`.

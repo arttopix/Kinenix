@@ -6,7 +6,7 @@ import pytest
 
 from kinenix.actions.registry import ActionRegistry
 from kinenix.engine.interpreter import FlowInterpreter
-from kinenix.engine.markdown import markdown_to_flow
+from kinenix.engine.markdown import flow_to_markdown, markdown_to_flow
 from kinenix.models.context import ExecutionContext
 
 
@@ -176,14 +176,14 @@ def test_business_error_in_subflow_is_business_and_not_retried(tmp_path):
 - **category:** business
 """)
     (tmp_path / "subflows").mkdir()
-    (tmp_path / "subflows" / "child.json").write_text(child.model_dump_json(), encoding="utf-8")
+    (tmp_path / "subflows" / "child.md").write_text(flow_to_markdown(child), encoding="utf-8")
 
     ctx = run_flow("""# Parent
 
 ## Steps
 
 ### 1. Call Child (`flow.call`)
-- **flow:** ./subflows/child.json
+- **flow:** ./subflows/child.md
 - **inputs:** {"attempts_file": "${__flow_dir__}/attempts.txt"}
 - **on_error:** retry
 - **max_retries:** 3

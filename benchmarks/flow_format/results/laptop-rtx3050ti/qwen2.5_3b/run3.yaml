@@ -1,0 +1,180 @@
+```yaml
+name: Collect Bank of Thailand Transfer Rates
+description: Collect Bank of Thailand buying transfer rates for several currencies over one month and email them as a CSV file.
+
+variables:
+  config_url: ''
+  config_currencies: ''
+  config_month_date: ''
+  config_month_add_months: ''
+  config_output_path: ''
+  config_email_to: ''
+  config_email_subject: ''
+  config_email_body: ''
+  config_email_dry_run: ''
+  config_month: {}
+  config_currencies: []
+  config_output_path: ''
+  config_email_to: ''
+  config_email_subject: ''
+  config_email_body: ''
+  config_email_dry_run: ''
+  config_url: ''
+  config_headless: ''
+  config_currencies: []
+
+steps:
+  - name: Work out the first and last day of the report month
+    action: date.calc
+    with:
+      date: ${config_month.date}
+      add_months: ${config_month.add_months}
+      format: "%Y-%m-%d"
+    output_var: config_month_date
+    on_error: retry
+    max_retries: 2
+
+  - name: Open the config url
+    action: web.open
+    with:
+      url: ${config_url}
+      headless: ${config_headless}
+      timeout: 120
+    output_var: web_browser
+    on_error: retry
+    max_retries: 2
+
+  - name: Accept the cookie banner if it appears
+    action: web.click
+    with:
+      selector: button: Accept recommended cookies
+      timeout: 10
+    output_var: cookie_banner_accept
+    on_error: retry
+    max_retries: 2
+
+  - name: Open the currency filter
+    action: web.click
+    with:
+      selector: #dropdownCurrency
+      label: Open currency filter
+      timeout: 10
+    output_var: currency_filter_open
+    on_error: retry
+    max_retries: 2
+
+  - name: Click each currency in config currencies
+    action: logic.loop
+    with:
+      items: ${config_currencies}
+      item_var: currency
+    steps:
+      - name: Click the currency checkbox
+        action: web.click
+        with:
+          selector: .currency-filter input[name='currencyCheck'][value='${currency}']
+          label: Click the currency checkbox
+          timeout: 10
+        output_var: currency_checkbox_click
+        on_error: retry
+        max_retries: 2
+
+  - name: Pick the start and end dates in the date picker
+    action: web.hover
+    with:
+      selector: .react-datepicker select >> nth=1
+      label: Month select
+      timeout: 10
+    output_var: month_select_hover
+    on_error: retry
+    max_retries: 2
+
+  - name: Click the month select
+    action: web.click
+    with:
+      selector: .react-datepicker select >> nth=0
+      label: Click the month select
+      timeout: 10
+    output_var: month_select_click
+    on_error: retry
+    max_retries: 2
+
+  - name: Pick the start day of the month
+    action: web.click
+    with:
+      selector: .react-datepicker .react-datepicker__day
+      label: Click the start day of the month
+      timeout: 10
+    output_var: start_day_click
+    on_error: retry
+    max_retries: 2
+
+  - name: Pick the end day of the month
+    action: web.click
+    with:
+      selector: .react-datepicker .react-datepicker__day
+      label: Click the end day of the month
+      timeout: 10
+    output_var: end_day_click
+    on_error: retry
+    max_retries: 2
+
+  - name: Click the search button
+    action: web.click
+    with:
+      selector: button.historical-btn
+      label: Click the search button
+      timeout: 10
+    output_var: search_button_click
+    on_error: retry
+    max_retries: 2
+
+  - name: Read the visible table for each currency
+    action: web.get_table
+    with:
+      selector: table
+      label: Read the visible table for each currency
+      columns: ['Period', 'Buying Rates Transfer']
+      numeric_columns: ['Buying Rates Transfer']
+      add_columns: ['Currency']
+      min_rows: 1
+      timeout: 10
+    output_var: table_data
+    on_error: retry
+    max_retries: 2
+
+  - name: Write all rows to the config output path
+    action: csv.write
+    with:
+      file_path: ${config_output_path}
+      data: ${table_data}
+      columns: ['Currency', 'Date', 'Buying Transfer Rate']
+      encoding: 'utf-8'
+      append: false
+    output_var: csv_file_written
+    on_error: retry
+    max_retries: 2
+
+  - name: Close the browser
+    action: web.close
+    output_var: browser_closed
+    on_error: retry
+    max_retries: 2
+
+  - name: Email the CSV file
+    action: email.send
+    with:
+      to: ${config_email_to}
+      subject: ${config_email_subject}
+      body: ${config_email_body}
+      attachments: ${config_output_path}
+      smtp_host: 'smtp.example.com'
+      smtp_port: 587
+      smtp_user: 'user@example.com'
+      smtp_password: 'password'
+      use_tls: true
+      dry_run: ${config_email_dry_run}
+    output_var: email_sent
+    on_error: retry
+    max_retries: 2
+```

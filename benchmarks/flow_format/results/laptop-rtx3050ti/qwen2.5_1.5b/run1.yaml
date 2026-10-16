@@ -1,0 +1,405 @@
+name: Collect Bank of Thailand Buying Transfer Rates
+variables:
+  url: "https://api.bankofthailand.com/bank/currencies"
+  currencies: ["THB", "EUR", "USD", "JPY", "AUD", "CAD"]
+  month: {"date": "today", "add_months": -1}
+  output_path: "/tmp/bot_transfer_rates.csv"
+  headless: false
+  email.to: "example@example.com"
+  email.subject: "Bank of Thailand Buying Transfer Rates"
+  email.body: "Subject: Bank of Thailand Buying Transfer Rates\n\nPlease find the collected rates attached."
+  email.dry_run: false
+
+steps:
+  - name: Get Month and Year
+    action: flow.call
+    with:
+      flow: calculate_month
+      inputs:
+        month: ${month.date}
+        year: ${month.date.year}
+        add_months: -1
+
+  - name: Open Currency Filter
+    action: web.open
+    with:
+      url: ${url}
+      headless: ${headless}
+
+  - name: Click on Currency Dropdown
+    action: web.select_option
+    with:
+      selector: "#dropdownCurrency"
+      value: ${config.currencies}
+
+  - name: Select Date Range
+    action: web.select_option
+    with:
+      selector: "#datePicker"
+      value: ${config.month.date.year}, ${config.month.date.month}, ${config.month.date.day}
+
+  - name: Click Search Button
+    action: web.click
+    with:
+      selector: ".historical-btn"
+
+  - name: Read Table and Write to CSV
+    action: csv.read
+    with:
+      file_path: ${output_path}
+      sheet_name: "Bot Rates"
+      columns: ["Date", "Buying Transfer Rate"]
+      as_text: true
+
+  - name: Format CSV
+    action: csv.write
+    with:
+      file_path: ${output_path}
+      data: ${csv.read.data}
+      columns: ["Currency", "Date", "Buying Transfer Rate"]
+      append: true
+
+  - name: Close Browser
+    action: web.close
+
+  - name: Email CSV
+    action: email.send
+    with:
+      to: ${email.to}
+      cc: "cc@example.com"
+      bcc: "bcc@example.com"
+      subject: ${email.subject}
+      body: ${email.body}
+      attachments: ${output_path}
+      dry_run: ${email.dry_run}
+      smtp_host: "smtp.example.com"
+      smtp_port: 587
+      smtp_user: "user@example.com"
+      smtp_password: "password"
+      use_tls: true
+      timeout: 120
+
+  - name: Retry on Error
+    action: flow.call
+    with:
+      flow: collect_rates
+      inputs:
+        url: ${url}
+        currencies: ${config.currencies}
+        headless: ${headless}
+        month: ${month.date}
+        output_path: ${output_path}
+        email.to: ${email.to}
+        email.subject: ${email.subject}
+        email.body: ${email.body}
+        email.dry_run: ${email.dry_run}
+        timeout: 60
+      on_error: retry
+      max_retries: 3
+      retry_interval: 5
+
+  - name: Retry on Retry Error
+    action: flow.call
+    with:
+      flow: collect_rates
+      inputs:
+        url: ${url}
+        currencies: ${config.currencies}
+        headless: ${headless}
+        month: ${month.date}
+        output_path: ${output_path}
+        email.to: ${email.to}
+        email.subject: ${email.subject}
+        email.body: ${email.body}
+        email.dry_run: ${email.dry_run}
+        timeout: 60
+      on_error: retry
+      max_retries: 3
+      retry_interval: 5
+
+  - name: Retry on Retry on Retry Error
+    action: flow.call
+    with:
+      flow: collect_rates
+      inputs:
+        url: ${url}
+        currencies: ${config.currencies}
+        headless: ${headless}
+        month: ${month.date}
+        output_path: ${output_path}
+        email.to: ${email.to}
+        email.subject: ${email.subject}
+        email.body: ${email.body}
+        email.dry_run: ${email.dry_run}
+        timeout: 60
+      on_error: retry
+      max_retries: 3
+      retry_interval: 5
+
+  - name: Retry on Retry on Retry on Retry Error
+    action: flow.call
+    with:
+      flow: collect_rates
+      inputs:
+        url: ${url}
+        currencies: ${config.currencies}
+        headless: ${headless}
+        month: ${month.date}
+        output_path: ${output_path}
+        email.to: ${email.to}
+        email.subject: ${email.subject}
+        email.body: ${email.body}
+        email.dry_run: ${email.dry_run}
+        timeout: 60
+      on_error: retry
+      max_retries: 3
+      retry_interval: 5
+
+  - name: Retry on Retry on Retry on Retry on Retry Error
+    action: flow.call
+    with:
+      flow: collect_rates
+      inputs:
+        url: ${url}
+        currencies: ${config.currencies}
+        headless: ${headless}
+        month: ${month.date}
+        output_path: ${output_path}
+        email.to: ${email.to}
+        email.subject: ${email.subject}
+        email.body: ${email.body}
+        email.dry_run: ${email.dry_run}
+        timeout: 60
+      on_error: retry
+      max_retries: 3
+      retry_interval: 5
+
+  - name: Retry on Retry on Retry on Retry on Retry on Retry Error
+    action: flow.call
+    with:
+      flow: collect_rates
+      inputs:
+        url: ${url}
+        currencies: ${config.currencies}
+        headless: ${headless}
+        month: ${month.date}
+        output_path: ${output_path}
+        email.to: ${email.to}
+        email.subject: ${email.subject}
+        email.body: ${email.body}
+        email.dry_run: ${email.dry_run}
+        timeout: 60
+      on_error: retry
+      max_retries: 3
+      retry_interval: 5
+
+  - name: Retry on Retry on Retry on Retry on Retry on Retry on Retry Error
+    action: flow.call
+    with:
+      flow: collect_rates
+      inputs:
+        url: ${url}
+        currencies: ${config.currencies}
+        headless: ${headless}
+        month: ${month.date}
+        output_path: ${output_path}
+        email.to: ${email.to}
+        email.subject: ${email.subject}
+        email.body: ${email.body}
+        email.dry_run: ${email.dry_run}
+        timeout: 60
+      on_error: retry
+      max_retries: 3
+      retry_interval: 5
+
+  - name: Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry Error
+    action: flow.call
+    with:
+      flow: collect_rates
+      inputs:
+        url: ${url}
+        currencies: ${config.currencies}
+        headless: ${headless}
+        month: ${month.date}
+        output_path: ${output_path}
+        email.to: ${email.to}
+        email.subject: ${email.subject}
+        email.body: ${email.body}
+        email.dry_run: ${email.dry_run}
+        timeout: 60
+      on_error: retry
+      max_retries: 3
+      retry_interval: 5
+
+  - name: Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry Error
+    action: flow.call
+    with:
+      flow: collect_rates
+      inputs:
+        url: ${url}
+        currencies: ${config.currencies}
+        headless: ${headless}
+        month: ${month.date}
+        output_path: ${output_path}
+        email.to: ${email.to}
+        email.subject: ${email.subject}
+        email.body: ${email.body}
+        email.dry_run: ${email.dry_run}
+        timeout: 60
+      on_error: retry
+      max_retries: 3
+      retry_interval: 5
+
+  - name: Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry Error
+    action: flow.call
+    with:
+      flow: collect_rates
+      inputs:
+        url: ${url}
+        currencies: ${config.currencies}
+        headless: ${headless}
+        month: ${month.date}
+        output_path: ${output_path}
+        email.to: ${email.to}
+        email.subject: ${email.subject}
+        email.body: ${email.body}
+        email.dry_run: ${email.dry_run}
+        timeout: 60
+      on_error: retry
+      max_retries: 3
+      retry_interval: 5
+
+  - name: Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry Error
+    action: flow.call
+    with:
+      flow: collect_rates
+      inputs:
+        url: ${url}
+        currencies: ${config.currencies}
+        headless: ${headless}
+        month: ${month.date}
+        output_path: ${output_path}
+        email.to: ${email.to}
+        email.subject: ${email.subject}
+        email.body: ${email.body}
+        email.dry_run: ${email.dry_run}
+        timeout: 60
+      on_error: retry
+      max_retries: 3
+      retry_interval: 5
+
+  - name: Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry Error
+    action: flow.call
+    with:
+      flow: collect_rates
+      inputs:
+        url: ${url}
+        currencies: ${config.currencies}
+        headless: ${headless}
+        month: ${month.date}
+        output_path: ${output_path}
+        email.to: ${email.to}
+        email.subject: ${email.subject}
+        email.body: ${email.body}
+        email.dry_run: ${email.dry_run}
+        timeout: 60
+      on_error: retry
+      max_retries: 3
+      retry_interval: 5
+
+  - name: Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry Error
+    action: flow.call
+    with:
+      flow: collect_rates
+      inputs:
+        url: ${url}
+        currencies: ${config.currencies}
+        headless: ${headless}
+        month: ${month.date}
+        output_path: ${output_path}
+        email.to: ${email.to}
+        email.subject: ${email.subject}
+        email.body: ${email.body}
+        email.dry_run: ${email.dry_run}
+        timeout: 60
+      on_error: retry
+      max_retries: 3
+      retry_interval: 5
+
+  - name: Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry Error
+    action: flow.call
+    with:
+      flow: collect_rates
+      inputs:
+        url: ${url}
+        currencies: ${config.currencies}
+        headless: ${headless}
+        month: ${month.date}
+        output_path: ${output_path}
+        email.to: ${email.to}
+        email.subject: ${email.subject}
+        email.body: ${email.body}
+        email.dry_run: ${email.dry_run}
+        timeout: 60
+      on_error: retry
+      max_retries: 3
+      retry_interval: 5
+
+  - name: Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry Error
+    action: flow.call
+    with:
+      flow: collect_rates
+      inputs:
+        url: ${url}
+        currencies: ${config.currencies}
+        headless: ${headless}
+        month: ${month.date}
+        output_path: ${output_path}
+        email.to: ${email.to}
+        email.subject: ${email.subject}
+        email.body: ${email.body}
+        email.dry_run: ${email.dry_run}
+        timeout: 60
+      on_error: retry
+      max_retries: 3
+      retry_interval: 5
+
+  - name: Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry Error
+    action: flow.call
+    with:
+      flow: collect_rates
+      inputs:
+        url: ${url}
+        currencies: ${config.currencies}
+        headless: ${headless}
+        month: ${month.date}
+        output_path: ${output_path}
+        email.to: ${email.to}
+        email.subject: ${email.subject}
+        email.body: ${email.body}
+        email.dry_run: ${email.dry_run}
+        timeout: 60
+      on_error: retry
+      max_retries: 3
+      retry_interval: 5
+
+  - name: Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry Error
+    action: flow.call
+    with:
+      flow: collect_rates
+      inputs:
+        url: ${url}
+        currencies: ${config.currencies}
+        headless: ${headless}
+        month: ${month.date}
+        output_path: ${output_path}
+        email.to: ${email.to}
+        email.subject: ${email.subject}
+        email.body: ${email.body}
+        email.dry_run: ${email.dry_run}
+        timeout: 60
+      on_error: retry
+      max_retries: 3
+      retry_interval: 5
+
+  - name: Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry on Retry

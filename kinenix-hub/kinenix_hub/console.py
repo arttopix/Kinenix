@@ -64,6 +64,8 @@ def print_banner(console: Console, host: str, port: int, llm_url: str, api_key_s
     if len(urls) > 1:
         grid.add_row("Worker URL", Text(urls[1], style="bold"))
     grid.add_row("Listening on", f"{host}:{port} " + ("(all interfaces)" if remote else "(this address only)"))
+    if len(urls) > 1:
+        grid.add_row("Connect a worker", Text(f"kinenix connect {urls[1]}", style="bold") + Text("  (key: kinenix hub show-key)", style="dim"))
     grid.add_row("Worker API key", Text("set", style="green") if api_key_set else Text("not set: localhost workers only", style="yellow"))
     grid.add_row("Dashboard login", Text("set", style="green") if dashboard_password_set else Text("not set: localhost viewers only", style="yellow"))
     grid.add_row("Central LLM", llm_url)
@@ -115,6 +117,23 @@ def _ask_new_password(console: Console, label: str) -> str:
         console.print("[red]Passwords do not match. Try again.[/]")
 
 
+def _ask_send_local_runs(console: Console, values: Dict[str, str]) -> None:
+    """Offers to send runs and heartbeats from this machine to this Hub (kinenix connect, saved in kinenix.env)."""
+    from kinenix.workspace import save_settings, saved_settings, settings_file
+
+    local_url = f"http://127.0.0.1:{values.get('KINENIX_HUB_PORT', '8080')}"
+    current = saved_settings().get("KINENIX_HUB_URL", "").rstrip("/")
+    local = current == local_url or not current
+    question = ("Send runs from this machine (kinenix run, kinenix-worker) to this Hub?" if local else
+                f"This machine sends runs to {current}. Send them to this Hub instead?")
+    if ask_yes_no(console, question, default=local):
+        save_settings({"KINENIX_HUB_URL": local_url, "KINENIX_HUB_API_KEY": values.get("KINENIX_HUB_API_KEY") or None})
+        console.print(f"[green]Saved[/] {settings_file()}: runs on this machine go to {local_url}")
+    elif current == local_url:
+        save_settings({"KINENIX_HUB_URL": None, "KINENIX_HUB_API_KEY": None})
+        console.print(f"Runs on this machine are no longer sent to {local_url}.")
+
+
 def run_setup(console: Console, path: Path) -> Dict[str, str]:
     """Interactive first-run setup. Saves the answers to the settings file and returns them."""
     values = read_saved_settings(path)  # carries over a pre-rename orchestrator.env
@@ -151,6 +170,7 @@ def run_setup(console: Console, path: Path) -> Dict[str, str]:
 
     write_settings(path, values)
     console.print(f"[green]Saved[/] {path}")
+    _ask_send_local_runs(console, values)
     if new_key:
         console.print(Panel(
             f"{new_key}\n\n[dim]Set it on each worker as KINENIX_HUB_API_KEY.\n"
@@ -187,6 +207,21 @@ def _ago(iso_timestamp: Optional[str], now: Optional[datetime] = None) -> str:
     if seconds < 86400:
         return f"{seconds // 3600}h ago"
     return f"{seconds // 86400}d ago"
+
+
+def _local_time(iso_timestamp: Optional[str]) -> str:
+    """A stored UTC time as this machine's local time, for people: 2026-10-15 14:06:27 +07:00."""
+    if not iso_timestamp:
+        return "-"
+    try:
+        value = datetime.fromisoformat(iso_timestamp)
+    except ValueError:
+        return iso_timestamp
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    local = value.astimezone()
+    offset = local.strftime("%z")
+    return f"{local:%Y-%m-%d %H:%M:%S} {offset[:3]}:{offset[3:]}"
 
 
 def _styled(value: str, styles: Dict[str, str]) -> Text:
@@ -240,12 +275,26 @@ def short_id(execution_id: Optional[str]) -> str:
     return (execution_id or "-")[:SHORT_ID_LENGTH]
 
 
-def fetch_execution_log(base_url: str, auth: Optional[Tuple[str, str]], id_prefix: Optional[str]) -> Dict[str, Any]:
+def fetch_execution_log(base_url: str, auth: Optional[Tuple[str, str]], id_prefix: Optional[str],
+                        flow: Optional[str] = None) -> Dict[str, Any]:
     """Find an execution by ID prefix (latest when None) among recent runs and return it with its steps.
 
+    With `flow`, the latest run of that flow (an exact name or part of one), found by the Hub.
     Raises LookupError when no or several executions match, and requests.RequestException on network or HTTP errors.
     """
     base_url = base_url.rstrip("/")
+    if flow:
+        params = {"flow": flow, "run": id_prefix} if id_prefix else {"flow": flow}
+        res = requests.get(f"{base_url}/api/v1/query/runs", params=params, auth=auth, timeout=10)
+        if res.status_code == 400:
+            raise LookupError(res.json().get("detail", res.text))
+        if res.status_code == 404:
+            raise LookupError("This Hub is too old for --flow; give the execution ID instead.")
+        res.raise_for_status()
+        execution_id = res.json()["runs"][0]["execution_id"]
+        res = requests.get(f"{base_url}/api/v1/executions/{execution_id}/steps", auth=auth, timeout=5)
+        res.raise_for_status()
+        return res.json()
     res = requests.get(f"{base_url}/api/v1/executions", params={"limit": 200}, auth=auth, timeout=5)
     res.raise_for_status()
     executions = res.json()["executions"]
@@ -277,7 +326,7 @@ def print_execution_log(console: Console, data: Dict[str, Any], now: Optional[da
     header.add_row("Flow", Text(e.get("flow_name") or "-"))
     header.add_row("Worker", Text(e.get("worker_id") or "-"))
     header.add_row("Status", _styled(e.get("status"), EXECUTION_STATUS_STYLES))
-    header.add_row("Started", f"{e.get('start_time') or '-'} ({_ago(e.get('created_at'), now)})")
+    header.add_row("Started", f"{_local_time(e.get('start_time'))} ({_ago(e.get('created_at'), now)})")
     header.add_row("Duration", f"{e.get('duration_seconds') or 0:.1f}s")
     header.add_row("ID", e.get("id") or "-")
     if failed:

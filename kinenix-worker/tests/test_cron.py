@@ -38,7 +38,7 @@ def test_cron_rejects_invalid(expr):
 def test_scheduler_runs_once_per_matching_minute():
     runner = MagicMock()
     runner.execute_flow.return_value = {"status": "success"}
-    sched = CronSchedulerTrigger(flow_path="flow.json", runner=runner, cron="0 8 1 * *")
+    sched = CronSchedulerTrigger(flow_path="flow.md", runner=runner, cron="0 8 1 * *")
     assert sched.describe() == "cron '0 8 1 * *'"
 
     assert sched.check_and_run(datetime(2026, 11, 1, 7, 59, 59)) is None

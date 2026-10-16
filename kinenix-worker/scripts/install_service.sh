@@ -52,7 +52,8 @@ mkdir -p "$CONFIG_DIR"
 if [ ! -f "$ENV_FILE" ]; then
     cat > "$ENV_FILE" <<'EOF'
 # Kinenix Worker settings, loaded by the kinenix-worker service and by your shell.
-# Fill in the Hub URL and key, then: sudo systemctl restart kinenix-worker
+# Connect to the Hub with `kinenix connect http://<hub-ip>:8080` (saved in ~/.kinenix/kinenix.env),
+# or fill in the URL and key here; values here take precedence. Then: sudo systemctl restart kinenix-worker
 export KINENIX_HUB_URL=
 export KINENIX_HUB_API_KEY=
 export KINENIX_WORKER_ID=$(hostname)

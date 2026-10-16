@@ -28,7 +28,7 @@ Rules that every change must respect. For how the system is structured today and
 Flows must follow the self-contained bundle layout in `docs/project_bundles.md`:
 - Reference assets and subflows with relative paths (`./assets/...`, `./subflows/...`) or the `@shared/` namespace.
 - Never hardcode absolute, machine-specific paths.
-- Keep secrets out of `flow.json` and `config.json`; use `.env` or environment variables.
+- Keep secrets out of `flow.md` and `config.json`; use `.env` or environment variables.
 
 ---
 
@@ -44,6 +44,6 @@ When implementing worker-hub messaging, follow the Hybrid Protocol in `docs/arch
 
 ## 5. Flows as Code
 
-- Flows must remain declarative, human-readable files (`flow.md`, `flow.json`) that are versioned in Git.
+- Flows must remain declarative, human-readable `flow.md` files that are versioned in Git. Do not add a second file format for flows.
 - Never introduce opaque binary flow formats.
 - Deployment must follow the GitOps model in `docs/architecture.md`: Git branch, CI validation, versioned release.

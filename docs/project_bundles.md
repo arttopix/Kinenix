@@ -14,12 +14,11 @@ Enterprise automation workflows often contain multiple sub-processes, data files
 flows/
 ├── @shared/                                # Cross-project reusable library
 │   ├── web_login_sso.json                  # SSO login component
-│   └── send_email.json                     # Reusable Gmail/SMTP component
+│   └── send_email.md                       # Reusable Gmail/SMTP component
 │
 └── accounting/                             # Department / Business Domain
     └── invoice_tax_filing/                 # 1 Self-Contained Project Bundle
         ├── flow.md                         # Main flow, the file you edit (source of truth)
-        ├── flow.json                       # Build output of flow.md; do not edit by hand
         ├── config.json                     # Project-specific configuration (Auto-loaded)
         ├── .env                            # Optional local secrets (Git-ignored)
         ├── subflows/                       # Project-specific subflows
@@ -30,7 +29,7 @@ flows/
 ```
 
 ### Key Principles:
-- **Portability:** All references to assets and subflows inside a project bundle use **Relative Paths** (e.g. `./assets/tax_template.xlsx`, `./subflows/extract_table.json`).
+- **Portability:** All references to assets and subflows inside a project bundle use **Relative Paths** (e.g. `./assets/tax_template.xlsx`, `./subflows/extract_table.md`).
 - **No Hardcoded Absolute Paths:** Workflows never depend on developer-specific paths (e.g., `C:\Users\Dev\...`), ensuring seamless portability across different machines, VMs, or operating systems.
 - **Atomic Units:** A single project directory represents one coherent unit of business automation that can be developed, tested, versioned, and deployed as a standalone bundle.
 - **Decoupled Settings (`config.json`):** Engine automatically auto-loads `config.json` from the flow bundle directory into `${config.*}` and top-level variables. Business users or admins can modify endpoints, email recipients, or thresholds without altering `flow.json`.
@@ -40,47 +39,56 @@ flows/
 
 ## 2. Calling Subflows (`flow.call`)
 
-The `flow.call` action enables modular execution of child workflows:
+The `flow.call` action runs another flow (a subflow) and can use the value it returns. Write subflows in the same Markdown format as `flow.md`; `flow.call` compiles a `.md` subflow when it runs, so no `.json` file is kept next to it. Existing `.json` subflows still work, and a target without an extension (`./subflows/extract_table`) uses the `.md` file when both exist.
 
-### 2.1 Local Project Subflow (Relative Path)
-To invoke a subflow located within the same project bundle:
+### 2.1 Subflow of the Bundle (`./subflows/`)
 
-```json
-{
-  "id": "step_extract",
-  "name": "Extract Table Data",
-  "action": "flow.call",
-  "parameters": {
-    "flow": "./subflows/extract_table.json",
-    "inputs": {
-      "pdf_path": "${downloaded_pdf}"
-    }
-  },
-  "output_var": "extracted_data"
-}
+```markdown
+### 3. Extract Table Data (`flow.call`)
+- **flow:** ./subflows/extract_table.md
+- **inputs:** {"pdf_path": "${downloaded_pdf}"}
+- **output_var:** `extracted_data`
 ```
 
-### 2.2 Global Shared Component (`@shared/` Namespace)
-To invoke a reusable organization-wide component from the central `@shared/` directory:
+A subflow inside the bundle works like part of the main flow:
 
-```json
-{
-  "id": "step_notify",
-  "name": "Send LINE Alert",
-  "action": "flow.call",
-  "parameters": {
-    "flow": "@shared/notify_line.json",
-    "inputs": {
-      "message": "Invoice tax filing completed successfully."
-    }
-  }
-}
+- **Config:** it sees the bundle's `${config.*}`. An `inputs` key named `config` is merged over it, key by key.
+- **Folder:** relative paths (`./output/...`, `./assets/...`) resolve against the bundle folder, not `subflows/`. A subflow can still call another subflow by a path relative to its own file (`./other.md` from `subflows/`).
+- **Data:** other values reach the subflow only through `inputs`. The subflow declares them in its `## Variables`, with defaults; `kinenix validate` reports an `inputs` key the subflow does not declare.
+
+The `hello` example (`kinenix init demo --example hello`) calls `subflows/make_greeting.md` once per name.
+
+### 2.2 Shared Component (`@shared/`)
+
+```markdown
+### 1. Send LINE Alert (`flow.call`)
+- **flow:** @shared/notify_line.md
+- **inputs:** {"message": "Invoice tax filing completed successfully.", "token_env": "LINE_TOKEN"}
 ```
+
+Components in `@shared/` (or any flow file outside the calling bundle) are used by many projects, so they keep their own folder and their own `config/config.json`. Give them values with `inputs`: the component's `## Variables` is its contract, and `kinenix validate` checks the names.
+
+When a shared component needs many values from the caller's config, `inherit_config: true` passes the caller's whole config. The caller's keys win; keys only the component defines keep the component's defaults:
+
+```markdown
+> Requires: kinenix>=0.2.0b4
+
+### 2. Monthly Report (`flow.call`)
+- **flow:** @shared/monthly_report.md
+- **inherit_config:** true
+```
+
+`inherit_config` needs Kinenix 0.2.0b4 or later; the `> Requires:` line under the flow's title makes older workers refuse the flow instead of running the subflow without the config.
+
+This ties the component to the caller's key names, so prefer `inputs` for components used by projects with different configs.
 
 ### 2.3 Variable Scope Isolation
 - When `flow.call` executes a subflow, the child flow receives its own isolated `ExecutionContext`.
-- Only explicitly mapped `inputs` and system runtime sessions (e.g. active Playwright browser sessions) are shared with the child flow.
-- Internal variables within the subflow do not overwrite the caller's variables, preventing side effects and state pollution.
+- Only `inputs`, the config described above, and runtime sessions (for example the active Playwright browser) are shared with the child flow.
+- Variables set inside the subflow do not overwrite the caller's variables. Values come back through `flow.return` and `output_var`, or `outputs`.
+
+### 2.4 Validation
+`kinenix validate`, `kinenix run`, and the worker check every subflow whose path is fixed (not built from `${...}`): that the file exists, its own problems (unknown actions and parameters, ignored lines), and the `inputs` names. Each subflow is checked once, also when subflows call each other.
 
 ---
 
@@ -114,12 +122,12 @@ The project bundle structure directly enables a robust deployment pipeline to un
 - Prior to execution, the worker unpacks the project bundle into an isolated, per-job workspace directory:
   ```text
   ~/.kinenix/workspaces/job_20260911_001/
-  ├── flow.json
+  ├── flow.md
   ├── subflows/
   └── assets/
   ```
 - This ensures complete filesystem isolation, eliminates cross-job file locking or corruption, and allows clean workspace disposal after job completion.
 
 ### Phase 5: Execution & Telemetry
-- Worker executes the bundle: `kinenix run .../flow.json`.
+- Worker executes the bundle: `kinenix-worker run <bundle>`.
 - Step results, business metrics, and failure screenshots are streamed in real time to the Hub dashboard.

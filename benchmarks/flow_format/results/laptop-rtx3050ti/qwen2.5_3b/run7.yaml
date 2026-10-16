@@ -1,0 +1,165 @@
+```yaml
+name: Collect Bank of Thailand Transfer Rates
+description: Collect Bank of Thailand buying transfer rates for several currencies over one month and email them as a CSV file.
+
+variables:
+  config: |
+    {
+      "url": "https://www.bangkokbank.com/th/banking-transfer/rates",
+      "currencies": ["USD", "EUR", "JPY", "AUD", "CAD", "SGD"],
+      "month": {
+        "date": "today",
+        "add_months": -1
+      },
+      "output_path": "./output/transfer_rates.csv",
+      "email": {
+        "to": "recipient@example.com",
+        "subject": "Bank of Thailand Transfer Rates for ${config.month.date}"
+      },
+      "dry_run": false
+    }
+  config.month.date: "2023-02-01"
+  config.month.add_months: -1
+  config.currencies: ["USD", "EUR", "JPY", "AUD", "CAD", "SGD"]
+  config.output_path: "./output/transfer_rates.csv"
+  config.email.to: "recipient@example.com"
+  config.email.subject: "Bank of Thailand Transfer Rates for ${config.month.date}"
+  config.email.body: "Transfer rates have been collected and are attached in the email."
+  config.email.dry_run: false
+
+steps:
+  - name: Work out the first and last day of the report month
+    action: date.calc
+    with:
+      date: ${config.month.date}
+      input_format: "%Y-%m-%d"
+      add_months: ${config.month.add_months}
+      add_days: 0
+      format: "%Y-%m-%d"
+    output_var: config.month.date
+  - name: Open the page and accept cookie banner
+    action: web.open
+    with:
+      url: ${config.url}
+      headless: true
+      timeout: 10000
+    output_var: browser
+  - name: Open currency filter and tick each currency
+    action: logic.loop
+    with:
+      items: ${config.currencies}
+      item_var: currency
+    steps:
+      - name: Click on currency filter
+        action: web.select_option
+        with:
+          selector: #dropdownCurrency
+          label: "${currency}"
+        output_var: currency_dropdown
+      - name: Tick the currency
+        action: web.click
+        with:
+          selector: .currency-filter input[name='currencyCheck'][value='${currency}']
+        output_var: currency_checkbox
+  - name: Pick the start and end dates
+    action: web.select_option
+    with:
+      selector: '.react-datepicker select >> nth=1'
+      label: "2023-02-01"
+    output_var: start_date_selector
+    - name: Pick the end date
+      action: web.select_option
+      with:
+        selector: '.react-datepicker select >> nth=0'
+        label: "2023-03-01"
+    output_var: end_date_selector
+  - name: Click historical button
+    action: web.click
+    with:
+      selector: 'button.historical-btn'
+      label: 'button.historical-btn'
+    output_var: historical_button
+  - name: Read table
+    action: web.get_table
+    with:
+      selector: 'table'
+      label: 'table'
+      columns: ["Period", "Buying Rates Transfer"]
+      numeric_columns: ["Buying Rates Transfer"]
+      add_columns: ["Currency"]
+      min_rows: 10
+      timeout: 10000
+    output_var: table_data
+  - name: Write data to CSV
+    action: csv.write
+    with:
+      file_path: ${config.output_path}
+      data: ${table_data}
+      columns: ["Currency", "Date", "Buying Transfer Rate"]
+      encoding: "utf-8"
+      append: false
+    output_var: csv_data
+  - name: Close browser
+    action: web.close
+    with:
+      selector: 'html'
+      label: 'html'
+    output_var: browser_close
+  - name: Email CSV
+    action: email.send
+    with:
+      to: ${config.email.to}
+      subject: ${config.email.subject}
+      body: ${config.email.body}
+      html: |
+        <html>
+        <body>
+          <p>Transfer rates have been collected and are attached in the email.</p>
+        </body>
+        </html>
+      attachments: [${config.output_path}]
+      smtp_host: smtp.example.com
+      smtp_port: 587
+      smtp_user: user@example.com
+      smtp_password: password
+      use_tls: true
+      dry_run: ${config.email.dry_run}
+    output_var: email_result
+  - name: Handle errors
+    action: flow.fail
+    with:
+      message: "Failed to collect and email transfer rates."
+      category: "Error"
+    on_error: retry
+    max_retries: 2
+    steps:
+      - name: Retry write CSV
+        action: csv.write
+        with:
+          file_path: ${config.output_path}
+          data: ${table_data}
+          columns: ["Currency", "Date", "Buying Transfer Rate"]
+          encoding: "utf-8"
+          append: false
+        output_var: csv_data_retry
+      - name: Retry email CSV
+        action: email.send
+        with:
+          to: ${config.email.to}
+          subject: ${config.email.subject}
+          body: ${config.email.body}
+          html: |
+            <html>
+            <body>
+              <p>Failed to collect and email transfer rates, please check the CSV file.</p>
+            </body>
+            </html>
+          attachments: [${config.output_path}]
+          smtp_host: smtp.example.com
+          smtp_port: 587
+          smtp_user: user@example.com
+          smtp_password: password
+          use_tls: true
+          dry_run: ${config.email.dry_run}
+        output_var: email_result_retry
+```

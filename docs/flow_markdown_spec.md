@@ -1,39 +1,20 @@
 # Flow Markdown Specification (`flow.md` Rulebook)
 
-This document establishes the official syntax rules, structural guidelines, and compilation contracts for **`flow.md`** files within **kinenix**.
+This document establishes the official syntax rules and structural guidelines for **`flow.md`**, the file format of every Kinenix flow.
 
 ---
 
 ## 1. Vision & Core Principles
 
-In kinenix, automation workflows maintain a **Dual-Representation Lifecycle**:
+A Kinenix flow is one file, **`flow.md`**: the file people read, the file an AI assistant writes, and the file Kinenix runs.
 
-1. **`flow.md` (Specification & Living Blueprint):**
-   - High-level, human-readable, and AI-native authoring format.
-   - Designed for easy reading by business analysts, developers, and Large Language Models (LLMs).
-   - Clean Git diffs and straightforward pull request reviews.
-2. **`flow.json` (Runtime Execution Contract):**
-   - Strict, deterministic JSON schema validated by Pydantic v2.
-   - Directly executed by `kinenix-core` and `kinenix-worker` with zero runtime parsing overhead.
+- **Readable:** Markdown with headings and bullet points, readable on GitHub, in an editor, or in a pull request diff.
+- **Written well by AI:** the step headings and `- **parameter:** value` bullets are easy for language models to produce. In a comparison on the `bot_fx_rate` requirement, a local 7B model wrote valid `flow.md` more reliably than the same flow in YAML, whose quoting rules clash with `${...}` expressions ([benchmark](benchmarks/flow_format.md)).
+- **Checked before it runs:** `kinenix validate`, `kinenix run`, and the worker parse the file, then report unknown actions and parameters, lines the parser ignores, and step headings without an action, with line numbers and suggestions.
 
-> **Compilation Principle:** `flow.md` is compiled ahead-of-time (AOT) into `flow.json`. The execution runtime (`kinenix-core` and `kinenix-worker`) strictly executes `flow.json` to guarantee sub-millisecond execution speeds, zero hallucination, and pre-flight validation.
+There is no separate JSON file to keep in sync. `kinenix run` and `kinenix-worker run` read `flow.md` directly and compile it in memory on every run; subflows (`flow.call`) work the same way. To inspect the compiled form, run `kinenix compile <bundle>`, which prints it as JSON (validated against [flow.schema.json](../schemas/flow.schema.json)) without writing any file next to `flow.md`.
 
-### Source of Truth
-
-In a bundle that has a `flow.md`, **`flow.md` is the only file you edit**. `flow.json` is its build output: it stays in git so Studio, workers, and schema tools can read it, but it is never edited by hand.
-
-Before every run, `kinenix run` and `kinenix-worker run` compare the two files by content (not by timestamp, because `git checkout` resets timestamps):
-
-| Situation | What happens |
-| :--- | :--- |
-| `flow.json` missing | Compiled from `flow.md`, then run |
-| Same content | Runs `flow.json` |
-| `flow.md` changed after `flow.json` | `flow.json` is recompiled, then run |
-| `flow.json` changed after `flow.md` (e.g. edited in Studio) | A warning is shown and `flow.json` runs unchanged, so the edit is not lost. Keep it with `kinenix export-md <bundle>` (regenerates `flow.md`, losing hand formatting) or discard it with `kinenix compile <bundle>` |
-
-The `kinenix-core` test suite also checks that every committed `flow.json` under `flows/` matches its `flow.md`, so CI fails when a compile was forgotten. Files with a UTF-8 BOM (written by Windows PowerShell 5 and some editors) are read correctly.
-
-Studio currently saves to `flow.json` only, which triggers the warning above until the bundle is exported or recompiled.
+Flows written as `flow.json` by Kinenix 0.2.0b3 or older are not run; `kinenix export-md <bundle>` converts one into `flow.md` once. Files with a UTF-8 BOM (written by Windows PowerShell 5 and some editors) are read correctly.
 
 ---
 
@@ -60,10 +41,13 @@ Every `flow.md` must start with a Level 1 Heading (`#`) denoting the Flow Name, 
 # [Flow Name]
 > Description: [Brief summary of business intent]
 > Version: [Semantic version, e.g. 1.0.0]
+> Requires: [Kinenix version needed, e.g. kinenix>=0.2.0b4]
 
 ## Variables
 - `variable_name`: [initial_value]
 ```
+
+`> Requires:` is optional. A Kinenix older than the version named refuses to run the flow with a message to upgrade. Flows that use `## On Error` or `## Finally` need `> Requires: kinenix>=0.2.0b4` (section 3.2).
 
 #### Example
 ```markdown
@@ -222,17 +206,133 @@ The condition is split into its sides before variables are replaced, so values c
 
 ### Rule 5: Variable Interpolation Syntax
 
-Dynamic variables in both `flow.md` and `flow.json` must strictly use the standard expression format:
+Dynamic variables must use the standard expression format:
 
 - **`${config.property}`**: Accesses configuration values loaded from `config/config.json`.
 - **`${variable_name}`**: Accesses runtime variables initialized in flow or stored by `output_var`.
 - **`${item.property}`**: Accesses fields of the current iteration object in `logic.loop`.
 - **`${env.VAR_NAME}`**: Accesses operating system environment variables.
+- **`${error.*}`** and **`${run.*}`**: The last failure and the current run (section 3.3).
 - **`${__flow_dir__}`**: The absolute path of the flow's bundle folder. Relative paths in file actions already resolve against it; use it to build an absolute path, for example to pass a file location to a subflow: `"${__flow_dir__}/output/report.csv"`.
 
 ---
 
-## 3. Complete Reference Example
+## 3. Failures: Retries, On Error, and Finally
+
+### 3.1 Retries and `on_error` on a step
+
+Any step can retry and then decide what happens:
+
+```markdown
+### 2. Open Portal (`web.open`)
+- **url:** ${config.portal_url}
+- **max_retries:** 2
+- **retry_interval:** 5
+- **on_error:** continue
+```
+
+`max_retries` always retries first (2 more attempts above). After the last attempt, `on_error` decides:
+
+| `on_error` | After the last attempt |
+| :--- | :--- |
+| not set, `fail`, or `stop` | The flow fails: the remaining steps are skipped and `## On Error` runs |
+| `retry` | Same as `fail` (kept for flows written before 0.2.0b4) |
+| `continue` | The failure is recorded and the flow goes on with the next step |
+
+`fallback_step_id` still runs a recovery step instead. `max_retries` and `retry_interval` accept `${...}`, for example `${config.retries}`. Business errors (`flow.fail`) are not retried.
+
+### 3.2 `## On Error` and `## Finally`
+
+Steps that handle a failure for the whole flow go into two optional sections after `## Steps`:
+
+```markdown
+# TIPH Quotes
+> Requires: kinenix>=0.2.0b4
+
+## Steps
+### 1. Open Portal (`web.open`)
+- **url:** ${config.portal_url}
+
+## On Error
+### 1. Capture Screen (`web.screenshot`)
+- **path:** ./output/error.png
+### 2. Email Error (`email.send`)
+- **to:** ${config.email.to}
+- **subject:** TIPH failed at ${error.step_name}
+- **body:** |
+    ${error.message}
+
+    Where: ${error.path} (line ${error.line})
+    Item: ${error.loop.item}
+- **attachments:** ["./output/error.png"]
+
+## Finally
+### 1. Close Browser (`web.close`)
+```
+
+Run order:
+
+1. `## Steps` run in order.
+2. When a step fails (after its retries, and its `on_error` is not `continue`), the remaining steps are skipped, `${error}` is set, and `## On Error` runs. A `flow.fail` runs it too.
+3. `## Finally` runs every time: after success, after a failure, and after `flow.return`.
+4. The run is **failed** when Steps failed; On Error does not turn a failure into a success. A step that fails in Finally also makes the run fail, and the log says `in Finally`; On Error does not run for it.
+
+A failing step inside On Error or Finally is recorded and the rest of that section still runs. Steps in these sections are ordinary steps: parameters, `condition`, loops, and `flow.call` work the same. Their ids are `on_error_N` and `finally_N`. A subflow can have its own On Error and Finally; they run inside the subflow, then the failure continues to the caller.
+
+`> Requires: kinenix>=0.2.0b4` under the title is needed for flows with On Error or Finally: Kinenix 0.2.0b3 and older would run their steps as ordinary steps on every run, while newer versions refuse a flow that needs a version they are not. `kinenix validate` reports a missing line.
+
+### 3.3 `${error}` and `${run}`
+
+`${error}` describes the step that failed in `## Steps`, including one handled by `on_error: continue`. Failures inside On Error and Finally do not replace it. Values are redacted like logs ([logging.md](logging.md#redaction)).
+
+| Field | Example |
+| :--- | :--- |
+| `${error.message}` | `Timeout 30000ms exceeded waiting for role=option[name='HONDA']` |
+| `${error.type}` | `Technical` or `Business` |
+| `${error.step_id}`, `${error.step_name}`, `${error.action}` | `sub_step_3_1`, `Choose Brand`, `web.click` |
+| `${error.path}` | `TIPH Quotes > Each Request > process_one > Choose Brand` (loops, conditions, and subflows on the way) |
+| `${error.subflow}` | `process_one`, or empty |
+| `${error.line}` | Line of the step heading in its `flow.md` |
+| `${error.loop.item}`, `${error.loop.index}`, `${error.loop.of}` | `R007 HONDA HR-V`, `7`, `12` (innermost loop; index starts at 1) |
+| `${error.retries}` | `2` |
+| `${error.root_cause}`, `${error.suggested_fix}` | Kinenix's diagnosis of the failure |
+| `${error.screenshot}` | Path of the automatic failure screenshot, or empty |
+| `${error.exception}`, `${error.section}` | `TimeoutError`; `steps` |
+
+When a step inside a subflow fails, the caller's `${error}` describes that inner step.
+
+`${run}` describes the run; subflows share it:
+
+| Field | Meaning |
+| :--- | :--- |
+| `${run.id}` | Unique id of the run, such as `20261013T221502-qhzk`; use it in paths: `./output/${run.id}/`, or `"error_dir": "./output/errors/${run.id}"` in config |
+| `${run.flow}`, `${run.started}` | Flow name, start time |
+| `${run.status}` | `running` in Steps and On Error; `success` or `failed` in Finally |
+| `${run.log_path}` | The run's live log (one JSON line per finished step), for attaching to an error e-mail ([logging.md](logging.md)) |
+
+`error` and `run` are reserved variable names.
+
+### 3.4 `item_label` on `logic.loop`
+
+`item_label` names the item a loop is working on, so `${error.loop.item}` (and later the Hub's run records) say which one failed:
+
+```markdown
+### 2. Each Request (`logic.loop`)
+- **items:** ${requests}
+- **item_var:** req
+- **item_label:** ${req.request_id} ${req.brand} ${req.model}
+- **Sub-steps:**
+  - Choose Brand (`web.click`):
+    - **selector:** text=${req.brand}
+```
+
+Without `item_label`, the first three fields of the item are used. The label is built from a redacted copy of the item.
+
+Loops with `item_label` are the flow's work items: the run log counts them as done or failed (`items` in [logging.md](logging.md)), so give it to the loop over the things the flow processes (requests, invoices, rows), not to loops that only pick options.
+
+---
+
+## 4. Complete Reference Example
 
 Below is the complete `flow.md` specification for the **RPA Challenge Solver** benchmark:
 
@@ -286,30 +386,28 @@ Below is the complete `flow.md` specification for the **RPA Challenge Solver** b
 
 ---
 
-## 4. Compilation Contract & Validation
+## 5. Checking and Inspecting a Flow
 
-1. **Compilation Command (CLI):**
-   ```bash
-   kinenix compile flows/examples/rpachallenge/flow.md
-   ```
-2. **Reverse Export Command (CLI):**
-   ```bash
-   kinenix export-md flows/examples/rpachallenge/flow.json
-   ```
-3. **Validation of Actions and Parameters:**
+1. **Validation of actions and parameters:**
    ```bash
    kinenix validate flows/examples/rpachallenge          # exit code 1 when problems are found
-   kinenix compile flows/examples/rpachallenge --strict  # compile, then fail on problems (for CI)
    ```
-   Each action declares the parameters it reads. `kinenix validate`, `kinenix compile`, `kinenix run`, and `kinenix-worker run` report unknown actions and parameters that no action reads, which would otherwise be ignored silently, and suggest the closest name (for example `timout` -> `timeout`). `compile` and `run` only warn. The `kinenix-core` test suite validates every flow under `flows/`.
-4. **Pydantic Validation Guarantee:**
-   During compilation, the resulting dictionary is validated against `kinenix.models.flow.FlowDefinition`.
-   - If validation succeeds, `flow.json` is generated or overwritten atomically.
-   - If validation fails, exact error line numbers and missing fields are reported, and existing `flow.json` is left untouched.
+   Each action declares the parameters it reads. `kinenix validate`, `kinenix run`, and `kinenix-worker run` report unknown actions, parameters that no action reads (which would otherwise be ignored silently), lines the parser ignores, step headings without an action, and a flow without steps, and suggest the closest name (for example `timout` -> `timeout`). They also follow `flow.call` targets into subflows. `run` only warns, except that a flow without steps does not run. The `kinenix-core` test suite validates every flow under `flows/` and every example in `docs/`.
+2. **Compiled form (for inspection):**
+   ```bash
+   kinenix compile flows/examples/rpachallenge                     # print the compiled flow as JSON
+   kinenix compile flows/examples/rpachallenge -o /tmp/flow.json   # or write it to a file
+   kinenix compile flows/examples/rpachallenge --strict            # also exit 1 when validation finds problems
+   ```
+   The result is validated against `kinenix.models.flow.FlowDefinition`; parsing errors name the line.
+3. **Converting an old JSON flow (once):**
+   ```bash
+   kinenix export-md path/to/old_bundle      # writes flow.md next to the old flow.json
+   ```
 
 ---
 
-## 5. AI Prompting Template for Generating `flow.md`
+## 6. AI Prompting Template for Generating `flow.md`
 
 When prompting an LLM or Small Language Model (SLM) to generate a new workflow, provide this system prompt:
 

@@ -37,6 +37,12 @@ _ALT_ELSE_STEPS_REGEX = re.compile(
 ERROR_HANDLER_KEYS = ("on_error", "max_retries", "retry_interval", "fallback_step_id")
 
 
+# `## On Error` and `## Finally` hold steps that run when Steps fail, and after everything (docs/flow_markdown_spec.md)
+SECTION_TITLES = {"on error": "on_error", "onerror": "on_error", "finally": "finally"}
+SECTION_ID_PREFIX = {"steps": "step_", "on_error": "on_error_", "finally": "finally_"}
+SECTION_HEADINGS = {"steps": "Steps", "on_error": "On Error", "finally": "Finally"}
+
+
 # A parameter written as `- **body:** |` takes the indented lines below it as its value
 BLOCK_MARKER = "|"
 
@@ -141,8 +147,13 @@ def format_value(val: Any) -> str:
         return json.dumps(val, ensure_ascii=False)
     if isinstance(val, (int, float)):
         return str(val)
-    # If variable expression like ${foo}, keep as is
-    return str(val)
+    text = str(val)
+    # Text that would read back as another type ("100", "true", "null", "[1]") keeps its quotes,
+    # so converting a flow to Markdown never changes a value's type
+    if parse_value(text) != text:
+        return json.dumps(text, ensure_ascii=False)
+    # A variable expression like ${foo} and other plain text stay as they are
+    return text
 
 
 def _parse_sub_steps_block(lines: List[Line], parent_id: str, issues: Optional[List[str]] = None) -> List[Dict[str, Any]]:
@@ -165,7 +176,7 @@ def _parse_sub_steps_block(lines: List[Line], parent_id: str, issues: Optional[L
     current_step_lines: List[Tuple[int, str, int]] = []
     current_match = None
 
-    def finalize_step(match, body_lines, step_idx):
+    def finalize_step(match, body_lines, step_idx, line):
         idx_val = match.group("idx")
         name = match.group("name").strip()
         action = match.group("action").strip()
@@ -179,6 +190,7 @@ def _parse_sub_steps_block(lines: List[Line], parent_id: str, issues: Optional[L
             "name": name,
             "action": action,
             "parameters": {},
+            "line": line,
         }
 
         # Parse body_lines
@@ -253,23 +265,27 @@ def _parse_sub_steps_block(lines: List[Line], parent_id: str, issues: Optional[L
         return step_dict
 
     child_counter = 1
+    current_line = 0
     for indent, text, lineno in lines:
         if text and indent == min_indent:
             match = _CHILD_STEP_REGEX.match(text)
             if match:
                 if current_match:
-                    steps.append(finalize_step(current_match, current_step_lines, child_counter))
+                    steps.append(finalize_step(current_match, current_step_lines, child_counter, current_line))
                     child_counter += 1
                 current_match = match
+                current_line = lineno
                 current_step_lines = []
                 continue
         if current_match:
             current_step_lines.append((indent, text, lineno))
         elif text and issues is not None:
-            issues.append(f"Line {lineno}: '{text[:60]}' is not a sub-step; a sub-step looks like `- Name (`action.name`):`.")
+            issues.append(
+                f"Line {lineno}: '{text[:60]}' is not a sub-step. Under `- **Sub-steps:**`, each sub-step is a "
+                f"bullet with its action, `  - Name (`action.name`):`, and its parameters are indented below it.")
 
     if current_match:
-        steps.append(finalize_step(current_match, current_step_lines, child_counter))
+        steps.append(finalize_step(current_match, current_step_lines, child_counter, current_line))
 
     return steps
 
@@ -286,14 +302,25 @@ def markdown_to_flow(md_content: str, issues: Optional[List[str]] = None) -> Flo
     flow_name = "Untitled Flow"
     description: Optional[str] = None
     version = "1.0.0"
+    requires: Optional[str] = None
     variables: Dict[str, Any] = {}
 
     in_variables_section = False
     in_steps_section = False
+    section = "steps"  # which list the following step headings belong to: steps, on_error, or finally
 
-    raw_steps: List[Tuple[Optional[re.Match], List[Tuple[int, str, int]]]] = []
+    # (section, heading line, heading match, body lines)
+    raw_steps: List[Tuple[str, int, re.Match, List[Line]]] = []
     current_step_match: Optional[re.Match] = None
+    current_step_line = 0
     current_step_lines: List[Tuple[int, str, int]] = []
+
+    def flush() -> None:
+        nonlocal current_step_match, current_step_lines
+        if current_step_match:
+            raw_steps.append((section, current_step_line, current_step_match, current_step_lines))
+        current_step_match = None
+        current_step_lines = []
 
     for lineno, line in enumerate(lines, start=1):
         stripped = line.strip()
@@ -311,16 +338,27 @@ def markdown_to_flow(md_content: str, issues: Optional[List[str]] = None) -> Flo
                 description = quote_text[len("description:"):].strip()
             elif quote_text.lower().startswith("version:"):
                 version = quote_text[len("version:"):].strip()
+            elif quote_text.lower().startswith("requires:"):
+                requires = quote_text[len("requires:"):].strip()
             continue
 
         # 3. Section headers
         if stripped.startswith("## "):
             sec_title = stripped[3:].strip().lower()
+            sec_key = re.sub(r"[\s_-]+", " ", sec_title)
+            if sec_key in SECTION_TITLES:
+                flush()
+                section = SECTION_TITLES[sec_key]
+                in_steps_section = True
+                in_variables_section = False
+                continue
             if "variable" in sec_title:
                 in_variables_section = True
                 in_steps_section = False
                 continue
             elif "step" in sec_title:
+                flush()
+                section = "steps"
                 in_steps_section = True
                 in_variables_section = False
                 continue
@@ -338,45 +376,52 @@ def markdown_to_flow(md_content: str, issues: Optional[List[str]] = None) -> Flo
 
         # 5. Steps section: Level 3 Headings
         step_match = _STEP_HEADING_REGEX.match(stripped)
+        if not step_match and in_steps_section and stripped.startswith("### "):
+            if issues is not None:
+                issues.append(
+                    f"Line {lineno}: step heading '{stripped[:60]}' has no action, so it is not a step. "
+                    f"Put the action in parentheses at the end: `### 1. Open Page (`web.open`)`.")
+            flush()
+            continue
         if step_match:
             in_steps_section = True
             in_variables_section = False
-            if current_step_match:
-                raw_steps.append((current_step_match, current_step_lines))
+            flush()
             current_step_match = step_match
-            current_step_lines = []
+            current_step_line = lineno
             continue
 
         if in_steps_section and current_step_match:
             current_step_lines.append((indent, stripped, lineno))
 
-    if current_step_match:
-        raw_steps.append((current_step_match, current_step_lines))
+    flush()
 
-    # Process all steps
-    compiled_steps: List[Dict[str, Any]] = []
-    step_counter = 1
+    # Process all steps; ids are step_N, on_error_N, or finally_N, numbered per section
+    compiled: Dict[str, List[Dict[str, Any]]] = {"steps": [], "on_error": [], "finally": []}
+    step_counters = {"steps": 1, "on_error": 1, "finally": 1}
 
-    for match, body_lines in raw_steps:
+    for step_section, heading_line, match, body_lines in raw_steps:
         idx_val = match.group("idx")
         name = match.group("name").strip()
         action = match.group("action").strip()
+        prefix = SECTION_ID_PREFIX[step_section]
 
         if idx_val:
             if idx_val.isdigit():
-                step_id = f"step_{idx_val}"
+                step_id = f"{prefix}{idx_val}"
             else:
                 step_id = idx_val
         else:
-            step_id = f"step_{step_counter}"
+            step_id = f"{prefix}{step_counters[step_section]}"
 
-        step_counter += 1
+        step_counters[step_section] += 1
 
         step_dict: Dict[str, Any] = {
             "id": step_id,
             "name": name,
             "action": action,
             "parameters": {},
+            "line": heading_line,
         }
 
         i = 0
@@ -443,14 +488,17 @@ def markdown_to_flow(md_content: str, issues: Optional[List[str]] = None) -> Flo
                 issues.append(_stray_line_issue(lineno, text, name))
             i += 1
 
-        compiled_steps.append(step_dict)
+        compiled[step_section].append(step_dict)
 
     flow_payload = {
         "name": flow_name,
         "description": description,
         "version": version,
+        "requires": requires,
         "variables": variables,
-        "steps": compiled_steps,
+        "steps": compiled["steps"],
+        "on_error_steps": compiled["on_error"] or None,
+        "finally_steps": compiled["finally"] or None,
     }
 
     return FlowDefinition.model_validate(flow_payload)
@@ -496,6 +544,8 @@ def flow_to_markdown(flow: FlowDefinition) -> str:
     if flow.description:
         doc.append(f"> Description: {flow.description}")
     doc.append(f"> Version: {flow.version}")
+    if flow.requires:
+        doc.append(f"> Requires: {flow.requires}")
     doc.append("")
 
     # Variables
@@ -505,14 +555,21 @@ def flow_to_markdown(flow: FlowDefinition) -> str:
             doc.append(f"- `{k}`: {format_value(v)}")
         doc.append("")
 
-    # Steps
-    doc.append("## Steps")
-    doc.append("")
+    for section, steps in (("steps", flow.steps), ("on_error", flow.on_error_steps), ("finally", flow.finally_steps)):
+        if section == "steps" or steps:
+            doc.extend(_section_lines(section, steps or []))
 
-    for idx, step in enumerate(flow.steps, start=1):
+    return "\n".join(doc).rstrip() + "\n"
+
+
+def _section_lines(section: str, steps: List[Step]) -> List[str]:
+    """Markdown for one step section (## Steps, ## On Error, ## Finally)."""
+    doc = [f"## {SECTION_HEADINGS[section]}", ""]
+    prefix = SECTION_ID_PREFIX[section]
+    for idx, step in enumerate(steps, start=1):
         step_idx_str = str(idx)
-        if step.id and step.id.startswith("step_") and step.id[5:].isdigit():
-            step_idx_str = step.id[5:]
+        if step.id and step.id.startswith(prefix) and step.id[len(prefix):].isdigit():
+            step_idx_str = step.id[len(prefix):]
         elif step.id:
             step_idx_str = step.id
 
@@ -536,130 +593,56 @@ def flow_to_markdown(flow: FlowDefinition) -> str:
             doc.extend(_serialize_sub_steps(step.else_steps, indent_spaces=2))
 
         doc.append("")
-
-    return "\n".join(doc).rstrip() + "\n"
+    return doc
 
 
 def markdown_issues(md_content: str) -> List[str]:
-    """Lines of a flow.md that the compiler ignores, as human-readable problems."""
+    """Problems in a flow.md: lines the compiler ignores, step headings without an action, no steps at all."""
     issues: List[str] = []
-    markdown_to_flow(md_content, issues=issues)
+    flow = markdown_to_flow(md_content, issues=issues)
+    if not flow.steps:
+        issues.append("No steps found. Write each step as a heading under `## Steps`: "
+                      "`### 1. Step name (`action.name`)`, for example `### 1. Open Page (`web.open`)`.")
     return issues
+
+
+JSON_FLOW_NOT_RUN = ("Flows are written in flow.md; {path} is a JSON flow, which Kinenix no longer reads. "
+                     "Convert it once with: kinenix export-md {path}")
 
 
 def load_flow(path_or_content: Union[str, Path]) -> FlowDefinition:
     """
-    Smart flow loader that accepts:
-    - Path to a flow.md or flow.json file
-    - Path to a bundle directory containing flow.md or flow.json
-    - Raw string content (Markdown or JSON)
+    Loads a flow from:
+    - a flow .md file
+    - a bundle directory containing flow.md
+    - Markdown text
+    A JSON flow file raises an error that explains how to convert it (`kinenix export-md`).
     """
     if isinstance(path_or_content, Path) or (isinstance(path_or_content, str) and "\n" not in path_or_content and Path(path_or_content).exists()):
         p = Path(path_or_content).resolve()
         if p.is_dir():
             if (p / "flow.md").is_file():
                 return markdown_to_flow((p / "flow.md").read_text(encoding="utf-8-sig"))
-            elif (p / "flow.json").is_file():
-                raw = json.loads((p / "flow.json").read_text(encoding="utf-8-sig"))
-                return FlowDefinition.model_validate(raw)
-            else:
-                raise FileNotFoundError(f"Neither flow.md nor flow.json found in bundle directory: {p}")
-        
+            if (p / "flow.json").is_file():
+                raise ValueError(JSON_FLOW_NOT_RUN.format(path=p / "flow.json"))
+            raise FileNotFoundError(f"No flow.md found in bundle directory: {p}")
         if p.suffix.lower() == ".md":
             return markdown_to_flow(p.read_text(encoding="utf-8-sig"))
-        elif p.suffix.lower() == ".json":
-            raw = json.loads(p.read_text(encoding="utf-8-sig"))
-            return FlowDefinition.model_validate(raw)
-        else:
-            raise ValueError(f"Unsupported flow file extension: {p.suffix} (expected .md or .json)")
+        if p.suffix.lower() == ".json":
+            raise ValueError(JSON_FLOW_NOT_RUN.format(path=p))
+        raise ValueError(f"Unsupported flow file extension: {p.suffix} (expected .md)")
 
-    # Raw string content
-    content = str(path_or_content).strip()
-    if content.startswith("{"):
-        raw = json.loads(content)
-        return FlowDefinition.model_validate(raw)
-    else:
-        return markdown_to_flow(content)
+    return markdown_to_flow(str(path_or_content))
 
 
-def compile_markdown_to_json(md_path: Path, output_json_path: Optional[Path] = None) -> Path:
-    """
-    Compiles a flow.md file into a validated flow.json.
-    """
-    md_path = md_path.resolve()
-    if not md_path.is_file():
-        raise FileNotFoundError(f"Markdown flow file not found: {md_path}")
-
-    flow = markdown_to_flow(md_path.read_text(encoding="utf-8-sig"))
-    
-    if output_json_path is None:
-        output_json_path = md_path.parent / "flow.json"
-    else:
-        output_json_path = output_json_path.resolve()
-
-    schema_ref = "../../../schemas/flow.schema.json"
-    data = flow.model_dump(exclude_none=True)
-    
-    # Prepend $schema for IDE autocomplete if not present
-    ordered_data = {"$schema": schema_ref}
-    ordered_data.update(data)
-
-    output_json_path.parent.mkdir(parents=True, exist_ok=True)
-    output_json_path.write_text(
-        json.dumps(ordered_data, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8"
-    )
-    return output_json_path
-
-
-class FlowSync:
-    """Results of sync_flow_json."""
-    NO_MARKDOWN = "no_markdown"    # flow.json has no flow.md next to it; nothing to do
-    UP_TO_DATE = "up_to_date"      # flow.json already matches flow.md
-    CREATED = "created"            # flow.json did not exist and was compiled
-    COMPILED = "compiled"          # flow.md changed after flow.json; flow.json was recompiled
-    JSON_NEWER = "json_newer"      # flow.json was edited after flow.md (e.g. in Studio); left untouched
-
-
-def _same_flow(a: FlowDefinition, b: FlowDefinition) -> bool:
-    return a.model_dump(exclude_none=True) == b.model_dump(exclude_none=True)
-
-
-def sync_flow_json(md_path: Path) -> str:
-    """Keep the build artifact flow.json in line with its source flow.md before a run.
-
-    flow.md is the source of truth. The files are compared by content, not timestamps, because
-    git checkouts reset modification times. When they differ, timestamps only decide the direction:
-    a newer flow.md is recompiled; a newer flow.json was edited directly and is left untouched so
-    the edit is not lost (the caller should warn). Returns a FlowSync value.
-    """
-    md_path = Path(md_path).resolve()
-    json_path = md_path.parent / "flow.json"
-    if not md_path.is_file():
-        return FlowSync.NO_MARKDOWN
-
-    if not json_path.is_file():
-        compile_markdown_to_json(md_path, json_path)
-        return FlowSync.CREATED
-
-    md_flow = markdown_to_flow(md_path.read_text(encoding="utf-8-sig"))
-    try:
-        json_flow = FlowDefinition.model_validate(json.loads(json_path.read_text(encoding="utf-8-sig")))
-    except (ValueError, OSError):
-        json_flow = None  # unreadable or invalid flow.json is rebuilt from the source
-    if json_flow is not None and _same_flow(md_flow, json_flow):
-        return FlowSync.UP_TO_DATE
-
-    if json_flow is not None and json_path.stat().st_mtime > md_path.stat().st_mtime:
-        return FlowSync.JSON_NEWER
-
-    compile_markdown_to_json(md_path, json_path)
-    return FlowSync.COMPILED
+def flow_to_json_text(flow: FlowDefinition) -> str:
+    """The compiled form of a flow as JSON text, for inspection (`kinenix compile`). Kinenix does not run it."""
+    return json.dumps(flow.model_dump(exclude_none=True), indent=2, ensure_ascii=False) + "\n"
 
 
 def export_json_to_markdown(json_path: Path, output_md_path: Optional[Path] = None) -> Path:
     """
-    Exports a flow.json file into a human-readable flow.md.
+    Converts a flow.json file (from Kinenix 0.2.0b3 or older) into flow.md, once.
     """
     json_path = json_path.resolve()
     if not json_path.is_file():
@@ -670,7 +653,7 @@ def export_json_to_markdown(json_path: Path, output_md_path: Optional[Path] = No
     md_text = flow_to_markdown(flow)
 
     if output_md_path is None:
-        output_md_path = json_path.parent / "flow.md"
+        output_md_path = json_path.with_suffix(".md") if json_path.name != "flow.json" else json_path.parent / "flow.md"
     else:
         output_md_path = output_md_path.resolve()
 

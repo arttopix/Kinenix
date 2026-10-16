@@ -54,6 +54,9 @@ DATABASE_URL = os.environ.get("DATABASE_URL", f"sqlite:///{DEFAULT_DATABASE_PATH
 if "DATABASE_URL" not in os.environ:
     DEFAULT_DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
 
+# User views: custom_*.sql files applied at every start (views.py, docs/hub.md)
+VIEWS_DIR = Path(_setting("KINENIX_HUB_VIEWS_DIR", str(Path.home() / ".kinenix" / "hub_views"))).expanduser()
+
 # Central LLM Endpoint (OpenThai-SystemOne server on port 8000)
 CENTRAL_LLM_URL = os.environ.get("CENTRAL_LLM_URL", "http://127.0.0.1:8000/v1/systemone")
 

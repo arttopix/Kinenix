@@ -4,21 +4,35 @@
       "properties": {
         "on_error": {
           "default": "stop",
-          "description": "Action on error: stop, continue, or retry",
+          "description": "After the last attempt: fail (or stop, retry) or continue",
           "title": "On Error",
           "type": "string"
         },
         "max_retries": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "string"
+            }
+          ],
           "default": 0,
-          "description": "Maximum retry attempts if on_error is retry",
-          "title": "Max Retries",
-          "type": "integer"
+          "description": "Retry attempts before on_error decides; a number or ${...}",
+          "title": "Max Retries"
         },
         "retry_interval": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string"
+            }
+          ],
           "default": 1.0,
-          "description": "Seconds to wait between retry attempts",
-          "title": "Retry Interval",
-          "type": "number"
+          "description": "Seconds to wait between attempts; a number or ${...}",
+          "title": "Retry Interval"
         },
         "fallback_step_id": {
           "anyOf": [
@@ -142,6 +156,19 @@
           "default": null,
           "description": "Optional execution condition expression (e.g. '${row.Status} == Active')",
           "title": "Condition"
+        },
+        "line": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Line of the step heading in its flow.md, for error reports; not part of the compiled form",
+          "title": "Line"
         }
       },
       "required": [
@@ -184,6 +211,19 @@
       "title": "Variables",
       "type": "object"
     },
+    "requires": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Kinenix version the flow needs, e.g. kinenix>=0.2.0b4",
+      "title": "Requires"
+    },
     "steps": {
       "description": "Sequential steps to execute",
       "items": {
@@ -191,6 +231,38 @@
       },
       "title": "Steps",
       "type": "array"
+    },
+    "on_error_steps": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/Step"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Steps of ## On Error: run once when Steps fail",
+      "title": "On Error Steps"
+    },
+    "finally_steps": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/Step"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Steps of ## Finally: run after Steps and On Error, always",
+      "title": "Finally Steps"
     }
   },
   "required": [
@@ -198,5 +270,5 @@
   ],
   "title": "Kinenix Flow Definition Schema",
   "type": "object",
-  "": "https://json-schema.org/draft/2020-12/schema"
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
 }

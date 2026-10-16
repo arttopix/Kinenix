@@ -31,7 +31,7 @@ def main():
 
     # Command: run
     run_parser = subparsers.add_parser("run", help="Execute a flow or project bundle on this worker")
-    run_parser.add_argument("flow_path", help="Path to flow.json or project bundle directory")
+    run_parser.add_argument("flow_path", help="Flow name, project bundle directory, or path to a flow.md")
     run_parser.add_argument("--sandbox", action="store_true", help="Execute inside an isolated temporary sandbox workspace")
     run_parser.add_argument("--vars", type=str, help="JSON string of variables to inject (e.g. '{\"env\":\"prod\"}')")
     run_parser.add_argument("--log-dir", type=str, help="Custom directory path to store execution logs")
@@ -39,7 +39,7 @@ def main():
     # Command: watch
     watch_parser = subparsers.add_parser("watch", help="Watch a directory and automatically trigger a flow when new files appear")
     watch_parser.add_argument("directory", help="Directory path to watch")
-    watch_parser.add_argument("--flow", required=True, help="Path to flow.json or bundle to execute")
+    watch_parser.add_argument("--flow", required=True, help="Flow name, bundle directory, or flow.md to execute")
     watch_parser.add_argument("--pattern", default="*.*", help="File matching pattern (e.g. '*.xlsx', '*.csv')")
     watch_parser.add_argument("--interval", type=float, default=2.0, help="Polling interval in seconds")
     watch_parser.add_argument("--sandbox", action="store_true", help="Execute in isolated sandbox workspace")
@@ -47,7 +47,7 @@ def main():
 
     # Command: schedule
     sched_parser = subparsers.add_parser("schedule", help="Execute a flow on a scheduled time interval")
-    sched_parser.add_argument("--flow", required=True, help="Path to flow.json or bundle to execute")
+    sched_parser.add_argument("--flow", required=True, help="Flow name, bundle directory, or flow.md to execute")
     sched_parser.add_argument("--interval", type=float, default=60.0, help="Interval in seconds between runs")
     sched_parser.add_argument("--cron", type=str, default=None,
                               help="Five-field cron expression in local time, e.g. '0 8 1 * *' (overrides --interval)")

@@ -4,7 +4,7 @@ Core execution engine and `kinenix` CLI for **Kinenix**, an open-source, local A
 
 > **Status: beta.** Flow schemas and action parameters may still change between releases.
 
-- Runs automation flows written as `flow.json` or `flow.md`
+- Runs automation flows written as `flow.md`
 - Built-in actions for web automation (Playwright), Excel and CSV (no Microsoft Office required), files, HTTP, email, and flow control
 - Local AI actions through Ollama, so business data stays on your machine
 - Retries, fallbacks, failure screenshots, and structured JSON execution logs
@@ -23,8 +23,8 @@ Requires Python 3.10 or newer.
 
 ```bash
 kinenix list                       # list flows found in the current project
-kinenix run path/to/flow.json      # run a flow
-kinenix compile path/to/flow.md    # compile flow.md into flow.json
+kinenix run path/to/bundle         # run the flow.md in a bundle folder
+kinenix compile path/to/flow.md    # print the compiled form as JSON (inspection)
 kinenix version                    # version and environment details
 ```
 
@@ -41,11 +41,11 @@ Kinenix Studio (visual flow editor) lives in the same repository and is not yet 
 
 ## Documentation
 
-- [Project README](https://github.com/arttopix/Kinenix#readme)
-- [Actions reference](https://github.com/arttopix/Kinenix/blob/main/docs/actions_reference.md)
-- [Flow Markdown specification](https://github.com/arttopix/Kinenix/blob/main/docs/flow_markdown_spec.md)
-- [CLI guide](https://github.com/arttopix/Kinenix/blob/main/docs/cli_guide.md)
+- [Project README](https://github.com/arttopix/kinenix#readme)
+- [Actions reference](https://github.com/arttopix/kinenix/blob/main/docs/actions_reference.md)
+- [Flow Markdown specification](https://github.com/arttopix/kinenix/blob/main/docs/flow_markdown_spec.md)
+- [CLI guide](https://github.com/arttopix/kinenix/blob/main/docs/cli_guide.md)
 
 ## License
 
-MIT
+Apache License 2.0. Releases up to and including 0.2.0b3 were published under the MIT License.

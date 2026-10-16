@@ -8,12 +8,14 @@ Each topic has one owning document. Other files link here instead of repeating t
 | :--- | :--- |
 | [architecture.md](architecture.md) | Principles, modules (current vs. target), execution pipeline, AI integration, planned protocol |
 | [roadmap.md](roadmap.md) | Delivery status by phase and next priorities |
+| [benchmarks/flow_format.md](benchmarks/flow_format.md) | Benchmark: local AI models writing flows in `flow.md` vs YAML, and why Kinenix keeps `flow.md` |
+| [design/phase-2.md](design/phase-2.md) | Phase 2 design: On Error and Finally, subflow context, run records for AI questions, Hub tables and views, redaction (proposal) |
 
 ## Build Flows
 
 | Document | Covers |
 | :--- | :--- |
-| [flow_markdown_spec.md](flow_markdown_spec.md) | `flow.md` syntax and compilation to `flow.json` |
+| [flow_markdown_spec.md](flow_markdown_spec.md) | `flow.md` syntax, validation, and the compiled form (`kinenix compile`) |
 | [actions_reference.md](actions_reference.md) | Every built-in action with parameters and examples |
 | [project_bundles.md](project_bundles.md) | Bundle layout, `config.json`, `.env`, subflows (`flow.call`), deployment lifecycle |
 
@@ -23,10 +25,12 @@ Each topic has one owning document. Other files link here instead of repeating t
 | :--- | :--- |
 | [quickstart.md](quickstart.md) | Install, create a project with `kinenix init`, run it, and connect a worker to the Hub in about ten minutes |
 | [cli_guide.md](cli_guide.md) | `kinenix` commands and options |
-| [hub.md](hub.md) | Running the Hub, environment variables, worker authentication |
+| [hub.md](hub.md) | Running the Hub, environment variables, worker authentication, querying runs (`kinenix hub query`), user views |
+| [hub_data.md](hub_data.md) | Hub data dictionary: tables, views, run reports, and example queries, for people and AI |
 | [logging.md](logging.md) | Execution log layout and JSON format |
 | [ask_router.md](ask_router.md) | Natural-language questions to the Hub (work in progress) |
 | [../kinenix-worker/README.md](../kinenix-worker/README.md) | Worker CLI and Raspberry Pi setup |
+| [../CHANGELOG.md](../CHANGELOG.md) | Changes and upgrade notes of each release |
 | [releasing.md](releasing.md) | Publishing `kinenix`, `kinenix-hub`, and `kinenix-worker` to PyPI with Trusted Publishing |
 | [../kinenix-studio/README.md](../kinenix-studio/README.md) | Studio design and layout |
 

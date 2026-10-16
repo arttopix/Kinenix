@@ -6,6 +6,21 @@ Legend: `[x]` done, `[~]` partially done, `[ ]` not started.
 
 ---
 
+## 0. Release 1.0.0 (target 2026-10-27)
+
+1.0.0 makes the core dependable: a `flow.md` written for 1.0 keeps running on every 1.x version. The GitHub milestones (not the phase numbers below) track the work.
+
+| Milestone | Content | Target | Status |
+| :--- | :--- | :--- | :--- |
+| Phase 2: Subflows and error handling | On Error and Finally, `${error}`, retries, subflow context, run records, Hub queries; release 0.2.0b4 | 2026-10-17 | Code done; releasing |
+| Phase 3: Expressions | Safe functions and arithmetic in `${...}` (#56), without `eval` | 2026-10-20 | Not started |
+| Phase 4: Web actions | `web.goto` (#58), `web.choose` (#57), `web.get_list` (#55) | 2026-10-23 | Not started |
+| 1.0.0rc1 | What 1.0 keeps stable (flow.md syntax, action names and parameters, CLI commands, Hub API and views), deprecations announced for 2.0, code and security review | 2026-10-24 | Not started |
+| Field test | rc1 on the Raspberry Pi worker, the Ubuntu Hub, and Windows with a real flow; bug fixes only | 2026-10-26 | Not started |
+| 1.0.0 | Release | 2026-10-27 | Not started |
+
+Phase 5 (developer tools: `kinenix graph`, VS Code extension) comes after 1.0.0.
+
 ## 1. Next Priorities
 
 Ordered so that safety and predictable runtime behavior come before new distributed features.
@@ -31,7 +46,7 @@ GitHub Actions workflow `.github/workflows/ci.yml` runs on pushes and pull reque
 - [x] Runs every pytest suite, including `kinenix-hub/tests`.
 - [x] Builds the Studio frontend with `npm ci` and `npm run build`.
 - [x] CI status badge in the README.
-- [x] Repository rules checked by tests: every `flow.json` matches its `flow.md`, every flow validates, documented action parameters match the code, and no emojis anywhere.
+- [x] Repository rules checked by tests: every flow validates, documented action parameters match the code, and no emojis anywhere.
 - [ ] Formatting, linting, type checking, dependency vulnerability checks, and JSON schema validation of the flows in `flows/`.
 - [~] Publish `kinenix`, `kinenix-hub`, and `kinenix-worker` from a tagged release with Trusted Publishing (`release.yml`, `docs/releasing.md`); CI builds, checks, and installs the packages on every pull request. Waiting for the first release.
 
@@ -80,15 +95,16 @@ Hub -> versioned job bundle -> Worker (WebSocket) -> kinenix-core executes flow
 - [x] Hierarchical structured logging (`logs/<flow>/<date>/<HHMMSS>_<status>.json`)
 - [x] CLI and smart flow resolver (`kinenix list`, `kinenix run <flow>`)
 - [x] Project bundles (`flow.call`, `@shared/`, `config.json`, `.env`)
-- [x] `flow.md` authoring format with compiler to `flow.json`
+- [x] `flow.md` authoring format
 - [x] Local AI actions: `ai.prompt`, `ai.extract` (Ollama), `ai.decide` (OpenThai-SystemOne)
-- [x] `flow.md` as the single source with automatic `flow.json` sync and a CI consistency check
+- [x] `flow.md` is the only flow file: `kinenix run` and the worker read it directly, `kinenix compile` prints the compiled form, `kinenix export-md` converts old JSON flows; step headings without an action and flows without steps are reported (`flow.json` dropped after a comparison with YAML on `bot_fx_rate`)
 - [x] Flow validation (`kinenix validate`): unknown actions and ignored parameters, with suggestions
 - [x] Business exceptions with `flow.fail` (recorded as Business, never retried); `web.click` waits for a response; `web.get_table`
 - [x] `email.send` through any SMTP provider (Gmail, Microsoft 365, company servers), tested with a local fake SMTP server
 - [x] Example flow `bot_fx_rate`: Bank of Thailand transfer rates to CSV and email, verified against the BOT data
 - [x] `file.zip` and `file.unzip`: pack a run's output for an email attachment; extraction refuses entries that point outside the destination
 - [x] `file.list` (loop over the files in a folder, newest first), `file.read_text` and `file.write_text` (text, lines, JSON, append, Thai legacy encodings), `file.create_folder`; boolean parameters given as text in config ("false") are read correctly by all file actions
+- [x] Subflows written as `.md` (compiled when called), sharing the bundle's config and folder; `@shared` components keep their own unless `inherit_config: true`; `kinenix validate` follows subflows and checks `inputs` names; the `hello` example calls a subflow
 - [x] `date.calc`: today or a given date, shifted by days, weeks, months, or years and snapped to the start or end of a week, month, or year; `bot_fx_rate` reports the previous month by default instead of fixed dates
 
 ### Phase 2: Studio (`kinenix-studio`) - Paused
@@ -111,6 +127,11 @@ Paused on 2026-10-08. Flows are written as `flow.md` from a `requirements.md` wi
 - [x] Web dashboard for workers and executions, with per-execution step details
 - [x] Command line: first-run setup saved to `~/.kinenix/hub.env`, `kinenix hub status`, `logs`, `setup`, `show-key`, and `rich` output
 - [x] Default database in `~/.kinenix/hub.db`, outside the source tree
+- [x] Schema migrations applied at start (built-in runner, `schema_version` table, no extra dependency) and SQLite WAL mode, so existing databases upgrade in place and readers do not block workers
+- [x] Run records for people and AI: every step (`step_results`) and every failure (`failures`, also continued ones) with path, subflow, line, loop item, retries, and how it was handled; a Markdown run report per run; views `v_runs`, `v_failures`, `v_steps`; runs stored earlier are filled in from their logs; data dictionary in [hub_data.md](hub_data.md), checked by a test
+- [x] `kinenix connect URL`: asks for the worker key, checks it against the Hub, and saves the Hub in `~/.kinenix/kinenix.env` for `kinenix run` and kinenix-worker; `kinenix hub setup` offers the same for runs on the Hub machine, so no environment variables are needed
+- [x] `kinenix hub report [ID] --flow NAME`: the run report of a flow's latest run (name or part of it, `--limit N` for more), and `kinenix hub logs --flow NAME` for its steps
+- [x] `kinenix hub query`: read-only questions to the Hub database from the terminal, on the Hub machine or over HTTP (`--url`): views or tables with `--since`, `--flow`, `--worker`, `--status`, `--filter`, or one SQL `SELECT`; `--list` and `--describe` from the data dictionary; table, JSON, CSV, and Markdown output; user views from `~/.kinenix/hub_views/custom_*.sql`
 - [x] AI failure classification with rule-based fallback
 - [x] Worker API key authentication
 - [x] Dashboard authentication (HTTP Basic Auth)

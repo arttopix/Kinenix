@@ -1,0 +1,150 @@
+```yaml
+name: Collect Bank of Thailand Buying Transfer Rates
+description: Collect Bank of Thailand buying transfer rates for several currencies over one month and email them as a CSV file.
+variables:
+  month: {"date": "today", "add_months": -1}
+  config: {}
+  output_path: ""
+  headless: false
+  email:
+    to: ""
+    subject: "Bank of Thailand Buying Transfer Rates"
+    body: ""
+    dry_run: false
+  rows: []
+  currencies: []
+steps:
+  - name: Get Report Month
+    action: date.calc
+    with:
+      date: ${config.month.date}
+      add_months: ${config.month.add_months}
+      format: "YYYY-MM"
+    output_var: report_month
+  - name: Open Bank of Thailand Page
+    action: web.open
+    with:
+      url: "https://www.bth.or.th"
+      headless: ${config.headless}
+    on_error: retry
+    max_retries: 2
+    retry_interval: 5
+    steps:
+      - name: Accept Cookie Banner
+        action: web.click
+        with:
+          selector: 'button.historical-btn'
+    on_error: retry
+    max_retries: 2
+    retry_interval: 5
+  - name: Filter Currencies
+    action: logic.loop
+    with:
+      items: ${config.currencies}
+      item_var: currency
+    steps:
+      - name: Select Currency
+        action: web.select_option
+        with:
+          selector: '#dropdownCurrency'
+          value: '${currency}'
+    on_error: retry
+    max_retries: 2
+    retry_interval: 5
+  - name: Set Start and End Dates
+    action: logic.loop
+    with:
+      items: ["${report_month}-01", "${report_month}-31"]
+      item_var: date
+    steps:
+      - name: Set Year
+        action: web.select_option
+        with:
+          selector: '.react-datepicker select >> nth=1'
+          value: '${date.split('-')[0]}'
+    on_error: retry
+    max_retries: 2
+    retry_interval: 5
+      - name: Set Month
+        action: web.select_option
+        with:
+          selector: '.react-datepicker select >> nth=0'
+          value: '${date.split('-')[1]}'
+    on_error: retry
+    max_retries: 2
+    retry_interval: 5
+      - name: Set Day
+        action: web.select_option
+        with:
+          selector: '.react-datepicker select >> nth=2'
+          value: '${date.split('-')[2]}'
+    on_error: retry
+    max_retries: 2
+    retry_interval: 5
+  - name: Search Rates
+    action: web.click
+    with:
+      selector: 'button.historical-btn'
+    on_error: retry
+    max_retries: 2
+    retry_interval: 5
+  - name: Collect Data
+    action: logic.loop
+    with:
+      items: ${config.currencies}
+      item_var: currency
+    steps:
+      - name: Switch to Currency Tab
+        action: web.switch_tab
+        with:
+          title: '${currency}'
+    on_error: retry
+    max_retries: 2
+    retry_interval: 5
+      - name: Get Table
+        action: web.get_table
+        with:
+          selector: '.table'
+          columns: ["Period", "Buying Rates Transfer"]
+          numeric_columns: ["Buying Rates Transfer"]
+          min_rows: 1
+        output_var: table
+    on_error: retry
+    max_retries: 2
+    retry_interval: 5
+      - name: Append Currency Column
+        action: logic.append
+        with:
+          target: ${table}
+          var_name: currency
+          list_var: currency
+          item: "${currency}"
+    on_error: retry
+    max_retries: 2
+    retry_interval: 5
+  - name: Write to CSV
+    action: csv.write
+    with:
+      file_path: ${output_path}
+      data: ${rows}
+    on_error: retry
+    max_retries: 2
+    retry_interval: 5
+  - name: Send Email
+    action: email.send
+    with:
+      to: "${config.email.to}"
+      subject: "${config.email.subject}"
+      body: "${config.email.body}"
+      html: false
+      attachments: "${output_path}"
+      smtp_host: ""
+      smtp_port: ""
+      smtp_user: ""
+      smtp_password: ""
+      use_tls: true
+      dry_run: ${config.email.dry_run}
+    on_error: retry
+    max_retries: 2
+    retry_interval: 5
+```
