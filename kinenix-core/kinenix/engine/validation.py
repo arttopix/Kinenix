@@ -97,7 +97,10 @@ def _version_problem(flow: FlowDefinition) -> Optional[str]:
     allowed_old = [f for f in used if requirement_problem(flow.requires, version=NEWER_FEATURES[f][1]) is None]
     if not allowed_old:
         return None
-    effects = "; ".join(f"Kinenix {NEWER_FEATURES[f][1]} and older {NEWER_FEATURES[f][2]}" for f in allowed_old)
+    by_version = {}
+    for feature in allowed_old:
+        by_version.setdefault(NEWER_FEATURES[feature][1], []).append(NEWER_FEATURES[feature][2])
+    effects = "; ".join(f"Kinenix {old} and older {' and '.join(what)}" for old, what in by_version.items())
     fix = "Add" if not flow.requires else "Raise"
     return (f"The flow uses {', '.join(allowed_old)}, which older workers would run wrongly: {effects}. "
             f"{fix} `> Requires: kinenix>={needed}` under the title, so older workers refuse the flow instead.")

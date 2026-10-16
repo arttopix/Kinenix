@@ -52,7 +52,7 @@ Automated:
 - [ ] All four test suites pass, and CI is green
 
 Field test:
-- [ ] The real insurance-quote flow that motivated #56 drops its workarounds (count, join, number cleanup) and runs on the Raspberry Pi worker
+- [x] A demo flow with `len`, `join`, `number`, `part`, and `and` runs on the Raspberry Pi worker; the real insurance-quote flow is tested in 0.4.0b1 together with the new web actions
 
 Docs and release:
 - [ ] `docs/flow_markdown_spec.md` documents every function with an example
@@ -79,7 +79,7 @@ Automated:
 - [ ] All four test suites pass, and CI is green
 
 Field test:
-- [ ] The real insurance-quote flow uses `web.goto`, `web.choose`, and `web.get_list` and runs on the Raspberry Pi worker
+- [ ] The real insurance-quote flow uses `web.goto`, `web.choose`, `web.get_list`, and expressions (`len`, `join`, `number` instead of its workarounds) and runs on the Raspberry Pi worker
 
 Docs and release:
 - [ ] `docs/actions_reference.md` documents each action with a `flow.md` example

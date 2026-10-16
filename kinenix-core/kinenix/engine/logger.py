@@ -204,6 +204,11 @@ class ExecutionLogger:
                 )
             else:
                 self.logger.warning(f"Hub returned HTTP {res.status_code}: {res.text}")
+        except requests.RequestException as err:
+            # Say why in plain words (name not found, Hub not running, firewall), as kinenix connect does
+            from ..connect import describe_unreachable
+            self.logger.warning(f"The run was not sent to the Hub. {describe_unreachable(clean_url, err)} "
+                                f"The log is kept on this machine.")
         except Exception as err:
             self.logger.warning(f"Telemetry transmission to Hub failed: {err}")
 

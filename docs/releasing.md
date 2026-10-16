@@ -63,17 +63,18 @@ Released version numbers can never be reused on PyPI or TestPyPI. If something i
    - `kinenix-hub>=` and `kinenix-worker>=` in the extras of `kinenix-core/pyproject.toml`
    - `kinenix>=` in the dependencies of `kinenix-hub/pyproject.toml` and `kinenix-worker/pyproject.toml`
 2. **Merge `dev` into `main`** through the usual release pull request. CI builds the packages, checks their metadata, and installs them in a clean environment.
-3. **Try it on TestPyPI:** in GitHub, open **Actions**, then **Release**, then **Run workflow** on `main`. When it finishes, check in a new virtual environment:
+3. **Try it on TestPyPI:** in GitHub, open **Actions**, then **Release**, then **Run workflow** on `main`. When it finishes, check in a new virtual environment. Download only the three Kinenix packages from TestPyPI and take every other package from PyPI: anyone can upload to TestPyPI, and it holds broken copies of common packages (for example a `FASTAPI 1.0` that pip would pick with `--extra-index-url`).
    ```bash
-   pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ "kinenix[hub,worker]==0.2.0b1"
-   kinenix --version
+   pip download --no-deps -d testpypi --index-url https://test.pypi.org/simple/ kinenix==0.3.0b1 kinenix-hub==0.3.0b1 kinenix-worker==0.3.0b1
+   pip install --find-links testpypi "kinenix[hub,worker]==0.3.0b1"
+   kinenix version
    kinenix-worker --version
    ```
 4. **Publish to PyPI** by tagging `main`:
    ```bash
    git switch main && git pull
-   git tag v0.2.0b1
-   git push origin v0.2.0b1
+   git tag v0.3.0b1
+   git push origin v0.3.0b1
    ```
    The workflow builds again, checks that the tag matches the package version, and publishes all three packages.
 5. Check https://pypi.org/project/kinenix/, `kinenix-hub`, and `kinenix-worker`, then install from PyPI in a clean environment.
