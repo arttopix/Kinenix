@@ -179,6 +179,16 @@ For actions that contain nested steps, use standard Markdown 2-space or 4-space 
 
 The condition is split into its sides before variables are replaced, so values containing `<`, `>`, or the word `in` (for example `< 5,000 km`) never split it, and neither does text inside `${...}` or quotes. Quote a literal that contains an operator: `${label} == 'x > y'`.
 
+Join comparisons with `and` and `or`, and put `not` before one comparison (Kinenix 0.3.0b1 and newer). `and` binds tighter than `or`; there are no parentheses.
+
+```markdown
+- **condition:** `${row.status} == Active and ${row.amount} > 0`
+- **condition:** `${brand} is empty or ${model} is empty`
+- **condition:** `not ${row.note} contains skip`
+```
+
+A condition is split at `and` / `or` only when every part is a comparison by itself, so `${company} == Johnson and Johnson` still compares with the text `Johnson and Johnson`. Quoting is the safe form: `${company} == 'Johnson and Johnson'`.
+
 ```markdown
 ### 6. Skip Requests Without A Model (`flow.fail`)
 - **condition:** `${req.model} is empty`
@@ -214,6 +224,44 @@ Dynamic variables must use the standard expression format:
 - **`${env.VAR_NAME}`**: Accesses operating system environment variables.
 - **`${error.*}`** and **`${run.*}`**: The last failure and the current run (section 3.3).
 - **`${__flow_dir__}`**: The absolute path of the flow's bundle folder. Relative paths in file actions already resolve against it; use it to build an absolute path, for example to pass a file location to a subflow: `"${__flow_dir__}/output/report.csv"`.
+
+#### Expressions (Kinenix 0.3.0b1 and newer)
+
+Inside `${...}`, a value can also be calculated: counted, joined, cleaned, picked from a list, or computed. Nothing written in a flow can run code; only the functions and operators below exist. Design: [design/expressions.md](design/expressions.md).
+
+```markdown
+- **subject:** ${len(packages)} packages for ${join(ok_ids, ', ')}
+- **value:** ${number(row.premium) * 12}
+- **name:** ${trim(upper(row.brand))}
+- **first:** ${rows[0].request_id}
+- **month:** ${part(row.due_date, '-', 1)}
+```
+
+| Function | Result | Example |
+| :--- | :--- | :--- |
+| `len(x)` | Number of items, keys, or characters; `0` when empty | `${len(rows)}` |
+| `join(list, sep)` | The items as text, joined by `sep` (default `", "`) | `${join(ids, ', ')}` gives `R001, R002` |
+| `number(x)` | The first number in the text, without thousands separators and units; `(1,200)` is `-1200`; empty when empty | `${number('15,434.75 บาท/ปี')}` gives `15434.75` |
+| `trim(x)`, `lower(x)`, `upper(x)` | Without surrounding spaces, lower case, upper case | `${trim(row.name)}` |
+| `replace(x, old, new)` | Every `old` replaced by `new` | `${replace(row.price, ' บาท', '')}` |
+| `default(x, fallback)` | `x`, or `fallback` when `x` is empty | `${default(row.note, '-')}` |
+| `round(x, digits)` | Rounded number (`digits` defaults to 0) | `${round(total / count, 2)}` |
+| `part(x, sep, n)` | Piece `n` (from 0; negative counts from the end) of the text split at `sep` | `${part('25-10-2019', '-', 1)}` gives `10` |
+| `substring(x, start, length)` | `length` characters from position `start` (from 0), or to the end | `${substring('TH2026ABC', 2, 4)}` gives `2026` |
+
+| Form | Example |
+| :--- | :--- |
+| Arithmetic on numbers: `+ - * / %` and parentheses | `${(count + 1) * 2}`, `${number(row.price) * 1.07}` |
+| Index into a list (from 0; `-1` is the last) | `${rows[0]}`, `${rows[-1].id}` |
+| Key with spaces or symbols | `${row['Unit Price (THB)']}` (or `${row.Unit Price (THB)}`, as before) |
+| Text and numbers as values | `'abc'`, `"abc"`, `12`, `3.5` |
+
+- **Arithmetic needs numbers.** Text that is a plain number (`"12"`, `"3.5"`, as read from CSV) counts as a number; other text is an error that suggests `number(...)`. A whole result is written without `.0`.
+- **Missing values are empty**, as for variables: a missing key or an index past the end gives empty, and the functions treat empty as listed above.
+- **A variable that exists is always read as before.** `${row.First Name}` and `${row.Role in Company}` are keys of `row`, not expressions. Text is evaluated as an expression only when it names no existing variable.
+- **Comparisons and `and` / `or` / `not` belong in conditions**, not inside `${...}`: write `${count} > 3`, not `${count > 3}`.
+- **Not allowed:** method calls (`x.upper()`; use `upper(x)`), names starting with `_`, `**`, slices (`[1:3]`; use `substring`), lambdas, comprehensions, and any function not in the table. Expressions are limited to 500 characters.
+- **Errors stop the step** with the expression and the reason, for example `${lenn(rows)}: unknown function 'lenn'`. `kinenix validate` reports them before a run, with the line.
 
 ---
 

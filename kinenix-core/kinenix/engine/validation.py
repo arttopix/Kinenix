@@ -5,12 +5,14 @@ its default, which is hard to notice. These checks only report; callers decide w
 """
 import difflib
 from pathlib import Path
-from typing import Iterable, List, Optional, Set
+from typing import Any, Iterable, List, Optional, Set
 
 from .. import actions  # noqa: F401  (imports every action module so the registry is complete)
 from ..actions.registry import ActionRegistry
 from ..models.flow import FlowDefinition, Step
-from .requires import requirement_problem
+from . import expressions
+from .evaluator import VariableEvaluator
+from .requires import requirement_problem, version_key
 
 # Keys that belong to the step itself; seeing them in parameters means a converted flow or a typo put them there
 STEP_LEVEL_KEYS = {
@@ -36,8 +38,38 @@ def _all_steps(flow: FlowDefinition) -> List[Step]:
 
 
 ON_ERROR_VALUES = ("fail", "stop", "retry", "continue")
-# What the flow uses that Kinenix 0.2.0b3 and older would run wrongly (item_label is only ignored, so it is not listed)
-NEEDS_0_2_0B4 = "kinenix>=0.2.0b4"
+
+# What older Kinenix versions would run wrongly instead of refusing: feature -> (first version that
+# understands it, the last version that does not, what the older version does). item_label is only
+# ignored by older versions, so it is not listed.
+NEWER_FEATURES = {
+    "## On Error": ("0.2.0b4", "0.2.0b3", "runs On Error steps as ordinary steps"),
+    "## Finally": ("0.2.0b4", "0.2.0b3", "runs Finally steps as ordinary steps"),
+    "inherit_config": ("0.2.0b4", "0.2.0b3", "ignores inherit_config"),
+    "expressions in ${...}": ("0.3.0b1", "0.2.0b4", "turns expressions such as ${len(rows)} into empty text"),
+    "and / or / not in conditions": ("0.3.0b1", "0.2.0b4", "reads and / or / not as part of a value"),
+}
+
+
+def _uses_expressions(steps: List[Step]) -> bool:
+    for step in steps:
+        for text in _placeholders([step.parameters, step.condition]):
+            if not text.startswith("env.") and expressions.problem(text) is None:
+                try:
+                    if not expressions.is_plain_path(expressions.parse(text)):
+                        return True
+                except expressions.ExpressionError:
+                    pass
+    return False
+
+
+def _uses_boolean_conditions(steps: List[Step]) -> bool:
+    from .conditions import parse_boolean
+    for step in steps:
+        for condition in (step.condition, step.parameters.get("condition") if step.action == "logic.if" else None):
+            if isinstance(condition, str) and parse_boolean(condition.strip().strip("`"))[0] != "is":
+                return True
+    return False
 
 
 def _newer_features(flow: FlowDefinition) -> List[str]:
@@ -49,7 +81,50 @@ def _newer_features(flow: FlowDefinition) -> List[str]:
     steps = list(_walk(_all_steps(flow)))
     if any(s.action == "flow.call" and "inherit_config" in s.parameters for s in steps):
         used.append("inherit_config")
+    if _uses_expressions(steps):
+        used.append("expressions in ${...}")
+    if _uses_boolean_conditions(steps):
+        used.append("and / or / not in conditions")
     return used
+
+
+def _version_problem(flow: FlowDefinition) -> Optional[str]:
+    """The flow uses something an older Kinenix would run wrongly, and its `> Requires:` does not exclude that version."""
+    used = _newer_features(flow)
+    if not used:
+        return None
+    needed = max((NEWER_FEATURES[f][0] for f in used), key=version_key)
+    allowed_old = [f for f in used if requirement_problem(flow.requires, version=NEWER_FEATURES[f][1]) is None]
+    if not allowed_old:
+        return None
+    effects = "; ".join(f"Kinenix {NEWER_FEATURES[f][1]} and older {NEWER_FEATURES[f][2]}" for f in allowed_old)
+    fix = "Add" if not flow.requires else "Raise"
+    return (f"The flow uses {', '.join(allowed_old)}, which older workers would run wrongly: {effects}. "
+            f"{fix} `> Requires: kinenix>={needed}` under the title, so older workers refuse the flow instead.")
+
+
+def _placeholders(value: Any) -> Iterable[str]:
+    """The text inside every ${...} of a parameter value, at any depth."""
+    if isinstance(value, str):
+        for match in VariableEvaluator.PATTERN.finditer(value):
+            yield match.group(1).strip()
+    elif isinstance(value, dict):
+        for item in value.values():
+            yield from _placeholders(item)
+    elif isinstance(value, list):
+        for item in value:
+            yield from _placeholders(item)
+
+
+def _expression_problems(step: Step, where: str) -> List[str]:
+    """Expressions that cannot be read, or that call a function that does not exist (docs/design/expressions.md)."""
+    found = []
+    for text in _placeholders([step.parameters, step.condition]):
+        problem = expressions.problem(text)
+        if problem and problem not in found:
+            found.append(problem)
+    line = f", line {step.line}" if step.line else ""
+    return [f"{where}{line}: {problem}" for problem in found]
 
 
 def validate_flow(flow: FlowDefinition) -> List[str]:
@@ -60,15 +135,13 @@ def validate_flow(flow: FlowDefinition) -> List[str]:
     problem = requirement_problem(flow.requires)
     if problem:
         issues.append(problem)
-    used = _newer_features(flow)
-    if used and not flow.requires:
-        issues.append(
-            f"The flow uses {', '.join(used)}, which Kinenix 0.2.0b3 and older do not understand: they run "
-            f"On Error and Finally steps as ordinary steps and ignore inherit_config. Add "
-            f"`> Requires: {NEEDS_0_2_0B4}` under the title, so older workers refuse the flow instead.")
+    newer = _version_problem(flow)
+    if newer:
+        issues.append(newer)
 
     for step in _walk(_all_steps(flow)):
         where = f"Step '{step.id}' ({step.name})"
+        issues.extend(_expression_problems(step, where))
         on_error = step.error_handler.on_error if step.error_handler else None
         if on_error is not None and str(on_error).strip().lower() not in ON_ERROR_VALUES:
             issues.append(f"{where}: on_error '{on_error}' is not one of {', '.join(ON_ERROR_VALUES)}; "
