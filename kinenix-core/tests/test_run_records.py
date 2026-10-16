@@ -173,3 +173,20 @@ def test_the_run_id_field_is_never_redacted():
     redactor = Redactor(environment={"DB_PASSWORD": "root"})
     record = {"run_id": "20261016T195714-root", "message": "login root failed"}
     assert redactor.redact(record) == {"run_id": "20261016T195714-root", "message": "login **** failed"}
+
+
+def test_failure_wording_does_not_call_handled_failures_unhandled(tmp_path, caplog):
+    """A flow.fail is a business rule that was not met, and a subflow that stops leaves the decision to its caller."""
+    bundle = tmp_path / "bundle"
+    (bundle / "subflows").mkdir(parents=True)
+    (bundle / "subflows" / "process_one.md").write_text(CHILD, encoding="utf-8")
+    flow = markdown_to_flow(PARENT.split("### 2. Attach Log")[0] + "### 2. Stop (`flow.fail`)\n- **message:** total does not match\n")
+    with caplog.at_level("INFO", logger="kinenix"):
+        context = FlowInterpreter(logger=ExecutionLogger(log_dir=None)).run_flow(
+            flow, initial_vars={"__flow_dir__": str(bundle), "config": {"requests": REQUESTS}})
+    assert context.failure_details.root_cause == "Business rule in step 'Stop' was not met: total does not match"
+    failed_child = next(r for r in context.step_results if r.step_name == "Choose Brand" and r.status == "failed")
+    assert failed_child.failure["root_cause"].startswith("Business rule in step 'Choose Brand' was not met")
+    assert "unhandled" not in caplog.text.lower()
+    assert "Subflow 'process_one' stopped: no option for HONDA" in caplog.text
+    assert "Hub: not connected" in caplog.text

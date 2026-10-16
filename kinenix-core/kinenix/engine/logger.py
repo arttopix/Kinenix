@@ -171,6 +171,8 @@ class ExecutionLogger:
         )
         if hub_url:
             self._send_telemetry(hub_url, raw_data, context)
+        else:
+            self.logger.info("Hub: not connected, so this run stays on this machine (kinenix connect URL to report runs).")
 
     def _send_telemetry(self, hub_url: str, raw_data: dict, context: ExecutionContext) -> None:
         try:

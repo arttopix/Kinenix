@@ -99,7 +99,7 @@ flow.json
 
 FLOWS_README = """# Kinenix flows
 
-Automation flows built with [Kinenix](https://github.com/arttopix/Kinenix), one folder per task.
+Automation flows built with [Kinenix](https://github.com/arttopix/kinenix), one folder per task.
 
 - New task: `kinenix init "Task name"` creates a folder here with requirements.md and instructions for an AI assistant.
 - Run one from anywhere: `kinenix run <folder name>`.

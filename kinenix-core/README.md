@@ -41,10 +41,10 @@ Kinenix Studio (visual flow editor) lives in the same repository and is not yet 
 
 ## Documentation
 
-- [Project README](https://github.com/arttopix/Kinenix#readme)
-- [Actions reference](https://github.com/arttopix/Kinenix/blob/main/docs/actions_reference.md)
-- [Flow Markdown specification](https://github.com/arttopix/Kinenix/blob/main/docs/flow_markdown_spec.md)
-- [CLI guide](https://github.com/arttopix/Kinenix/blob/main/docs/cli_guide.md)
+- [Project README](https://github.com/arttopix/kinenix#readme)
+- [Actions reference](https://github.com/arttopix/kinenix/blob/main/docs/actions_reference.md)
+- [Flow Markdown specification](https://github.com/arttopix/kinenix/blob/main/docs/flow_markdown_spec.md)
+- [CLI guide](https://github.com/arttopix/kinenix/blob/main/docs/cli_guide.md)
 
 ## License
 

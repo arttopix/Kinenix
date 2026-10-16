@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional
 import requests
 
 from ..config import CENTRAL_LLM_URL
@@ -31,67 +31,91 @@ CATEGORIES = {
         "th_label": "ข้อมูลไม่ตรงรูปแบบ หรือตารางไม่มีข้อมูล",
         "root_cause": "ค่าที่ดึงมาได้จากหน้าเว็บว่างเปล่า หรือรูปแบบวันที่/ตัวเลขไม่ถูกต้อง",
         "suggestion": "ตรวจสอบข้อมูลของช่วงวันที่ที่เลือก หรือเพิ่มขั้นตอน logic.if ตรวจสอบค่าว่าง"
-    }
+    },
 }
+
+# Not offered to the LLM: a Business error is decided by the flow itself (flow.fail), and Unknown is the
+# honest answer when nothing matches, instead of guessing a selector problem
+BUSINESS = {
+    "th_label": "ข้อมูลไม่ผ่านกฎทางธุรกิจ (flow.fail)",
+    "root_cause": "flow หยุดเองเพราะข้อมูลไม่ผ่านเงื่อนไขที่กำหนดไว้",
+    "suggestion": "ตรวจข้อมูลต้นทางของรายการนี้ หรือแก้เงื่อนไขใน flow ถ้าเงื่อนไขไม่ถูกต้อง",
+}
+UNKNOWN = {
+    "th_label": "ยังระบุสาเหตุไม่ได้",
+    "root_cause": "ข้อความ error ไม่ตรงกับรูปแบบที่รู้จัก",
+    "suggestion": "ดูข้อความ error และ step ที่ล้มด้วย kinenix hub logs หรือ kinenix hub report",
+}
+
+# Rule-based triage when the central LLM is not available: (words in the error, category), first match wins
+RULES = (
+    (("cookie", "consent"), "Cookie Consent / Security Modal"),
+    (("filenotfound", "no such file", "file not found", "excel file not found", "path does not exist"), "File / Resource Missing"),
+    (("timeout", "timed out", "net::err", "connection refused", "connectionerror"), "Page Load / Network Timeout"),
+    (("selector", "locator", "xpath", "element not found", "no element", "strict mode violation"), "UI Selector Not Found / DOM Changed"),
+    (("invalid literal", "could not convert", "valueerror", "does not match format", "empty table", "no rows"), "Data Validation / Format Error"),
+)
+
+
+def _rule_category(text: str) -> Optional[str]:
+    lower = text.lower()
+    for words, category in RULES:
+        if any(word in lower for word in words):
+            return category
+    return None
+
+
+def _llm_category(error_text: str, step: str) -> Optional[tuple]:
+    """(category, confidence) from the central LLM, or None when it is unavailable or answers outside the list."""
+    try:
+        payload = {
+            "type": "choice",
+            "instructions": f"วิเคราะห์ประเภทของความผิดพลาดในระบบบอทอัตโนมัติจากข้อความ Error: '{error_text}' ที่ขั้นตอน: '{step}'",
+            "criteria": {category: None for category in CATEGORIES},
+        }
+        res = requests.post(CENTRAL_LLM_URL, json=payload, timeout=5)
+        data = res.json() if res.status_code == 200 else None
+    except Exception as e:
+        logger.warning(f"Central OpenThai server call failed, using rule-based triage: {e}")
+        return None
+    if isinstance(data, dict) and data.get("choice") in CATEGORIES:
+        return data["choice"], float(data.get("score", 0.92))
+    return None
 
 
 def analyze_failure(
     flow_name: str,
     failed_step_name: Optional[str],
     error_message: Optional[str],
-    exception_class: Optional[str] = None
+    exception_class: Optional[str] = None,
+    error_type: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
-    Analyzes an automation failure using Central OpenThai-SystemOne model
-    to classify the error category and generate an executive Thai summary.
+    Classifies a failed run and writes a short Thai summary. A Business error (flow.fail) is reported as
+    such without asking the LLM; otherwise the central LLM decides, then word rules, and when neither
+    knows, the answer is "unknown" rather than a guess.
     """
     err_text = error_message or ""
     step_desc = failed_step_name or "ไม่ระบุขั้นตอน"
 
-    # Default fallback classification
-    best_category = "UI Selector Not Found / DOM Changed"
-    confidence = 0.85
-
-    # 1. Try invoking OpenThai-SystemOne on Port 8000
-    try:
-        criteria = {cat: None for cat in CATEGORIES.keys()}
-        payload = {
-            "type": "choice",
-            "instructions": f"วิเคราะห์ประเภทของความผิดพลาดในระบบบอทอัตโนมัติจากข้อความ Error: '{err_text}' ที่ขั้นตอน: '{step_desc}'",
-            "criteria": criteria
-        }
-        res = requests.post(CENTRAL_LLM_URL, json=payload, timeout=5)
-        if res.status_code == 200:
-            data = res.json()
-            if isinstance(data, dict) and "choice" in data:
-                detected_choice = data["choice"]
-                if detected_choice in CATEGORIES:
-                    best_category = detected_choice
-                    confidence = float(data.get("score", 0.92))
-    except Exception as e:
-        logger.warning(f"Central OpenThai server call failed, using rule-based triage: {e}")
-        # Rule-based fallback
-        lower_err = err_text.lower()
-        if "cookie" in lower_err or "consent" in lower_err:
-            best_category = "Cookie Consent / Security Modal"
-        elif "timeout" in lower_err or "timeoutexceeded" in lower_err or "wait_for" in lower_err:
-            best_category = "Page Load / Network Timeout"
-        elif "not found" in lower_err or "filenotfound" in lower_err:
-            best_category = "File / Resource Missing"
-
-    cat_meta = CATEGORIES.get(best_category, list(CATEGORIES.values())[0])
-
-    # 2. Synthesize clear Thai Executive Summary
-    summary_text = (
-        f"บอทไม่สามารถทำงานต่อได้ที่ขั้นตอน '{step_desc}' ของ Flow '{flow_name}' "
-        f"เนื่องจาก {cat_meta['root_cause']}"
-    )
+    if (error_type or "").lower() == "business":
+        meta, confidence = BUSINESS, 1.0
+        reason = f"{meta['root_cause']}: {err_text}" if err_text else meta["root_cause"]
+    else:
+        found = _llm_category(err_text, step_desc)
+        if found:
+            meta, confidence = CATEGORIES[found[0]], found[1]
+        else:
+            category = _rule_category(f"{exception_class or ''} {err_text}")
+            meta, confidence = (CATEGORIES[category], 0.6) if category else (UNKNOWN, 0.0)
+        reason = meta["root_cause"]
+        if meta is UNKNOWN and err_text:
+            reason = f"{reason} ({err_text[:200]})"
 
     return {
-        "category": cat_meta["th_label"],
+        "category": meta["th_label"],
         "confidence": round(confidence * 100, 1),
-        "summary": summary_text,
-        "root_cause": cat_meta["root_cause"],
-        "suggestion": cat_meta["suggestion"]
+        "summary": f"บอทไม่สามารถทำงานต่อได้ที่ขั้นตอน '{step_desc}' ของ Flow '{flow_name}' เนื่องจาก {reason}",
+        "root_cause": meta["root_cause"],
+        "suggestion": meta["suggestion"],
     }
-

@@ -311,3 +311,43 @@ FROM v_failures GROUP BY flow_name
 - A file that fails (an SQL error, more than one statement) is logged with its file name at start, and the Hub keeps starting.
 - The folder is the source of user views: when a file is removed, the Hub drops its view at the next start. Views hold no data, so nothing is lost.
 
+---
+
+## 8. How Machines Connect, and Troubleshooting
+
+### 8.1 Who connects to whom
+
+```text
+kinenix run / kinenix-worker  --HTTP-->  Hub (port 8080)  <--browser--  dashboard viewers
+   (any machine)                          (one machine)                 kinenix hub status/logs/report/query --url
+```
+
+- Workers and `kinenix run` always connect to the Hub; the Hub never connects to them. The only address to set is the Hub's.
+- `127.0.0.1` means "this machine". It is right on the Hub machine itself (what `kinenix hub setup` saves for local runs) and wrong on any other machine, which must use the Hub's LAN address or name, for example `http://192.168.1.137:8080` or `http://hub-host.local:8080`.
+- The Hub accepts other machines only when setup allowed it (`KINENIX_HUB_HOST=0.0.0.0`; the banner says `Listening on 0.0.0.0:8080 (all interfaces)`). Other machines then need the worker key to send runs and the dashboard password to read.
+- A dashboard opened at `http://127.0.0.1:8080` on another computer works only through a tunnel such as a VS Code Remote-SSH port forward; without one, open the Hub's LAN address.
+
+### 8.2 Where a machine finds its Hub
+
+In this order, the first one set wins:
+
+1. `kinenix run --hub URL` (one run)
+2. `KINENIX_HUB_URL` and `KINENIX_HUB_API_KEY` in the environment, including a worker service's `~/.kinenix/worker.env` and a bundle's `.env`
+3. `~/.kinenix/kinenix.env`, saved by `kinenix connect` or `kinenix hub setup`
+
+`kinenix connect` without arguments shows which one is used and whether the Hub answers. A run with no Hub ends with `Hub: not connected` in its log.
+
+### 8.3 Symptoms
+
+| Symptom | Cause | Fix |
+| :--- | :--- | :--- |
+| Run log ends with `Hub: not connected` | No Hub is set for this machine | `kinenix connect http://<hub>:8080`, or answer yes to the question in `kinenix hub setup` on the Hub machine |
+| `Hub rejected telemetry (HTTP 401)` | The key is missing or differs from the Hub's | On the Hub, `kinenix hub show-key`; on the worker, `kinenix connect` again with that key |
+| `HTTP 403` from another machine | The Hub has no worker key, so it accepts runs only from itself | On the Hub, `kinenix hub setup`, allow other machines (a key is created) |
+| `Cannot find the address of '<name>'` | The name does not resolve; `.local` names need mDNS (Avahi) on both machines | Use the IP address (on the Hub: `hostname -I`), or install `avahi-daemon` on the Hub and `libnss-mdns` on the worker |
+| `<name> was found, but nothing accepts connections on port 8080` | The Hub is not running, or listens on `127.0.0.1` only | On the Hub: `ss -ltnp \| grep 8080`; start `kinenix hub`, or run `kinenix hub setup` and allow other machines |
+| `No answer ... a firewall may block the port` | A firewall drops the connection | On the Hub: `sudo ufw allow 8080/tcp` (Linux), or an inbound rule on Windows ([Saved Settings](#saved-settings-first-run)) |
+| `kinenix connect` warns that an environment variable takes precedence | `worker.env`, `~/.bashrc`, or a bundle `.env` sets the Hub | Empty those values (then restart the worker service) to use the saved Hub |
+| `kinenix hub report` or `query` is an invalid choice | The `kinenix` on the path is an older install, not the repository's | `which kinenix`; activate the repository's `.venv`, or upgrade the installed package |
+| The Hub was updated but behaves as before | The running Hub still runs the old code | Restart it (`Ctrl+C` and `kinenix hub`, or `sudo systemctl restart kinenix-hub`) |
+

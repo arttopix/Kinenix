@@ -76,7 +76,7 @@ Read the matching file before working in that area:
 | Errors, retries, failure telemetry | `.agents/rules/error_handling.md` |
 | Logs and telemetry format | `.agents/rules/logging.md`, `docs/logging.md` |
 | Secrets, credentials, data privacy | `.agents/rules/security.md` |
-| Hub setup and API keys | `docs/hub.md` |
+| Hub setup and API keys; connecting machines and troubleshooting | `docs/hub.md` (section 8 for connections) |
 | Hub tables, views, run records, queries | `docs/hub_data.md` (update it with any column, view, or `details` key, then copy it to `kinenix-hub/kinenix_hub/hub_data.md`; tests check both), `docs/hub.md` section 7 |
 | Code style | `.agents/rules/coding_standards.md` |
 | Tests | `.agents/rules/testing_standards.md` |
