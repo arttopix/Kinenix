@@ -260,12 +260,26 @@ def short_id(execution_id: Optional[str]) -> str:
     return (execution_id or "-")[:SHORT_ID_LENGTH]
 
 
-def fetch_execution_log(base_url: str, auth: Optional[Tuple[str, str]], id_prefix: Optional[str]) -> Dict[str, Any]:
+def fetch_execution_log(base_url: str, auth: Optional[Tuple[str, str]], id_prefix: Optional[str],
+                        flow: Optional[str] = None) -> Dict[str, Any]:
     """Find an execution by ID prefix (latest when None) among recent runs and return it with its steps.
 
+    With `flow`, the latest run of that flow (an exact name or part of one), found by the Hub.
     Raises LookupError when no or several executions match, and requests.RequestException on network or HTTP errors.
     """
     base_url = base_url.rstrip("/")
+    if flow:
+        params = {"flow": flow, "run": id_prefix} if id_prefix else {"flow": flow}
+        res = requests.get(f"{base_url}/api/v1/query/runs", params=params, auth=auth, timeout=10)
+        if res.status_code == 400:
+            raise LookupError(res.json().get("detail", res.text))
+        if res.status_code == 404:
+            raise LookupError("This Hub is too old for --flow; give the execution ID instead.")
+        res.raise_for_status()
+        execution_id = res.json()["runs"][0]["execution_id"]
+        res = requests.get(f"{base_url}/api/v1/executions/{execution_id}/steps", auth=auth, timeout=5)
+        res.raise_for_status()
+        return res.json()
     res = requests.get(f"{base_url}/api/v1/executions", params={"limit": 200}, auth=auth, timeout=5)
     res.raise_for_status()
     executions = res.json()["executions"]

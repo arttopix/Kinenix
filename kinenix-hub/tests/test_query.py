@@ -267,3 +267,82 @@ def test_the_target_may_follow_options(tmp_path):
     res = subprocess.run([sys.executable, "-m", "kinenix.cli", "hub", "query", "a", "b"],
                          capture_output=True, text=True, timeout=60, env=env)
     assert res.returncode == 2 and "unrecognized arguments: b" in res.stderr
+
+
+def _report_run(flow_name, start, failed=False):
+    payload = {**RUN, "flow_name": flow_name, "start_time": start, "has_error": failed, "run_id": None}
+    res = client.post("/api/v1/telemetry", json={"worker_id": "report-worker", "payload": payload})
+    assert res.status_code == 200
+    return res.json()["execution_id"]
+
+
+@pytest.fixture(scope="module")
+def report_runs():
+    """Two runs of one flow and one of a flow whose name shares a word with it."""
+    return {
+        "old": _report_run("Monthly Invoice Export", "2026-09-01 08:00:00+07:00"),
+        "new": _report_run("Monthly Invoice Export", "2026-09-02 08:00:00+07:00", failed=True),
+        "other": _report_run("Monthly Payroll", "2026-09-03 08:00:00+07:00"),
+    }
+
+
+def test_latest_runs_by_flow_name(conn, report_runs):
+    runs = hub_query.latest_runs(conn, flow="monthly invoice export")
+    assert [r["execution_id"] for r in runs] == [report_runs["new"]]
+    assert runs[0]["report_md"].startswith("# Monthly Invoice Export, 2026-09-02 08:00 +07:00 (failed)")
+    assert [r["execution_id"] for r in hub_query.latest_runs(conn, flow="invoice", limit=5)] == [
+        report_runs["new"], report_runs["old"]]
+    with pytest.raises(hub_query.QueryError, match="matches 2 flows: Monthly Invoice Export, Monthly Payroll"):
+        hub_query.latest_runs(conn, flow="monthly")
+    with pytest.raises(hub_query.QueryError, match="No runs of a flow named 'nothing'. Flows with runs:"):
+        hub_query.latest_runs(conn, flow="nothing")
+
+
+def test_latest_runs_by_id(conn, report_runs):
+    prefix = report_runs["old"][:8]
+    assert hub_query.latest_runs(conn, run=prefix)[0]["execution_id"] == report_runs["old"]
+    with pytest.raises(hub_query.QueryError, match="No run ID starts with"):
+        hub_query.latest_runs(conn, run="zzzz")
+    with pytest.raises(hub_query.QueryError, match="between 1 and"):
+        hub_query.latest_runs(conn, limit=0)
+
+
+def test_runs_endpoint(report_runs):
+    res = client.get("/api/v1/query/runs", params={"flow": "payroll"})
+    assert res.status_code == 200 and res.json()["runs"][0]["execution_id"] == report_runs["other"]
+    assert client.get("/api/v1/query/runs", params={"flow": "monthly"}).status_code == 400
+    assert remote_client.get("/api/v1/query/runs").status_code == 403
+
+
+def test_report_command(report_runs):
+    console = Console(record=True, width=60, color_system=None)
+    errors = Console(record=True, width=60, color_system=None)
+    args = _args(flow="invoice", limit=2)
+    assert query_console.main(console, errors, args, hub_config, False, query_console.report_command) == 0
+    out = console.export_text()
+    assert out.index("2026-09-02") < out.index("2026-09-01")  # newest first
+    assert f"Steps: kinenix hub logs {report_runs['new'][:8]}" in out
+    # A long line is not broken into two, so it copies whole
+    assert any(len(line) > 60 and line.startswith("- Failed: R007") for line in out.splitlines())
+    assert query_console.main(console, errors, _args(flow="monthly"), hub_config, False, query_console.report_command) == 1
+    assert "Type more of the name" in errors.export_text()
+
+
+def test_logs_for_the_latest_run_of_a_flow():
+    from unittest.mock import MagicMock, patch
+    from kinenix_hub import console as hub_console
+
+    runs = MagicMock(status_code=200)
+    runs.json.return_value = {"runs": [{"execution_id": "abc12345-run"}]}
+    steps = MagicMock(status_code=200)
+    steps.json.return_value = {"execution": {"id": "abc12345-run"}, "steps": []}
+    with patch("kinenix_hub.console.requests.get", side_effect=[runs, steps]) as get:
+        assert hub_console.fetch_execution_log("http://hub:8080", None, None, flow="invoice")["execution"]["id"] == "abc12345-run"
+    assert get.call_args_list[0].kwargs["params"] == {"flow": "invoice"}
+    assert get.call_args_list[1].args[0] == "http://hub:8080/api/v1/executions/abc12345-run/steps"
+
+    ambiguous = MagicMock(status_code=400)
+    ambiguous.json.return_value = {"detail": "'monthly' matches 2 flows"}
+    with patch("kinenix_hub.console.requests.get", return_value=ambiguous):
+        with pytest.raises(LookupError, match="matches 2 flows"):
+            hub_console.fetch_execution_log("http://hub:8080", None, None, flow="monthly")
