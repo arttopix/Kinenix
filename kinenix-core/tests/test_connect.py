@@ -140,3 +140,16 @@ def test_show_and_disconnect(capsys):
     assert "http://hub:8080" in out and "kinenix.env" in out and "key-12345" not in out
     assert connect.disconnect() == 0
     assert workspace.saved_settings() == {}
+
+
+def test_telemetry_says_why_the_hub_was_not_reached(caplog):
+    """A run whose Hub is down keeps its log and says why in plain words, as kinenix connect does."""
+    from kinenix.engine.logger import ExecutionLogger
+    from kinenix.models.context import ExecutionContext
+
+    with patch("requests.post", side_effect=requests.ConnectionError("refused")), \
+            patch("kinenix.connect.socket.getaddrinfo", return_value=[]), \
+            caplog.at_level("WARNING", logger="kinenix"):
+        ExecutionLogger(log_dir=None)._send_telemetry("http://hub.local:8080", {}, ExecutionContext(flow_name="x"))
+    assert "The run was not sent to the Hub. hub.local was found, but nothing accepts connections on port 8080" in caplog.text
+    assert "kept on this machine" in caplog.text

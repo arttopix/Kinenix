@@ -39,7 +39,7 @@ class CheckResult(NamedTuple):
     key_checked: bool = True
 
 
-def _unreachable(url: str, error: requests.RequestException) -> str:
+def describe_unreachable(url: str, error: requests.RequestException) -> str:
     """Why the Hub does not answer: the name, the port, or no answer at all."""
     parsed = urlparse(url)
     host, port = parsed.hostname or "", parsed.port or (443 if parsed.scheme == "https" else DEFAULT_PORT)
@@ -60,7 +60,7 @@ def check(url: str, key: Optional[str]) -> CheckResult:
     try:
         health = requests.get(f"{url}/api/v1/healthz", timeout=TIMEOUT)
     except requests.RequestException as e:
-        return CheckResult(False, _unreachable(url, e))
+        return CheckResult(False, describe_unreachable(url, e))
     if health.status_code != 200:
         return CheckResult(False, f"{url} answered HTTP {health.status_code}; it does not look like a Kinenix Hub.")
     try:

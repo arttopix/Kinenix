@@ -2,6 +2,26 @@
 
 `kinenix`, `kinenix-hub`, and `kinenix-worker` are released together with one version. How to release: [docs/releasing.md](docs/releasing.md).
 
+## 0.3.0b1 (2026-10-16)
+
+Expressions: count, join, clean, pick, and calculate values inside `${...}`, safely. Design: [docs/design/expressions.md](docs/design/expressions.md).
+
+**Add `> Requires: kinenix>=0.3.0b1` to a flow that uses expressions or `and` / `or` / `not`** (`kinenix validate` says when). Kinenix 0.2.0b4 and older turn `${len(rows)}` into empty text and read `and` as part of a value, without an error. Upgrade every worker first.
+
+### Flows
+
+- Functions in `${...}`: `len`, `join`, `number`, `trim`, `lower`, `upper`, `replace`, `default`, `round`, `part`, `substring`; `+ - * / %` on numbers; indexing such as `${rows[0].id}` and `${row['Unit Price (THB)']}` (#56).
+- Conditions join comparisons with `and`, `or`, and `not`; a value such as `Johnson and Johnson` is not split.
+- Nothing written in a flow can run code: expressions are parsed and checked against a fixed list, without `eval`. `${x.__class__}`, which read Python internals before, now gives empty.
+- A variable that exists is read as before, so keys such as `First Name` or `Role in Company` keep working. A missing key written with clear expression syntax (a function call, brackets, quotes, or `+ * / % < > = !`) now reports an error instead of giving empty.
+- `kinenix validate` reports expression errors and unknown functions with their line.
+
+### Also
+
+- When a run cannot reach the Hub, the log says why in plain words (name not found, Hub not running, firewall), as `kinenix connect` does.
+- The copyright owner is named in every LICENSE and NOTICE file.
+- www.kinenix.com is rebuilt when the documentation on `main` changes.
+
 ## 0.2.0b4 (2026-10-16)
 
 Phase 2: subflows, error handling, and run records that people and AI can query.
