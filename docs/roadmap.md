@@ -45,6 +45,7 @@ Toward 1.0.0, a `flow.md` written for 1.0 keeps running on every 1.x version.
 Automated:
 - [ ] Functions `len`, `join`, `number`, `trim`, `replace`, `lower`, `upper`, `default`; `+ - * /` and comparisons; indexing `rows[0]` and `row['name']`; `and`, `or`, `not` in conditions; each with tests, including bad input
 - [ ] Unknown functions, attribute access such as `__class__`, and anything outside the list are refused with a clear message (security tests)
+- [ ] Fuzz test: thousands of random and malformed expressions never crash the parser, never hang, and never run code
 - [ ] Every existing example and test flow compiles and runs unchanged
 - [ ] All four test suites pass, and CI is green
 
@@ -129,7 +130,8 @@ Release:
 Before the release candidate:
 - [ ] `docs/compatibility.md`: what stays stable for all of 1.x (`flow.md` syntax, action names and parameters, CLI commands, Hub API and views, settings files) and what may still change (Studio, ask router)
 - [ ] Deprecations announced for 2.0, with a warning when used: the `orchestrator` names and `ORCHESTRATOR_*` variables, `on_error: retry`, `fallback_step_id`, `kinenix export-md`
-- [ ] Code and security review of kinenix-core and kinenix-hub, with every finding fixed or moved to a milestone
+- [ ] Threat model of kinenix-core, kinenix-worker, and kinenix-hub (flows from others running code, secrets in logs and on the Hub, access to the Hub on the LAN without HTTPS, `hub query` changing data, file paths leaving their folder, dashboard XSS), and a code and security review against it, with every finding fixed or moved to a milestone
+- [ ] Security checks in CI on every pull request: `pip-audit` (no dependency with a known vulnerability) and `bandit` (every finding fixed or explained in the code)
 - [ ] `docs/releasing.md` installs from TestPyPI without its broken copies of other packages
 - [ ] Release `1.0.0rc1`
 
@@ -146,6 +148,15 @@ Release:
 **Compatibility:** no breaking change from 0.5.0b1. Deprecated names keep working, with a warning, until 2.0.
 
 **Out of scope (after 1.0.0):** developer tools (1.1.0); a Hub service installer and a Docker image; `kinenix connect --name` and finding the Hub on the LAN automatically; the MCP server over Hub data; `kinenix record`; WebSocket job dispatch; PostgreSQL; Studio (paused).
+
+### Later: measured limits
+
+Noted on 2026-10-16 and not scheduled yet; correctness comes first (0.3.0b1 to 0.5.0b1), then security (1.0.0).
+
+- Resource use measured on each platform (RAM and CPU of a worker with and without a browser, and of the Hub; startup time; time per step), published as system requirements
+- Several flows running at the same time on one worker: no clash of log files, output files, or settings, and the Hub receives every run
+- Hub load: many workers sending runs at once, a large `hub.db`, and the time `query` and `report` take
+- macOS in CI
 
 ### 1.1.0: Developer tools
 
