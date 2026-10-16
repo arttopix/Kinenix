@@ -96,29 +96,29 @@ This ties the component to the caller's key names, so prefer `inputs` for compon
 
 The project bundle structure directly enables a robust deployment pipeline to unattended robot workers (`kinenix-worker`):
 
-> **Status:** Phase 1 and the sandbox workspace in Phase 4 (`kinenix-worker run --sandbox`) are implemented. Packaging, Hub distribution, the worker cache, and WebSocket streaming (Phases 2, 3, 5) are planned. See [roadmap.md](roadmap.md).
+> **Status:** Stage 1 and the sandbox workspace in Stage 4 (`kinenix-worker run --sandbox`) are implemented. Packaging, Hub distribution, the worker cache, and WebSocket streaming (Stages 2, 3, 5) are planned. See [roadmap.md](roadmap.md).
 
 ```text
 [ Developer Machine ] -> [ Kinenix Hub ] -> [ Unattended Worker Daemon ]
   Local Dev & Test          Package & Version          Isolated Sandbox Execution
 ```
 
-### Phase 1: Local Development & Verification
+### Stage 1: Local Development & Verification
 - Developer authors and tests the workflow locally within `flows/<dept>/<project>/`.
 - Run and debug via CLI: `kinenix run <project_name>`.
 - All assets remain inside `./assets/` and logs are written to central `logs/`.
 
-### Phase 2: Packaging & Versioning
+### Stage 2: Packaging & Versioning
 - The project bundle directory is packaged into a versioned archive (e.g. `invoice_tax_filing-1.0.0.kinpkg` or `.zip`).
 - Any referenced `@shared/` flows are inlined by the packaging tool into the bundle, ensuring the archive is 100% self-contained.
 - The package is published to **Kinenix Hub**.
 
-### Phase 3: Distribution & Local Worker Cache
+### Stage 3: Distribution & Local Worker Cache
 - Background daemons (`kinenix-worker`) running on target worker machines (Windows VMs, PCs, or Raspberry Pi) connect to Hub via WebSocket.
 - When a job is dispatched, the worker checks its local package cache (`~/.kinenix/packages/` or `C:\ProgramData\Kinenix\packages\`).
 - If the requested version is not present or updated, the worker downloads and verifies the package archive.
 
-### Phase 4: Sandbox Workspace Isolation
+### Stage 4: Sandbox Workspace Isolation
 - Prior to execution, the worker unpacks the project bundle into an isolated, per-job workspace directory:
   ```text
   ~/.kinenix/workspaces/job_20260911_001/
@@ -128,6 +128,6 @@ The project bundle structure directly enables a robust deployment pipeline to un
   ```
 - This ensures complete filesystem isolation, eliminates cross-job file locking or corruption, and allows clean workspace disposal after job completion.
 
-### Phase 5: Execution & Telemetry
+### Stage 5: Execution & Telemetry
 - Worker executes the bundle: `kinenix-worker run <bundle>`.
 - Step results, business metrics, and failure screenshots are streamed in real time to the Hub dashboard.
