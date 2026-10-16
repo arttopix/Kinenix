@@ -6,6 +6,21 @@ Legend: `[x]` done, `[~]` partially done, `[ ]` not started.
 
 ---
 
+## 0. Release 1.0.0 (target 2026-10-27)
+
+1.0.0 makes the core dependable: a `flow.md` written for 1.0 keeps running on every 1.x version. The GitHub milestones (not the phase numbers below) track the work.
+
+| Milestone | Content | Target | Status |
+| :--- | :--- | :--- | :--- |
+| Phase 2: Subflows and error handling | On Error and Finally, `${error}`, retries, subflow context, run records, Hub queries; release 0.2.0b4 | 2026-10-17 | Code done; releasing |
+| Phase 3: Expressions | Safe functions and arithmetic in `${...}` (#56), without `eval` | 2026-10-20 | Not started |
+| Phase 4: Web actions | `web.goto` (#58), `web.choose` (#57), `web.get_list` (#55) | 2026-10-23 | Not started |
+| 1.0.0rc1 | What 1.0 keeps stable (flow.md syntax, action names and parameters, CLI commands, Hub API and views), deprecations announced for 2.0, code and security review | 2026-10-24 | Not started |
+| Field test | rc1 on the Raspberry Pi worker, the Ubuntu Hub, and Windows with a real flow; bug fixes only | 2026-10-26 | Not started |
+| 1.0.0 | Release | 2026-10-27 | Not started |
+
+Phase 5 (developer tools: `kinenix graph`, VS Code extension) comes after 1.0.0.
+
 ## 1. Next Priorities
 
 Ordered so that safety and predictable runtime behavior come before new distributed features.

@@ -136,6 +136,16 @@ kinenix-worker ping
 
 Runs started on the Hub machine itself go to the Hub without this step: `kinenix hub` setup offers to send them there.
 
+When a run fails, ask the Hub what happened:
+
+```bash
+kinenix hub report --flow my-bot              # items done and failed, each failure with its item and step
+kinenix hub logs --flow my-bot                # every step of that run
+kinenix hub query v_failures --since yesterday
+```
+
+A run that does not show up: [Hub guide, How Machines Connect, and Troubleshooting](hub.md#8-how-machines-connect-and-troubleshooting).
+
 ---
 
 ## Where next
