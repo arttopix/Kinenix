@@ -31,7 +31,7 @@ Use these values:
 | Field | Value |
 | :--- | :--- |
 | Owner | `arttopix` |
-| Repository name | `Kinenix` |
+| Repository name | `kinenix` |
 | Workflow name | `release.yml` |
 | Environment name | `pypi` for `kinenix`, **`pypi-hub`** for `kinenix-hub`, **`pypi-worker`** for `kinenix-worker` |
 
@@ -89,6 +89,14 @@ pip install --upgrade "kinenix[hub]"      # or "kinenix[worker]"
 On Windows, stop any running `kinenix hub` or `kinenix-worker` from that environment first. Windows locks the running `kinenix.exe`, so pip can remove the old version but fail to install the new one, leaving `kinenix` uninstalled. If that happens, stop the process and run the same command again. A folder named like `~inenix-...dist-info` left in `site-packages` by the failed attempt can be deleted.
 
 On a Raspberry Pi running the systemd service: `sudo systemctl stop kinenix-worker`, upgrade, then `sudo systemctl start kinenix-worker`.
+
+### Order of upgrades from 0.2.0b3 or older
+
+1. **Upgrade every worker first.** Kinenix 0.2.0b3 and older do not know `## On Error` and `## Finally`: they run those steps as ordinary steps, so an error e-mail would be sent on every successful run. Deploy flows that use them only after every machine that runs them has 0.2.0b4 or newer (`kinenix version`), and add `> Requires: kinenix>=0.2.0b4` under their titles.
+2. **Upgrade the Hub.** The first start migrates `hub.db` in place and fills in the steps, failures, and run reports of the runs already stored; on a large database that start takes longer. Back up `hub.db` first (stop the Hub, then copy it).
+3. Optionally replace the Hub settings in each worker's environment with `kinenix connect http://<hub>:8080`.
+
+Each release's changes and upgrade notes are in [CHANGELOG.md](../CHANGELOG.md).
 
 ---
 
