@@ -238,25 +238,29 @@ def main():
     # Command: hub
     # "orchestrator" is the name from before the rename to Hub and still works as an alias
     hub_parser = subparsers.add_parser("hub", aliases=["orchestrator"], help="Start the Kinenix Hub, set it up, or show its workers and executions")
-    hub_parser.add_argument("action", nargs="?", choices=["start", "status", "logs", "query", "setup", "show-key"], default="start",
+    hub_parser.add_argument("action", nargs="?", choices=["start", "status", "logs", "report", "query", "setup", "show-key"], default="start",
                              help="'start' runs the server (default; asks setup questions on first run); "
                                   "'status' shows workers and recent executions of a running server; "
-                                  "'logs [ID]' shows the steps of one execution (latest when ID is omitted); "
+                                  "'logs [ID]' shows the steps of one execution (latest when ID is omitted; --flow NAME for a flow's latest); "
+                                  "'report [ID]' shows the short report of the latest run (--flow NAME, --limit N for more); "
                                   "'query' reads runs, steps, and failures (read-only; see --list); "
                                   "'setup' changes the saved settings; 'show-key' prints the worker API key")
     hub_parser.add_argument("target", nargs="?", default=None,
-                             help="For 'logs': execution ID or its first characters, as shown by 'status'. "
+                             help="For 'logs' and 'report': execution ID or its first characters, as shown by 'status'. "
                                   "For 'query': a view or table name (v_failures), or one SQL SELECT in quotes")
     hub_parser.add_argument("--url", default=None,
                              help="Hub URL for 'status' and 'logs' (default: http://127.0.0.1:<port>); "
                                   "for 'query', ask that Hub instead of reading hub.db on this machine")
     hub_parser.add_argument("--limit", type=int, default=None,
-                             help="Recent executions shown by 'status' (default: 10); rows returned by 'query' (default: 50)")
+                             help="Recent executions shown by 'status' (default: 10); reports shown by 'report' (default: 1); "
+                                  "rows returned by 'query' (default: 50)")
     query_options = hub_parser.add_argument_group("query options")
     query_options.add_argument("--list", action="store_true", help="List tables and views, their row counts, and what they answer")
     query_options.add_argument("--describe", metavar="NAME", default=None, help="Show the columns of a table or view and what they mean")
     query_options.add_argument("--since", default=None, help="Only rows from this time: today, yesterday, 30m, 12h, 7d, 2w, or a date (2026-10-12)")
-    query_options.add_argument("--flow", default=None, help="Only rows of this flow (flow_name)")
+    query_options.add_argument("--flow", default=None,
+                               help="'logs' and 'report': the latest run of this flow (exact name or part of it); "
+                                    "'query': only rows of this flow (flow_name)")
     query_options.add_argument("--worker", default=None, help="Only rows of this worker (worker_id)")
     query_options.add_argument("--status", default=None, help="Only rows with this status (success, failed, skipped)")
     query_options.add_argument("--filter", action="append", metavar="COLUMN=VALUE", help="Only rows where a column has this value; repeat for more")
@@ -572,9 +576,10 @@ def main():
 
         port = args.port or hub_config.PORT
 
-        if args.action == "query":
+        if args.action in ("query", "report"):
             from kinenix_hub import query_console
-            sys.exit(query_console.main(console, Console(stderr=True), args, hub_config, interactive))
+            command = query_console.report_command if args.action == "report" else None
+            sys.exit(query_console.main(console, Console(stderr=True), args, hub_config, interactive, command))
 
         if args.action in ("status", "logs"):
             import requests
@@ -587,7 +592,7 @@ def main():
                         if args.action == "status":
                             data = hub_console.fetch_status(url, auth, args.limit or 10)
                         else:
-                            data = hub_console.fetch_execution_log(url, auth, args.target)
+                            data = hub_console.fetch_execution_log(url, auth, args.target, args.flow)
                     break
                 except LookupError as e:
                     console.print(f"[bold red]Error:[/] {e}")

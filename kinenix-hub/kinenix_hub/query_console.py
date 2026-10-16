@@ -41,6 +41,9 @@ class _Local:
         source = request.pop("source")
         return hub_query.run(self.conn, source, **request).to_dict()
 
+    def runs(self, flow: Optional[str], run: Optional[str], limit: int) -> List[Dict[str, Any]]:
+        return hub_query.latest_runs(self.conn, flow=flow, run=run, limit=limit)
+
 
 class _Remote:
     """Answers from a Hub over HTTP; HTTP errors are raised as requests.HTTPError."""
@@ -65,6 +68,10 @@ class _Remote:
 
     def run(self, request: Dict[str, Any]) -> Dict[str, Any]:
         return self._check(requests.post(f"{self.url}/api/v1/query", json=request, auth=self.auth, timeout=30))
+
+    def runs(self, flow: Optional[str], run: Optional[str], limit: int) -> List[Dict[str, Any]]:
+        params = {k: v for k, v in {"flow": flow, "run": run, "limit": limit}.items() if v}
+        return self._check(requests.get(f"{self.url}/api/v1/query/runs", params=params, auth=self.auth, timeout=15))["runs"]
 
 
 def parse_filters(pairs: Optional[List[str]]) -> Dict[str, str]:
@@ -227,12 +234,25 @@ def open_source(args: Any, hub_config: Any, auth: Optional[Tuple[str, str]]) -> 
     return _Local(hub_query.database_path(hub_config.DATABASE_URL), hub_config.VIEWS_DIR)
 
 
-def main(console: Console, error_console: Console, args: Any, hub_config: Any, interactive: bool) -> int:
-    """Exit code of `kinenix hub query`."""
+def report_command(console: Console, args: Any, source: Any, error_console: Optional[Console] = None) -> None:
+    """`kinenix hub report [ID] [--flow NAME] [--limit N]`: the run reports, newest first. Raises QueryError."""
+    runs = source.runs(args.flow, args.target, args.limit or 1)
+    for number, run in enumerate(runs):
+        if number:
+            console.print()
+        report = run.get("report_md") or f"# {run['flow_name']} ({run['status']})\nNo report was stored for this run.\n"
+        console.print(Text(report.rstrip("\n")), soft_wrap=True)  # long lines are not cut, so they copy whole
+        console.print(Text(f"Steps: kinenix hub logs {(run['execution_id'] or '')[:8]}", style="dim"))
+
+
+def main(console: Console, error_console: Console, args: Any, hub_config: Any, interactive: bool,
+         command: Any = None) -> int:
+    """Exit code of `kinenix hub query` (or of `command`, such as report_command, with the same sources and errors)."""
+    command = command or run_command
     auth = (hub_config.DASHBOARD_USER, hub_config.DASHBOARD_PASSWORD) if hub_config.DASHBOARD_PASSWORD else None
     while True:
         try:
-            run_command(console, args, open_source(args, hub_config, auth), error_console)
+            command(console, args, open_source(args, hub_config, auth), error_console)
             return 0
         except hub_query.QueryError as e:
             error_console.print(f"[bold red]Error:[/] {escape(str(e))}")

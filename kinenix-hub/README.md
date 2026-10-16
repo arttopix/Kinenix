@@ -24,6 +24,7 @@ This installs `kinenix-hub` together with `kinenix`, which provides the `kinenix
 kinenix hub              # start; the first run asks a few setup questions and saves them
 kinenix hub status       # workers and recent executions
 kinenix hub logs         # steps of the latest execution
+kinenix hub report --flow "BOT FX"   # how the latest run of a flow went
 kinenix hub query v_failures --since yesterday   # what failed, where, on which item
 kinenix hub show-key     # the API key to give to workers
 ```

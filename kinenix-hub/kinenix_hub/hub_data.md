@@ -250,7 +250,7 @@ Schema changes applied to this database ([hub.md, Upgrades](hub.md#61-upgrades))
 
 ## Run report
 
-Each run gets a short Markdown report in `executions.details.report_md` (`v_runs.report_md`), for people, e-mail, and AI. Times are the worker's local time.
+Each run gets a short Markdown report in `executions.details.report_md` (`v_runs.report_md`), for people, e-mail, and AI. Times are the worker's local time. `kinenix hub report --flow NAME` prints the report of a flow's latest run.
 
 ```markdown
 # TIPH Quotes, 2026-10-12 02:00 +07:00 (failed)

@@ -48,7 +48,8 @@ kinenix validate flows/examples/rpachallenge   # unknown actions and ignored par
 kinenix connect http://<hub-ip>:8080   # send this machine's runs to a Hub (asks for and checks the key)
 kinenix hub            # first run asks setup questions and saves them
 kinenix hub status     # workers and recent executions of a running server
-kinenix hub logs [ID]  # steps of one execution (latest when ID is omitted)
+kinenix hub logs [ID]  # steps of one execution (latest when ID is omitted; --flow NAME for a flow's latest)
+kinenix hub report --flow NAME   # short report of a flow's latest run (--limit N for more)
 kinenix hub query v_failures --since yesterday   # read-only questions to hub.db (--list, --describe, SQL)
 ```
 

@@ -271,3 +271,60 @@ def describe(conn: _Connection, name: str, views_dir: Optional[Path] = None) -> 
         "columns": columns,
         "details_keys": [{"name": k, "meaning": m, "example": e} for k, (m, e) in details.columns.items()] if details else [],
     }
+
+
+RUN_COLUMNS = ("execution_id", "run_id", "flow_name", "worker_id", "status", "started_at", "duration_seconds",
+               "failure_count", "report_md")
+MAX_RUNS = 100
+
+
+def match_flow(conn: _Connection, text: str) -> str:
+    """
+    The flow name that `text` means: an exact name (any case), else the only name that contains it.
+    Several or no matches raise QueryError naming the flows, so the person can type more of the name.
+    """
+    conn.start_clock()
+    names = sorted(r[0] for r in conn.execute("SELECT DISTINCT flow_name FROM executions WHERE flow_name IS NOT NULL"))
+    wanted = text.strip().lower()
+    exact = [n for n in names if n.lower() == wanted]
+    if exact:
+        return exact[0]
+    partial = [n for n in names if wanted in n.lower()]
+    if len(partial) == 1:
+        return partial[0]
+    if partial:
+        raise QueryError(f"'{text}' matches {len(partial)} flows: {', '.join(partial)}. Type more of the name.")
+    known = f" Flows with runs: {', '.join(names[:20])}." if names else " No runs are recorded yet."
+    raise QueryError(f"No runs of a flow named '{text}'.{known}")
+
+
+def latest_runs(conn: _Connection, flow: Optional[str] = None, run: Optional[str] = None,
+                limit: int = 1) -> List[Dict[str, Any]]:
+    """
+    The newest runs, of one flow when `flow` is given (matched as in match_flow), or the run whose
+    execution id or run id starts with `run`. For `kinenix hub report` and `kinenix hub logs --flow`.
+    """
+    if not 1 <= limit <= MAX_RUNS:
+        raise QueryError(f"--limit must be between 1 and {MAX_RUNS}.")
+    conditions: List[str] = []
+    params: List[Any] = []
+    if flow:
+        conditions.append("flow_name = ?")
+        params.append(match_flow(conn, flow))
+    if run:
+        conditions.append("(execution_id LIKE ? OR run_id LIKE ?)")
+        params += [f"{run.strip()}%", f"{run.strip()}%"]
+    sql = f"SELECT {', '.join(RUN_COLUMNS)} FROM v_runs"
+    if conditions:
+        sql += " WHERE " + " AND ".join(conditions)
+    sql += " ORDER BY started_at DESC LIMIT ?"
+    result = _execute(conn, sql, params + [MAX_RUNS if run else limit], MAX_RUNS)
+    runs = [dict(zip(result.columns, row)) for row in result.rows]
+    if run:
+        if not runs:
+            raise QueryError(f"No run ID starts with '{run}'.")
+        if len({r["execution_id"] for r in runs}) > 1:
+            raise QueryError(f"'{run}' matches {len(runs)} runs; type more characters of the ID.")
+    elif not runs:
+        raise QueryError("No runs are recorded yet.")
+    return runs[:limit]

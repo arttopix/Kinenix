@@ -209,6 +209,18 @@ def query_describe(name: str):
         conn.close()
 
 
+@app.get("/api/v1/query/runs", dependencies=[Depends(require_dashboard_auth)])
+def query_runs(flow: Optional[str] = None, run: Optional[str] = None, limit: int = 1):
+    """Newest runs with their reports, of one flow or by ID (`kinenix hub report`, `kinenix hub logs --flow`)."""
+    conn = _query_connection()
+    try:
+        return {"runs": hub_query.latest_runs(conn, flow=flow, run=run, limit=limit)}
+    except hub_query.QueryError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        conn.close()
+
+
 @app.post("/api/v1/query", dependencies=[Depends(require_dashboard_auth)])
 def run_query(req: QueryRequest):
     conn = _query_connection()

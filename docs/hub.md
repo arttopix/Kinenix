@@ -62,7 +62,15 @@ kinenix hub status                                   # http://127.0.0.1:8080
 kinenix hub status --url http://<hub-ip>:8080 --limit 20
 kinenix hub logs                                     # steps of the latest execution
 kinenix hub logs 54f84bd6                            # steps of one execution, by the ID shown in status
+kinenix hub logs --flow "BOT FX"                     # steps of the latest run of a flow
+kinenix hub report --flow "BOT FX"                   # short report of the latest run of a flow
+kinenix hub report --flow invoice --limit 3          # the last three reports, newest first
+kinenix hub report 54f84bd6                          # report of one execution
 ```
+
+`--flow` takes the flow's name, or part of it in any case: `invoice` finds `Monthly Invoice Export`. When the text matches several flows, the command lists them so you can type more of the name.
+
+`report` prints the run report described in [hub_data.md](hub_data.md#run-report): items done and failed, each failure with its item, step, subflow, line, and how it was handled, and the On Error and Finally results. Like `query` ([section 7](#7-querying-runs)), it reads `hub.db` on the Hub machine without a running Hub, or a Hub on another machine with `--url`. `logs` and `status` always ask a running Hub.
 
 `logs` shows each step's name, action, status, duration, and error, plus the failure and AI summary of a failed run. The dashboard shows the same table from the "ดู Steps" button on each execution. Step output and flow variables are stored in the execution log but are not shown, because they can contain business data. Worker messages outside flow steps (heartbeat problems, service start) stay on the worker; on a Raspberry Pi service, read them with `journalctl -u kinenix-worker -f`.
 
