@@ -165,7 +165,8 @@ def reanalyze_execution(execution_id: str, db: Session = Depends(get_db)):
         flow_name=execution.flow_name,
         failed_step_name=execution.failed_step_name,
         error_message=execution.error_message,
-        exception_class=execution.exception_class
+        exception_class=execution.exception_class,
+        error_type=execution.error_type
     )
     execution.ai_category = ai_res.get("category")
     execution.ai_confidence = ai_res.get("confidence")

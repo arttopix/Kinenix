@@ -1,6 +1,6 @@
 # kinenix-hub
 
-The **Kinenix Hub** is the central server of [Kinenix](https://github.com/arttopix/Kinenix), an open-source, local AI-native RPA framework in Python. Workers report to it, and you watch everything from one place.
+The **Kinenix Hub** is the central server of [Kinenix](https://github.com/arttopix/kinenix), an open-source, local AI-native RPA framework in Python. Workers report to it, and you watch everything from one place.
 
 > **Status: beta.** Job dispatch from the Hub to workers is planned; today workers run their own schedules and report to the Hub.
 
@@ -33,9 +33,9 @@ Settings are saved in `~/.kinenix/hub.env` and data in `~/.kinenix/hub.db`. On a
 
 ## Documentation
 
-- [Hub guide](https://github.com/arttopix/Kinenix/blob/main/docs/hub.md): setup, authentication, saved settings, and the API
-- [Worker guide](https://github.com/arttopix/Kinenix/blob/main/kinenix-worker/README.md)
-- [Project README](https://github.com/arttopix/Kinenix#readme)
+- [Hub guide](https://github.com/arttopix/kinenix/blob/main/docs/hub.md): setup, authentication, saved settings, and the API
+- [Worker guide](https://github.com/arttopix/kinenix/blob/main/kinenix-worker/README.md)
+- [Project README](https://github.com/arttopix/kinenix#readme)
 
 ## License
 

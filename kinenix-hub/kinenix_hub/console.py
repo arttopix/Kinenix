@@ -209,6 +209,21 @@ def _ago(iso_timestamp: Optional[str], now: Optional[datetime] = None) -> str:
     return f"{seconds // 86400}d ago"
 
 
+def _local_time(iso_timestamp: Optional[str]) -> str:
+    """A stored UTC time as this machine's local time, for people: 2026-10-15 14:06:27 +07:00."""
+    if not iso_timestamp:
+        return "-"
+    try:
+        value = datetime.fromisoformat(iso_timestamp)
+    except ValueError:
+        return iso_timestamp
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    local = value.astimezone()
+    offset = local.strftime("%z")
+    return f"{local:%Y-%m-%d %H:%M:%S} {offset[:3]}:{offset[3:]}"
+
+
 def _styled(value: str, styles: Dict[str, str]) -> Text:
     return Text(value or "-", style=styles.get(value, ""))
 
@@ -311,7 +326,7 @@ def print_execution_log(console: Console, data: Dict[str, Any], now: Optional[da
     header.add_row("Flow", Text(e.get("flow_name") or "-"))
     header.add_row("Worker", Text(e.get("worker_id") or "-"))
     header.add_row("Status", _styled(e.get("status"), EXECUTION_STATUS_STYLES))
-    header.add_row("Started", f"{e.get('start_time') or '-'} ({_ago(e.get('created_at'), now)})")
+    header.add_row("Started", f"{_local_time(e.get('start_time'))} ({_ago(e.get('created_at'), now)})")
     header.add_row("Duration", f"{e.get('duration_seconds') or 0:.1f}s")
     header.add_row("ID", e.get("id") or "-")
     if failed:

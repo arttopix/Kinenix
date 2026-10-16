@@ -223,7 +223,11 @@ class FlowInterpreter:
         elif context:
             error_screenshot_path = self._try_capture_failure_screenshot(step, context)
 
-        if isinstance(exc, SubflowExecutionError):
+        if error_type == "Business" and not isinstance(exc, SubflowExecutionError):
+            # flow.fail: the flow stopped on purpose; it is not a defect in the step
+            root_cause = f"Business rule in step '{step.name}' was not met: {err_msg}"
+            suggested_fix = "Check the input data of this item, or change the condition in flow.md if the rule itself is wrong."
+        elif isinstance(exc, SubflowExecutionError):
             root_cause = f"Subflow execution failed in '{exc.subflow_name}': {err_msg}"
             suggested_fix = f"Inspect child subflow '{exc.subflow_name}' definition and input parameters passed in step '{step.id}'."
         elif isinstance(exc, FileNotFoundError) or ("not found" in err_msg.lower() and "file" in err_msg.lower()):
@@ -239,7 +243,7 @@ class FlowInterpreter:
             root_cause = f"Referenced variable or key {err_msg} is missing from execution context."
             suggested_fix = "Ensure preceding steps initialize this variable or verify variable expression spelling."
         else:
-            root_cause = f"Unhandled {exc_class} in step '{step.name}' ({step.action}): {err_msg}"
+            root_cause = f"{exc_class} in step '{step.name}' ({step.action}): {err_msg}"
             suggested_fix = f"Inspect input parameters to step '{step.id}' ({step.action}) and verify prerequisite conditions."
 
         return FailureDetails(
@@ -394,12 +398,16 @@ class FlowInterpreter:
                 error_type="Technical",
                 exception_class=type(e).__name__,
                 error_message=str(e),
-                root_cause=f"Flow execution failed with unhandled exception: {str(e)}",
+                root_cause=f"Flow stopped: {str(e)}",
                 suggested_fix="Inspect execution logs and subflow definitions.",
                 section=context.get_variable("__section__") or "steps"
             )
-        self.logger.logger.error(
-            f"Flow execution failed with unhandled exception: {self.logger.redactor.redact_text(str(e))}")
+        message = self.logger.redactor.redact_text(str(e))
+        if self.call_stack:
+            # The calling flow.call step decides what happens next (stop, continue, or fallback)
+            self.logger.logger.error(f"Subflow '{context.flow_name}' stopped: {message}")
+        else:
+            self.logger.logger.error(f"Steps stopped: {message}")
 
     def _run_section(self, section: str, steps: Optional[List[Step]], context: ExecutionContext) -> None:
         """

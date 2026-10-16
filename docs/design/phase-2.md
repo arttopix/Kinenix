@@ -1,6 +1,6 @@
 # Phase 2 Design: Subflows, Error Handling, and Run Records
 
-Status: **proposal for review** (2026-10-12). Milestone: [Phase 2: Subflows and error handling](https://github.com/arttopix/Kinenix/milestone/2). Issues: #49, #50, #51, #52, #54, #60, #62.
+Status: **proposal for review** (2026-10-12). Milestone: [Phase 2: Subflows and error handling](https://github.com/arttopix/kinenix/milestone/2). Issues: #49, #50, #51, #52, #54, #60, #62.
 
 ## 1. Goal
 

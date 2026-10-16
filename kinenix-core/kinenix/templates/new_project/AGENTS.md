@@ -19,9 +19,10 @@ When the requirements say what to do if the bot fails (send an e-mail, take a sc
 | Need | Where |
 | :--- | :--- |
 | Every action and the exact parameters it accepts | Run `kinenix actions` (or `kinenix actions web` for one group) |
-| `flow.md` syntax: steps, parameters, loops, conditions, error handling | https://github.com/arttopix/Kinenix/blob/main/docs/flow_markdown_spec.md |
-| Action details and examples | https://github.com/arttopix/Kinenix/blob/main/docs/actions_reference.md |
-| Project layout, config, `.env`, subflows | https://github.com/arttopix/Kinenix/blob/main/docs/project_bundles.md |
+| `flow.md` syntax: steps, parameters, loops, conditions, error handling | https://github.com/arttopix/kinenix/blob/main/docs/flow_markdown_spec.md |
+| Action details and examples | https://github.com/arttopix/kinenix/blob/main/docs/actions_reference.md |
+| Project layout, config, `.env`, subflows | https://github.com/arttopix/kinenix/blob/main/docs/project_bundles.md |
+| Sending runs to a Hub, and why a run does not appear there | https://github.com/arttopix/kinenix/blob/main/docs/hub.md#8-how-machines-connect-and-troubleshooting |
 | Complete working examples | `kinenix init --list`, then for example `kinenix init --example bot_fx_rate` in another folder |
 
 ## Rules

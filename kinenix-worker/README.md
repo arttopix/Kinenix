@@ -1,6 +1,6 @@
 # kinenix-worker
 
-The unattended robot worker daemon and edge execution engine for **[Kinenix](https://github.com/arttopix/Kinenix)**, an open-source, local AI-native RPA framework in Python.
+The unattended robot worker daemon and edge execution engine for **[Kinenix](https://github.com/arttopix/kinenix)**, an open-source, local AI-native RPA framework in Python.
 
 ## Install from PyPI
 
@@ -38,7 +38,7 @@ Clone the repository and run the setup script:
 
 ```bash
 # 1. Clone repository onto Raspberry Pi
-git clone -b dev https://github.com/arttopix/Kinenix.git kinenix
+git clone -b dev https://github.com/arttopix/kinenix.git kinenix
 cd kinenix
 
 # 2. Run the setup script (it is already executable; do not chmod it, or git pull will see a local change)
@@ -105,7 +105,7 @@ kinenix connect                 # the Hub in use and whether it answers
 kinenix connect --off           # stop reporting
 ```
 
-Environment variables still work and take precedence over the saved setting (see the [Hub guide](https://github.com/arttopix/Kinenix/blob/main/docs/hub.md) for the server side):
+Environment variables still work and take precedence over the saved setting (see the [Hub guide](https://github.com/arttopix/kinenix/blob/main/docs/hub.md) for the server side):
 
 | Variable | Default | Purpose |
 | :--- | :--- | :--- |
@@ -147,7 +147,7 @@ It reads two files in `~/.kinenix/`, creating them if they do not exist (existin
 | `worker.env` | `KINENIX_HUB_URL`, `KINENIX_HUB_API_KEY`, `KINENIX_WORKER_ID` as `export` lines; owner-readable only. Leave the Hub lines empty to use the Hub saved by `kinenix connect`; values set here take precedence over it. Also put the secrets your flows read here, for example `GMAIL_USER` and `GMAIL_APP_PASSWORD` for `email.send`: the service does not see variables set in your shell. Add `source ~/.kinenix/worker.env` to `~/.bashrc` to use the same values in your shell. |
 | `triggers.json` | Triggers for the daemon. The default `{"triggers": []}` runs no flows and only sends heartbeats. |
 
-**Your own flows** belong in your flows folder, `~/kinenix-flows`, not in this repository (see [Where your flows live](https://github.com/arttopix/Kinenix/blob/main/docs/quickstart.md#2-where-your-flows-live)). Keep them in a private git repository and clone it on the Pi:
+**Your own flows** belong in your flows folder, `~/kinenix-flows`, not in this repository (see [Where your flows live](https://github.com/arttopix/kinenix/blob/main/docs/quickstart.md#2-where-your-flows-live)). Keep them in a private git repository and clone it on the Pi:
 
 ```bash
 git clone git@github.com:<you>/kinenix-flows.git ~/kinenix-flows     # your private repository

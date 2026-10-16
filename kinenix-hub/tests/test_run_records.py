@@ -213,3 +213,13 @@ def test_details_hold_only_documented_keys():
 @pytest.mark.parametrize("seconds, expected", [(0.0, "0.0 s"), (59.9, "59.9 s"), (840, "14 min"), (3720, "1 h 2 min")])
 def test_format_duration(seconds, expected):
     assert format_duration(seconds) == expected
+
+
+def test_the_run_screenshot_is_stored():
+    """Workers send failure_details.error_screenshot_path; the Hub keeps it in executions.screenshot_path."""
+    payload = {"flow_name": "Shot", "has_error": True, "kinenix_version": "0.2.0b4", "step_results": [],
+               "failure_details": {"failed_step_id": "step_1", "failed_step_name": "Click", "error_type": "Technical",
+                                   "exception_class": "TimeoutError", "error_message": "Timeout",
+                                   "error_screenshot_path": "./errors/step_1.png"}}
+    execution_id = _ingest(payload)
+    assert client.get(f"/api/v1/executions/{execution_id}").json()["screenshot_path"] == "./errors/step_1.png"

@@ -79,24 +79,44 @@ def test_the_saved_key_is_redacted():
 ])
 def test_check(status, usable, words):
     with patch("kinenix.connect.requests.get", side_effect=[_response(200), _response(status)]) as get:
-        ok, message = connect.check("http://hub:8080", "key-1")
-    assert ok is usable and words in message
+        result = connect.check("http://hub:8080", "key-1")
+    assert result.usable is usable and words in result.message
+    assert result.key_checked is (status != 404)
     assert get.call_args_list[1].kwargs["headers"] == {"X-API-Key": "key-1"}
 
 
 def test_check_unreachable():
-    with patch("kinenix.connect.requests.get", side_effect=requests.ConnectionError("down")):
-        ok, message = connect.check("http://hub:8080", None)
-    assert not ok and "Cannot reach" in message
+    with patch("kinenix.connect.requests.get", side_effect=requests.ConnectionError("down")),             patch("kinenix.connect.socket.getaddrinfo", return_value=[]):
+        result = connect.check("http://hub:8080", None)
+    assert not result.usable and "nothing accepts connections on port 8080" in result.message
+    with patch("kinenix.connect.requests.get", side_effect=requests.Timeout("slow")),             patch("kinenix.connect.socket.getaddrinfo", return_value=[]):
+        assert "firewall" in connect.check("http://hub:8080", None).message
+
+
+def test_check_name_not_found():
+    import socket
+    with patch("kinenix.connect.requests.get", side_effect=requests.ConnectionError("dns")),             patch("kinenix.connect.socket.getaddrinfo", side_effect=socket.gaierror("no name")):
+        message = connect.check("http://arttopix-black.local:8080", None).message
+    assert "Cannot find the address of 'arttopix-black.local'" in message and "mDNS" in message
+
+
+def test_saving_without_a_key_that_was_not_checked_warns(capsys):
+    unchecked = connect.CheckResult(True, "older version", key_checked=False)
+    with patch("kinenix.connect.check", return_value=unchecked):
+        assert connect.connect("hub", None) == 0
+    assert "no key was saved" in capsys.readouterr().out
+    with patch("kinenix.connect.check", return_value=connect.CheckResult(True, "accepted")):
+        assert connect.connect("hub", None) == 0
+    assert "no key was saved" not in capsys.readouterr().out
 
 
 def test_connect_saves_only_after_a_good_check(capsys):
-    with patch("kinenix.connect.check", return_value=(False, "The Hub rejected the key.")):
+    with patch("kinenix.connect.check", return_value=connect.CheckResult(False, "The Hub rejected the key.")):
         assert connect.connect("hub", "bad") == 1
     assert workspace.saved_settings() == {}
     assert "Nothing was saved" in capsys.readouterr().out
 
-    with patch("kinenix.connect.check", return_value=(True, "The Hub accepts runs from this machine.")):
+    with patch("kinenix.connect.check", return_value=connect.CheckResult(True, "The Hub accepts runs from this machine.")):
         assert connect.connect("hub", "good-key") == 0
     assert workspace.saved_settings() == {"KINENIX_HUB_URL": "http://hub:8080", "KINENIX_HUB_API_KEY": "good-key"}
 
@@ -114,7 +134,7 @@ def test_show_and_disconnect(capsys):
     assert connect.show() == 0
     assert "Not connected" in capsys.readouterr().out
     workspace.save_settings({"KINENIX_HUB_URL": "http://hub:8080", "KINENIX_HUB_API_KEY": "key-12345"})
-    with patch("kinenix.connect.check", return_value=(True, "The Hub accepts runs from this machine.")):
+    with patch("kinenix.connect.check", return_value=connect.CheckResult(True, "The Hub accepts runs from this machine.")):
         assert connect.show() == 0
     out = capsys.readouterr().out
     assert "http://hub:8080" in out and "kinenix.env" in out and "key-12345" not in out
