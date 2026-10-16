@@ -1,0 +1,42 @@
+name: Website
+
+# Rebuilds www.kinenix.com when the documentation on main changes.
+# The site lives in arttopix/kinenix-web (MkDocs on Cloudflare Pages); each of its builds copies docs/ from
+# main of this repository (sync_docs.py). This workflow only asks Cloudflare Pages to build again, through
+# a deploy hook, so no token with access to another repository is needed. See docs/releasing.md, section 5.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "README.md"
+      - "CHANGELOG.md"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: website
+  cancel-in-progress: true
+
+jobs:
+  rebuild:
+    name: Rebuild www.kinenix.com
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call the Cloudflare Pages deploy hook
+        env:
+          DEPLOY_HOOK: ${{ secrets.CLOUDFLARE_PAGES_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$DEPLOY_HOOK" ]; then
+            echo "::warning::The secret CLOUDFLARE_PAGES_DEPLOY_HOOK is not set, so the website was not rebuilt. See docs/releasing.md, section 5."
+            exit 0
+          fi
+          # The hook URL is a secret; GitHub masks it in the log, and only the HTTP result is printed
+          status=$(curl -sS -o /dev/null -w "%{http_code}" -X POST "$DEPLOY_HOOK")
+          echo "Cloudflare Pages answered HTTP $status"
+          if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+            echo "::error::Cloudflare Pages did not accept the rebuild (HTTP $status). Check the deploy hook in the kinenix-web project."
+            exit 1
+          fi

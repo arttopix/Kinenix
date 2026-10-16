@@ -109,3 +109,18 @@ Each release's changes and upgrade notes are in [CHANGELOG.md](../CHANGELOG.md).
 | One shared version; tag equals `v` + version | `.github/scripts/check_release.py` |
 | Siblings require the same version | `kinenix-core/tests/test_repository_rules.py` |
 | `kinenix[hub,worker]` installs from the built files in a clean environment, and `kinenix`, `kinenix hub`, `kinenix-worker`, and the dashboard files work | CI `packages` job |
+
+---
+
+## 5. The website (www.kinenix.com)
+
+The website is a separate repository, [arttopix/kinenix-web](https://github.com/arttopix/kinenix-web): MkDocs, built and hosted by Cloudflare Pages. Every build copies `docs/` from `main` of this repository, so the site shows the documentation of the latest release, not of `dev`.
+
+When a release pull request changes `docs/`, `README.md`, or `CHANGELOG.md` on `main`, the **Website** workflow ([`.github/workflows/website.yml`](../.github/workflows/website.yml)) asks Cloudflare Pages to build the site again. It can also be run by hand from **Actions**, then **Website**, then **Run workflow**.
+
+One-time setup:
+
+1. In the Cloudflare dashboard, open the Pages project of kinenix-web, then **Settings**, then **Builds**, then **Deploy hooks**, and add a hook for its production branch. Copy the URL.
+2. In this repository on GitHub, open **Settings**, then **Secrets and variables**, then **Actions**, and add the secret `CLOUDFLARE_PAGES_DEPLOY_HOOK` with that URL.
+
+Anyone with the hook URL can start a build, so keep it only in the secret. Without the secret, the workflow passes with a warning and the site is not rebuilt.
