@@ -43,7 +43,9 @@ Toward 1.0.0, a `flow.md` written for 1.0 keeps running on every 1.x version.
 **Exit criteria**
 
 Automated:
-- [ ] Functions `len`, `join`, `number`, `trim`, `replace`, `lower`, `upper`, `default`; `+ - * /` and comparisons; indexing `rows[0]` and `row['name']`; `and`, `or`, `not` in conditions; each with tests, including bad input
+- [ ] Functions `len`, `join`, `number`, `trim`, `lower`, `upper`, `replace`, `default`, `round`, `part`, `substring`; `+ - * / %` on numbers; indexing `rows[0]` and `row['name']`; each with tests, including bad input (design: docs/design/expressions.md)
+- [ ] Conditions combine comparisons with `and`, `or`, and `not`, and a value such as `Johnson and Johnson` is not split
+- [ ] `kinenix validate` reports expression syntax errors and unknown functions with their line
 - [ ] Unknown functions, attribute access such as `__class__`, and anything outside the list are refused with a clear message (security tests)
 - [ ] Fuzz test: thousands of random and malformed expressions never crash the parser, never hang, and never run code
 - [ ] Every existing example and test flow compiles and runs unchanged
@@ -64,7 +66,7 @@ Docs and release:
 
 **Goal:** a flow works with modern web pages (cards instead of tables, custom dropdowns, single-page apps) in one step each, instead of multi-step workarounds.
 
-**Scope:** #55 `web.get_list`, #57 `web.choose`, #58 `web.goto`.
+**Scope:** #55 `web.get_list`, #57 `web.choose`, #58 `web.goto`, and reading paged tables and lists.
 
 **Exit criteria**
 
@@ -72,6 +74,7 @@ Automated:
 - [ ] `web.goto` navigates the current tab; a page that a subflow opens or switches to is the parent's page afterwards, so screenshots show the right page
 - [ ] `web.choose` picks an option in a custom dropdown (with and without a search box) and, when the option is missing, lists the visible options in the error
 - [ ] `web.get_list` reads repeated elements into rows, with `fields`, `add_columns`, `numeric_fields`, `required_fields`, and `min_rows`
+- [ ] `web.get_table` and `web.get_list` read every page of a paged list or table: `next_selector` is clicked until it is disabled or gone, `max_pages` limits the pages, and the rows of all pages are returned in order
 - [ ] Each action has tests against local HTML pages (no internet), declares `accepted_parameters`, and passes `kinenix validate`
 - [ ] All four test suites pass, and CI is green
 
@@ -84,7 +87,7 @@ Docs and release:
 
 **Compatibility:** new actions only. `web.open` still opens a new tab. A parent flow now sees the page its subflow left open (before, it kept its own page).
 
-**Out of scope:** following "next page" links in `web.get_list` (1.1.0); multi-select dropdowns (1.1.0); clearing cookies and storage on `web.goto` (`reset: true`), unless the field test needs it.
+**Out of scope:** multi-select dropdowns (1.1.0); clearing cookies and storage on `web.goto` (`reset: true`), unless the field test needs it.
 
 ### 0.5.0b1: Proven on business flows
 

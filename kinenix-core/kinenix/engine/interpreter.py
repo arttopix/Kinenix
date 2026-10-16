@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from .conditions import resolve_condition
+from .conditions import parse_boolean, resolve_condition
 from .evaluator import VariableEvaluator
 from .logger import ExecutionLogger
 from .markdown import JSON_FLOW_NOT_RUN, SECTION_HEADINGS, markdown_to_flow
@@ -1095,7 +1095,28 @@ class FlowInterpreter:
         return s_left == s_right
 
     def _condition_holds(self, expression: Any, variables: Dict[str, Any]) -> bool:
-        """Evaluates a condition such as `${a} == b` or `${note} is empty` (see engine/conditions.py)."""
+        """
+        Evaluates a condition such as `${a} == b`, `${note} is empty`, or several joined with and / or /
+        not (see engine/conditions.py).
+        """
+        if isinstance(expression, bool):
+            return expression
+        text = str(expression).strip()
+        if len(text) >= 2 and text.startswith("`") and text.endswith("`"):
+            text = text[1:-1].strip()
+        return self._boolean_holds(parse_boolean(text), variables)
+
+    def _boolean_holds(self, tree: Any, variables: Dict[str, Any]) -> bool:
+        kind, value = tree
+        if kind == "or":
+            return any(self._boolean_holds(part, variables) for part in value)
+        if kind == "and":
+            return all(self._boolean_holds(part, variables) for part in value)
+        if kind == "not":
+            return not self._comparison_holds(value, variables)
+        return self._comparison_holds(value, variables)
+
+    def _comparison_holds(self, expression: str, variables: Dict[str, Any]) -> bool:
         left, operator, right = resolve_condition(expression, variables)
         if operator is None:
             return left if isinstance(left, bool) else str(left).strip().lower() in ["true", "1", "yes"]

@@ -88,3 +88,62 @@ def resolve_condition(expression: Any, variables: Dict[str, Any]) -> Tuple[Any, 
         return VariableEvaluator.evaluate_value(text, variables), None, None
     left, op, right = parts
     return _operand(left, variables), op, (None if right is None else _operand(right, variables))
+
+
+# ---------------------------------------------------------------------------------------------------
+# and / or / not (docs/design/expressions.md, section 6)
+# ---------------------------------------------------------------------------------------------------
+
+_NOT_PREFIX = re.compile(r"^\s*not\s+", re.IGNORECASE)
+_PLACEHOLDER_ONLY = re.compile(r"^\s*`?\$\{[^}]+\}`?\s*$")
+
+
+def _split_top(text: str, word: str) -> list:
+    """Splits at ` word ` outside ${...} and quotes (any case)."""
+    masked = _mask(text)
+    pattern = re.compile(rf"\s+{word}\s+", re.IGNORECASE)
+    parts, start = [], 0
+    for match in pattern.finditer(masked):
+        parts.append(text[start:match.start()])
+        start = match.end()
+    parts.append(text[start:])
+    return parts
+
+
+def _is_comparison(text: str) -> bool:
+    """A part that can stand alone as a condition: it has an operator, or is a single ${...}."""
+    inner = _NOT_PREFIX.sub("", text, count=1)
+    return bool(inner.strip()) and (split_condition(inner.strip()) is not None or bool(_PLACEHOLDER_ONLY.match(inner)))
+
+
+def _is_conjunction(text: str) -> bool:
+    parts = _split_top(text, "and")
+    return all(_is_comparison(p) for p in parts)
+
+
+def parse_boolean(expression: str) -> Any:
+    """
+    The structure of a condition: ("or", [...]), ("and", [...]), ("not", text), or ("is", text).
+    A condition is split at and / or only when every part is a condition by itself, so a value such as
+    `Johnson and Johnson` is never split. `and` binds tighter than `or`.
+    """
+    text = expression.strip()
+    ors = _split_top(text, "or")
+    if len(ors) > 1 and all(_is_conjunction(p) for p in ors):
+        return ("or", [_parse_conjunction(p) for p in ors])
+    return _parse_conjunction(text)
+
+
+def _parse_conjunction(text: str) -> Any:
+    ands = _split_top(text, "and")
+    if len(ands) > 1 and all(_is_comparison(p) for p in ands):
+        return ("and", [_parse_atom(p) for p in ands])
+    return _parse_atom(text)
+
+
+def _parse_atom(text: str) -> Any:
+    stripped = text.strip()
+    negated = _NOT_PREFIX.match(stripped)
+    if negated and _is_comparison(stripped[negated.end():]):
+        return ("not", stripped[negated.end():].strip())
+    return ("is", stripped)

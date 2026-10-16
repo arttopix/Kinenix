@@ -1,12 +1,17 @@
 import os
 import re
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
+
+from . import expressions
 
 
 class VariableEvaluator:
     """
-    Evaluates variable expressions in string formats such as ${var_name} or ${env.ENV_VAR}.
-    Also handles dictionary key traversal like ${row.Name}.
+    Evaluates ${...} in values: a variable such as ${row.Name} or ${env.HOME}, or an expression such as
+    ${len(rows)} or ${number(row.price) * 2} (docs/design/expressions.md).
+
+    A variable that exists is always read as before; the text is evaluated as an expression only when it
+    names no existing variable. So keys such as "First Name" or "Role in Company" keep working.
     """
 
     PATTERN = re.compile(r"\$\{([^}]+)\}")
@@ -18,7 +23,7 @@ class VariableEvaluator:
             if match:
                 var_expr = match.group(1).strip()
                 return cls._resolve_expr(var_expr, context_vars)
-            
+
             def replace_match(m):
                 resolved = cls._resolve_expr(m.group(1).strip(), context_vars)
                 return str(resolved) if resolved is not None else ""
@@ -38,18 +43,24 @@ class VariableEvaluator:
             env_key = expr[4:]
             return os.getenv(env_key, "")
 
+        found, value = cls._lookup(expr, context_vars)
+        if found:
+            return value
+        return expressions.evaluate_unresolved(expr, context_vars)
+
+    @staticmethod
+    def _lookup(expr: str, context_vars: Dict[str, Any]) -> Tuple[bool, Any]:
+        """
+        (True, value) when the dotted path names an existing variable and every key on the way exists.
+        Only dictionary keys are followed: attributes of Python objects are never read.
+        """
         parts = expr.split(".")
-        root_key = parts[0]
-
-        if root_key not in context_vars:
-            return None
-
-        current = context_vars[root_key]
+        if parts[0] not in context_vars:
+            return False, None
+        current = context_vars[parts[0]]
         for part in parts[1:]:
-            if isinstance(current, dict):
-                current = current.get(part)
-            elif hasattr(current, part):
-                current = getattr(current, part)
+            if isinstance(current, dict) and part in current:
+                current = current[part]
             else:
-                return None
-        return current
+                return False, None
+        return True, current
