@@ -141,7 +141,7 @@ def test_no_code_execution_in_the_evaluator():
 GRAMMAR = ["len(", "join(", "number(", "trim(", "part(", "substring(", "round(", "default(", "replace(",
            "rows", "rows[0]", "ids", "count", "due", "row", ".id", ".price", "[", "]", "(", ")", ",", " ",
            "+", "-", "*", "/", "%", "'x'", '"-"', "1", "0", "-1", "3.5", "__class__", ".", "env", "lambda",
-           "**", "==", "and", "not", "if", "else", ":", "{", "\\", "\0", "ราคา", "😀", "\n"]
+           "**", "==", "and", "not", "if", "else", ":", "{", "\\", "\0", "ราคา", chr(0x1F600), "\n"]  # chr(): no emoji in the source
 
 
 def test_fuzz_never_crashes_or_hangs():
